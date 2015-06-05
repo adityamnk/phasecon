@@ -1,7 +1,5 @@
-
-
 /* ============================================================================
- * Copyright (c) 2015 K. Aditya Mohan (Purdue University)
+ * Copyright (c) 2013 K. Aditya Mohan (Purdue University)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -33,5 +31,18 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-Real_t updateVoxels (int32_t time_begin, int32_t time_end, int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino, Real_arr_t** DetectorResponse_XY, /*AMatrixCol* VoxelLineResponse,*/ int32_t Iter, long int *zero_count, Real_arr_t** MagUpdateMap, uint8_t** Mask);
 
+/*Function to compute the system matrix on the fly for 
+  MBIR Recon*/
+
+#ifndef XT_MATRIX_H
+#define XT_MATRIX_H
+
+#include "XT_Structures.h"
+
+void findAMatrix (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, AMatrixCol ***AMatrix);
+void AMatrix_free(AMatrixCol*** AMatrix, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr);
+void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Real_arr_t** DetectorResponse, AMatrixCol *Ai, int32_t row, int32_t col, int32_t proj_idx);
+void compute_2DAMatrixLine(Sinogram* SinogramPtr, Real_t** AMatrix2DLine, AMatrixCol* AMatrixPtr, int32_t* r_ax_start, int32_t* r_ax_count);
+void compute_LapMatrix_4m_AMatrix(Sinogram* SinogramPtr, Real_t*** LapMatrix2D, Real_t** AMatrix2DLine, int32_t* r_ax_start, int32_t* r_ax_count, int32_t* t_ax_start, int32_t* t_ax_count);
+#endif /*#define XT_MATRIX_H*/

@@ -1,7 +1,5 @@
-
-
 /* ============================================================================
- * Copyright (c) 2015 K. Aditya Mohan (Purdue University)
+ * Copyright (c) 2013 Charles A. Bouman (Purdue University)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -14,7 +12,7 @@
  * list of conditions and the following disclaimer in the documentation and/or
  * other materials provided with the distribution.
  *
- * Neither the name of K. Aditya Mohan, Purdue
+ * Neither the name of Charles A. Bouman, Purdue
  * University, nor the names of its contributors may be used
  * to endorse or promote products derived from this software without specific
  * prior written permission.
@@ -33,5 +31,23 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-Real_t updateVoxels (int32_t time_begin, int32_t time_end, int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino, Real_arr_t** DetectorResponse_XY, /*AMatrixCol* VoxelLineResponse,*/ int32_t Iter, long int *zero_count, Real_arr_t** MagUpdateMap, uint8_t** Mask);
+#ifndef _RANDLIB_H_
+#define _RANDLIB_H_
+
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
+#include "typeutil.h"
+
+double random2();
+int32_t random3();
+void srandom2(uint32_t num);
+void readseed();
+void writeseed();
+double normal();
+double dexprand();
+
+#endif /* _RANDLIB_H_ */
 
