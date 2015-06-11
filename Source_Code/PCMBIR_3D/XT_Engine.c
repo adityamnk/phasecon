@@ -78,7 +78,7 @@
 		- FILE *debug_msg_ptr : Pointer to the file to which the debug messages should be directed. Use 'stdout' if you do not want to direct messages to a file on disk.
 	- Outputs (Return value) : '0' implies a safe return.  
 */
-int reconstruct (float **magobject, float **phaseobject, float *measurements, float *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, float sig_s, float sig_t, float c_s, float c_t, float convg_thresh, uint8_t restart, FILE *debug_msg_ptr)
+int phcontomo_reconstruct (float **magobject, float **phaseobject, float *measurements, float *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, float sig_s, float sig_t, float c_s, float c_t, float convg_thresh, uint8_t restart, FILE *debug_msg_ptr)
 {
 	time_t start;	
 	int32_t flag, multres_num, i, mult_xy[MAX_MULTRES_NUM], mult_z[MAX_MULTRES_NUM], num_nodes, rank, last_multres;

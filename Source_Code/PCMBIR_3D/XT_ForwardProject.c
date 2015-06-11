@@ -23,8 +23,8 @@ void forward_project_voxel_AMat1D (Sinogram* SinogramPtr, Real_t voxel_val, Real
 	}
 }
 
-	
-void forward_project_voxel_AMat2D (Sinogram* SinogramPtr, Real_t voxel_val, Real_arr_t*** ErrorSino, AMatrixCol* AMatrixPtr/*, AMatrixCol* VoxelLineResponse*/, int32_t sino_idx, int32_t slice)
+/*	
+void forward_project_voxel_AMat2D (Sinogram* SinogramPtr, Real_t voxel_val, Real_arr_t*** ErrorSino, AMatrixCol* AMatrixPtr, int32_t sino_idx, int32_t slice)
 {
 	int32_t m, n;
 	int32_t r_ax_start, r_ax_num, t_ax_start, t_ax_num;
@@ -46,12 +46,8 @@ void forward_project_voxel_AMat2D (Sinogram* SinogramPtr, Real_t voxel_val, Real
 		multifree(AMatrix2D,2);
 }
 
-	
+*/	
 void forward_project_voxel (Sinogram* SinogramPtr, Real_t voxel_val, Real_arr_t*** ErrorSino, AMatrixCol* AMatrixPtr, /*AMatrixCol* VoxelLineResponse,*/ int32_t sino_idx, int32_t slice)
 {
-#ifdef PHASE_CONTRAST_TOMOGRAPHY
-	forward_project_voxel_AMat2D (SinogramPtr, voxel_val, ErrorSino, AMatrixPtr, /*VoxelLineResponse,*/ sino_idx, slice);
-#else
 	forward_project_voxel_AMat1D (SinogramPtr, voxel_val, ErrorSino, AMatrixPtr, /*VoxelLineResponse,*/ sino_idx, slice);
-#endif
 }

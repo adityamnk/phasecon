@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include "XT_Main.h"
-#include "mbir4d.h"
+#include "pcmbir4d.h"
 
 /*Function prototype definitions which will be defined later in the file.*/
 void read_data (float *projections, float *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, FILE* debug_file_ptr);
@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 {
 	uint8_t restart;
 	int32_t proj_rows, proj_cols, proj_num, recon_num, nodes_num, nodes_rank;
-	float *measurements, *weights, *proj_angles, *proj_times, *recon_times, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh;
+	float *magobject, *phaseobject, *measurements, *weights, *proj_angles, *proj_times, *recon_times, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh;
 	FILE *debug_msg_ptr;
 
 	/*initialize MPI process.*/	
@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 	
 	/*All messages to help debug any potential mistakes or bugs are written to debug.log*/
 	debug_msg_ptr = fopen("debug.log", "w");
-	
+/*	debug_msg_ptr = stdout;*/	
 	/*Read the command line arguments to determine the reconstruction parameters*/
 	read_command_line_args (argc, argv, &proj_rows, &proj_cols, &proj_num, &recon_num, &vox_wid, &rot_center, &sig_s, &sig_t, &c_s, &c_t, &convg_thresh, &restart, debug_msg_ptr);
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Number of nodes is %d and command line input argument values are proj_rows = %d, proj_cols = %d, proj_num = %d, recon_num = %d, vox_wid = %f, rot_center = %f, sig_s = %f, sig_t = %f, c_s = %f, c_t = %f, convg_thresh = %f, restart = %d\n", nodes_num, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh, restart);	
@@ -45,12 +45,14 @@ int main(int argc, char **argv)
 	read_data (measurements, weights, proj_angles, proj_times, recon_times, proj_rows, proj_cols, proj_num, recon_num, debug_msg_ptr);
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Reconstructing the data ....\n");
 	/*Run the reconstruction*/
-	phasecon_reconstruct (measurements, weights, proj_angles, proj_times, recon_times, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh, restart, debug_msg_ptr);
-	free(projections);
+	phcontomo_reconstruct (&magobject, &phaseobject, measurements, weights, proj_angles, proj_times, recon_times, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh, restart, debug_msg_ptr);
+	free(measurements);
 	free(weights);
 	free(proj_angles);
 	free(proj_times);
 	free(recon_times);
+	free(magobject);
+	free(phaseobject);
 
 	fclose (debug_msg_ptr); 
 	MPI_Finalize();
@@ -91,9 +93,9 @@ void read_data (float *measurements, float *weights, float *proj_angles, float *
 	{
 		size = proj_rows*proj_cols/num_nodes;
 		offset = i*proj_rows*proj_cols + rank*size;
-		read_BinFile (measurements_filename, projections, offset, size, debug_file_ptr);
+		read_BinFile (measurements_filename, measurements, offset, size, debug_file_ptr);
 		read_BinFile (weights_filename, weights, offset, size, debug_file_ptr);
-		projections = projections + size;
+		measurements = measurements + size;
 		weights = weights + size;
 	}
 	read_BinFile (proj_angles_filename, proj_angles, 0, proj_num, debug_file_ptr);
