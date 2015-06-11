@@ -38,32 +38,23 @@
 #include <stdint.h>
 #include "XT_Constants.h"
 #include <stdbool.h>
- /* Axes conventions:
-
-        . X
-       .
-      .
-     .
-    .
-   .
-   ---------------------> Y
-   |
-   |
-   |
-   |
-   |
-   |
-   V
-   Z
-   */
 
 /*Structure 'Sinogram' contains the sinogram itself and also other parameters related to the sinogram and the detector*/
   typedef struct
   {
-   Real_arr_t ***Projection; /*Stores the projection values (sinogram)*/
-   Real_arr_t **ProjOffset; /*stores the additive projection error offsets (called 'd' in paper)*/
-   Real_arr_t** DetectorResponse;
-   bool ***ProjSelect; /*Mask which determines whether a measurement is classified as anamolous or not. (called 'b' in paper)*/
+   Real_arr_t ***Measurements; /*Stores the measurements (photon count measurements, intensity measurements, etc.)*/
+   Real_arr_t ***MagErrorSino; /*Error sinogram of the magnitude component*/
+   Real_arr_t ***PhaseErrorSino; /*Error sinogram of the phase component*/
+   Real_arr_t ***MagTomoAux; /*ADMM auxiliary vector for the tomography split*/
+   Real_arr_t ***PhaseTomoAux; /*ADMM auxiliary vector for the tomography split*/
+   Real_arr_t ***MagTomoDual; /*ADMM dual vector corresponding to the tomography split*/
+   Real_arr_t ***PhaseTomoDual; /*ADMM dual vector corresponding to the tomography split*/
+   Real_arr_t ***MagPRetAux; /*ADMM auxiliary vector for the phase retrieval split*/
+   Real_arr_t ***PhasePRetAux; /*ADMM auxiliary vector for the phase retrieval split*/
+   Real_arr_t ***MagPRetDual; /*ADMM dual vector corresponding to the phase retrieval split*/
+   Real_arr_t ***PhasePRetDual; /*ADMM dual vector corresponding to the phase retrieval split*/
+
+   Real_arr_t** DetectorResponse;/*response of the detector as a function of distance between the voxel center and center of detector element*/
     int32_t N_r;/*Number of detector elements in r direction (parallel to x-axis)*/
     int32_t N_t;/*Number of detector elements in t direction to be reconstructed (parallel to z axis)*/
     int32_t N_p;/*Total number of projections used in reconstruction*/
@@ -81,7 +72,6 @@
     Real_arr_t *TimePtr; /*contains the corresponding times of projections*/
 
     int32_t z_overlap_num;
-    Real_t Lap_Kernel[3][3];
     Real_arr_t ***off_constraint;
     int32_t off_constraint_size;
     int32_t off_constraint_num;
@@ -90,7 +80,9 @@
 
   typedef struct
   {
-    Real_arr_t ****Object; /*Stores the reconstructed object*/
+    Real_arr_t ****MagObject; /*Stores the reconstructed object*/
+    Real_arr_t ****PhaseObject; /*Stores the reconstructed object*/
+    Real_arr_t ****UpdateMap; /*Stores the reconstructed object*/
     Real_t Length_X;/*maximum possible length of the object along x*/
     Real_t Length_Y;/*max length of object along y*/
     Real_t Length_Z;/*max length of object along z*/
@@ -148,7 +140,6 @@ typedef struct
     Real_t Time_Filter[(NHOOD_TIME_MAXDIM-1)/2]; /*Filter is the weighting kernel used in the prior model*/
     
     Real_arr_t*** Weight; /*Stores the weight matrix (noise matrix) values used in forward model*/
-    Real_t var_est; /*Value of the estimated variance parameter*/
     
     Real_t alpha; /*Value of over-relaxation*/
     Real_t cost_thresh; /*Convergence threshold on cost*/
@@ -157,8 +148,6 @@ typedef struct
     If 2 object is interpolated by a factor of 2 in x-y plane and then initialized.
     If 3 object is interpolated by a factor of 2 in x-y-z space and then initialized*/
     uint8_t Write2Tiff; /*If set, tiff files are written*/
-    uint8_t updateProjOffset; /*If set, updates the addivitive projection offset error 'd'*/
-    uint8_t OffsetConstraintType; /*If set, updates the addivitive projection offset error 'd'*/
     uint8_t no_NHICD; /*If set, reconstruction goes not use NHICD*/
     uint8_t WritePerIter; /*If set, object and projection offset are written to bin and tiff files after every ICD iteration*/
     int32_t num_z_blocks; /*z axis slices are split to num_z_blocks which are then used for multithreading*/
@@ -172,13 +161,9 @@ typedef struct
     int32_t** UpdateSelectNum; /*Number of voxels selected for HICD updates*/
     int32_t** NHICDSelectNum; /*Number of voxels selected for NHICD updates*/
 
-    Real_t ErrorSinoThresh; /*Parameter T in the generalized Huber function*/
-    Real_t ErrorSinoDelta; /*Parameter delta in the generalized Huber function*/
-
     int32_t node_num; /*Number of nodes used*/
     int32_t node_rank; /*Rank of node*/
 
-    uint8_t updateVar; /*If set, updates the variance parameter*/
     uint8_t initMagUpMap; /*if set, initializes the magnitude update map*/
     FILE *debug_file_ptr; /*ptr to debug.log file*/
 

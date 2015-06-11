@@ -126,9 +126,9 @@ void initializeBeamProfile(ScannedObject* ScannedObjectPtr, TomoInputs* TomoInpu
 /*'DetectorResponseProfile' computes the detector response as a function of the distance between the center of the voxel and the center of the detector bin. This response is computed for all the angles of rotation. Note that the response is the same irrespective of whether the voxel is to the right or the left of the center of the detector bin as long as it is at the same distance. Also, the distance is quantized to DETECTOR_RESPONSE_BINS number of bins.
 H_r - Detector response along r - axis
 H_t - Detector response along t - axis*/
-void DetectorResponseProfile (Real_arr_t** H_r, Real_arr_t* H_t, Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr)
+void DetectorResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr)
 {
-  Real_t r,sum=0,rmin,ProfileCenterR,ProfileCenterT,TempConst;
+  Real_t r,sum=0,rmin,ProfileCenterR,TempConst;
   Real_t r0 = -(ScannedObjectPtr->BeamWidth)/2;
   Real_t StepSize = (ScannedObjectPtr->BeamWidth)/BEAM_RESOLUTION;
   int32_t i,k,p,ProfileIndex;
@@ -137,6 +137,7 @@ void DetectorResponseProfile (Real_arr_t** H_r, Real_arr_t* H_t, Sinogram* Sinog
   char filename[100]="VoxelProfile";
   int dimTiff[4];  
 
+  Real_arr_t** H_r = SinogramPtr->DetectorResponse;
   VoxProfile = (Real_arr_t**)multialloc(sizeof(Real_arr_t),2,SinogramPtr->N_p,PROFILE_RESOLUTION);
   calculateVoxelProfile(SinogramPtr, ScannedObjectPtr, TomoInputsPtr, VoxProfile);
   
@@ -176,7 +177,7 @@ void DetectorResponseProfile (Real_arr_t** H_r, Real_arr_t* H_t, Sinogram* Sinog
 	free(BeamProfile);
 	multifree(VoxProfile,2);
 
-    for (i = 0; i < DETECTOR_RESPONSE_BINS; i++)
+/*    for (i = 0; i < DETECTOR_RESPONSE_BINS; i++)
     {
       ProfileCenterT = i * SinogramPtr->OffsetT;
       if(ScannedObjectPtr->delta_z >= SinogramPtr->delta_t)
@@ -211,10 +212,10 @@ void DetectorResponseProfile (Real_arr_t** H_r, Real_arr_t* H_t, Sinogram* Sinog
         }
 
       }
-      H_t[i] = H_t[i]/SinogramPtr->delta_t;/*Normalization*/
+      H_t[i] = H_t[i]/SinogramPtr->delta_t;
     }
 	H_t[DETECTOR_RESPONSE_BINS] = 0;
-
+*/
   }
 
 /*Generates the voxel line response from H_t*/

@@ -8,56 +8,46 @@
 #include <math.h>
 #include "allocate.h"
 
-void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino, AMatrixCol* AMatrixPtr, /*AMatrixCol* VoxelLineResponse,*/ Real_t Spatial_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], Real_t Time_Nhood[NHOOD_TIME_MAXDIM-1], bool Spatial_BDFlag[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], bool Time_BDFlag[NHOOD_TIME_MAXDIM-1], int32_t i_new, int32_t slice, int32_t j_new, int32_t k_new)
+
+void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** MagErrorSino, Real_arr_t*** PhaseErrorSino, AMatrixCol* AMatrixPtr, /*AMatrixCol* VoxelLineResponse,*/ Real_t Mag3D_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], Real_t Phase3D_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], Real_t MagTime_Nhood[], Real_t PhaseTime_Nhood[], bool BDFlag_3D[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], bool BDFlag_Time[], int32_t i_new, int32_t slice, int32_t j_new, int32_t k_new)
 {
   	int32_t p, q, r, sino_view, z_overlap_num;
-	Real_t V,THETA1,THETA2,THETASelTemp;
+	Real_t VMag,VPhase,THETA1Mag,THETA1Phase,THETA2;
 	Real_t UpdatedVoxelValue, ProjectionEntry;
   	int32_t i_r, i_t;
-        V = ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new]; /*Store the present value of the voxel*/
+        VMag = ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new]; /*Store the present value of the voxel*/
+        VPhase = ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new]; /*Store the present value of the voxel*/
 	z_overlap_num = SinogramPtr->z_overlap_num;
 
-	THETA1 = 0.0;
+	THETA1Mag = 0.0;
+	THETA1Phase = 0.0;
 	THETA2 = 0.0;
 	for (p = 0; p < ScannedObjectPtr->ProjNum[i_new]; p++){
-	sino_view = ScannedObjectPtr->ProjIdxPtr[i_new][p];
-	for (q = 0; q < AMatrixPtr[p].count; q++)
-	{
-      	    	i_r = (AMatrixPtr[p].index[q]);
-       	    	ProjectionEntry = (AMatrixPtr[p].values[q]*SinogramPtr->delta_t);
-/*       	ProjectionEntry = (AMatrixPtr[p].values[q]);
-		for (r = 0; r < VoxelLineResponse[slice].count; r++)*/
-		for (r = 0; r < z_overlap_num; r++)
-		{ 
-			/*i_t = VoxelLineResponse[slice].index[r];*/
-			i_t = slice*z_overlap_num + r;
-			if (SinogramPtr->ProjSelect[sino_view][i_r][i_t] == true)
-			{
-	           		/*THETA2 += (VoxelLineResponse[slice].values[r]*VoxelLineResponse[slice].values[r]*ProjectionEntry*ProjectionEntry*TomoInputsPtr->Weight[sino_view][i_r][i_t]);
-               			THETA1 += -(ErrorSino[sino_view][i_r][i_t]*VoxelLineResponse[slice].values[r]*ProjectionEntry*TomoInputsPtr->Weight[sino_view][i_r][i_t]);*/
-	           		THETA2 += (ProjectionEntry*ProjectionEntry*TomoInputsPtr->Weight[sino_view][i_r][i_t]);
-               			THETA1 += -(ErrorSino[sino_view][i_r][i_t]*ProjectionEntry*TomoInputsPtr->Weight[sino_view][i_r][i_t]);
+		sino_view = ScannedObjectPtr->ProjIdxPtr[i_new][p];
+		for (q = 0; q < AMatrixPtr[p].count; q++)
+		{
+      		    	i_r = (AMatrixPtr[p].index[q]);
+       		    	ProjectionEntry = (AMatrixPtr[p].values[q]*SinogramPtr->delta_t);
+/*      	 	ProjectionEntry = (AMatrixPtr[p].values[q]);
+			for (r = 0; r < VoxelLineResponse[slice].count; r++)*/
+			for (r = 0; r < z_overlap_num; r++)
+			{ 
+				/*i_t = VoxelLineResponse[slice].index[r];*/
+				i_t = slice*z_overlap_num + r;
+	        	   	THETA2 += ProjectionEntry*ProjectionEntry;
+               			THETA1Mag += -(MagErrorSino[sino_view][i_r][i_t]*ProjectionEntry);
+               			THETA1Phase += -(PhaseErrorSino[sino_view][i_r][i_t]*ProjectionEntry);
             		}
-			else
-			{
-				THETASelTemp = TomoInputsPtr->ErrorSinoThresh*TomoInputsPtr->ErrorSinoDelta*sqrt(TomoInputsPtr->Weight[sino_view][i_r][i_t])/fabs(ErrorSino[sino_view][i_r][i_t]);
-	            		/*THETA2 += (VoxelLineResponse[slice].values[r]*VoxelLineResponse[slice].values[r]*ProjectionEntry*ProjectionEntry*THETASelTemp);
-            			THETA1 += -(ErrorSino[sino_view][i_r][i_t]*VoxelLineResponse[slice].values[r]*ProjectionEntry*THETASelTemp);*/
-	            		THETA2 += (ProjectionEntry*ProjectionEntry*THETASelTemp);
-            			THETA1 += -(ErrorSino[sino_view][i_r][i_t]*ProjectionEntry*THETASelTemp);
-			}
-            	}
-	}
+		}
         }
-
 
             /*Solve the 1-D optimization problem
             TODO : What if theta1 = 0 ? Then this will give error*/
 
-
-        UpdatedVoxelValue = CE_FunctionalSubstitution(V, THETA1, THETA2, ScannedObjectPtr, TomoInputsPtr, Spatial_Nhood, Time_Nhood, Spatial_BDFlag, Time_BDFlag);
-              
-        ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
+        UpdatedVoxelValue = CE_FunctionalSubstitution(VMag, THETA1Mag, THETA2, ScannedObjectPtr, TomoInputsPtr, Mag3D_Nhood, MagTime_Nhood, BDFlag_3D, BDFlag_Time);
+        ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
+        UpdatedVoxelValue = CE_FunctionalSubstitution(VPhase, THETA1Phase, THETA2, ScannedObjectPtr, TomoInputsPtr, Phase3D_Nhood, PhaseTime_Nhood, BDFlag_3D, BDFlag_Time);
+        ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
 	
 	for (p = 0; p < ScannedObjectPtr->ProjNum[i_new]; p++){
 		sino_view = ScannedObjectPtr->ProjIdxPtr[i_new][p];
@@ -72,20 +62,17 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 				/*i_t = VoxelLineResponse[slice].index[r];
 	        		ErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*VoxelLineResponse[slice].values[r]*(ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new] - V));*/
 				i_t = slice*z_overlap_num + r;
-	        		ErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*(ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new] - V));
-	   			if (fabs(ErrorSino[sino_view][i_r][i_t]*sqrt(TomoInputsPtr->Weight[sino_view][i_r][i_t])) < TomoInputsPtr->ErrorSinoThresh)
-					SinogramPtr->ProjSelect[sino_view][i_r][i_t] = true;
-				else
-					SinogramPtr->ProjSelect[sino_view][i_r][i_t] = false;
+	        		MagErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*(ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] - VMag));
+	        		PhaseErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*(ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] - VPhase));
 	   		}
 		}
 	}
 }
 
-Real_t updateVoxels_Atten (int32_t time_begin, int32_t time_end, int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino, Real_arr_t** DetectorResponse_XY, /*AMatrixCol* VoxelLineResponse,*/ int32_t Iter, long int *zero_count, Real_arr_t** MagUpdateMap, uint8_t** Mask)
+Real_t updateVoxels_Atten (int32_t time_begin, int32_t time_end, int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** MagErrorSino, Real_arr_t*** PhaseErrorSino, Real_arr_t** DetectorResponse_XY, /*AMatrixCol* VoxelLineResponse,*/ int32_t Iter, long int *zero_count, Real_arr_t** MagUpdateMap, uint8_t** Mask)
 {
   int32_t p,q,r,slice,i_new,j_new,k_new,idxr,idxq,idxp,index_xy;
-  Real_t V;
+  Real_t VMag, VPhase;
   bool ZSFlag;
   int32_t sino_view;
   int32_t z_min, z_max;
@@ -98,10 +85,12 @@ Real_t updateVoxels_Atten (int32_t time_begin, int32_t time_end, int32_t slice_b
   if (TomoInputsPtr->node_rank == TomoInputsPtr->node_num - 1)
 	z_max = ScannedObjectPtr->N_z;
 
-    Real_t Spatial_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM]; 
-    Real_t Time_Nhood[NHOOD_TIME_MAXDIM-1]; 
-    bool Spatial_BDFlag[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM];
-    bool Time_BDFlag[NHOOD_TIME_MAXDIM-1];
+    Real_t Mag3D_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM]; 
+    Real_t MagTime_Nhood[NHOOD_TIME_MAXDIM-1]; 
+    Real_t Phase3D_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM]; 
+    Real_t PhaseTime_Nhood[NHOOD_TIME_MAXDIM-1]; 
+    bool BDFlag_3D[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM];
+    bool BDFlag_Time[NHOOD_TIME_MAXDIM-1];
 
   int32_t maxview = find_max(ScannedObjectPtr->ProjNum, ScannedObjectPtr->N_time);
    /*printf ("maxview = %d, size of AMatrixCol = %d\n",maxview,sizeof(AMatrixCol));*/
@@ -134,23 +123,27 @@ Real_t updateVoxels_Atten (int32_t time_begin, int32_t time_end, int32_t slice_b
 	    if (Mask[j_new][k_new] == 1)
 	    {   
 	 	if (i_new - 1 >= 0){
-			Time_Nhood[0] = ScannedObjectPtr->Object[i_new-1][slice+1][j_new][k_new];
-			Time_BDFlag[0] = true;
+			MagTime_Nhood[0] = ScannedObjectPtr->MagObject[i_new-1][slice+1][j_new][k_new];
+			PhaseTime_Nhood[0] = ScannedObjectPtr->PhaseObject[i_new-1][slice+1][j_new][k_new];
+			BDFlag_Time[0] = true;
 		}
 		else 
 		{
-			Time_Nhood[0] = 0.0;
-			Time_BDFlag[0] = false;
+			MagTime_Nhood[0] = 0.0;
+			PhaseTime_Nhood[0] = 0.0;
+			BDFlag_Time[0] = false;
 		}
 
 	    	if (i_new + 1 < ScannedObjectPtr->N_time){
-			Time_Nhood[1] = ScannedObjectPtr->Object[i_new+1][slice+1][j_new][k_new];
-			Time_BDFlag[1] = true;
+			MagTime_Nhood[1] = ScannedObjectPtr->MagObject[i_new+1][slice+1][j_new][k_new];
+			PhaseTime_Nhood[1] = ScannedObjectPtr->PhaseObject[i_new+1][slice+1][j_new][k_new];
+			BDFlag_Time[1] = true;
 		}
 		else
 		{
-			Time_Nhood[1] = 0.0;
-			Time_BDFlag[1] = false;
+			MagTime_Nhood[1] = 0.0;
+			PhaseTime_Nhood[1] = 0.0;
+			BDFlag_Time[1] = false;
 		}
 	
 	
@@ -168,21 +161,24 @@ Real_t updateVoxels_Atten (int32_t time_begin, int32_t time_end, int32_t slice_b
 					{
 		    				idxr = k_new + r - 1;
                     				if(idxr >= 0 && idxr < ScannedObjectPtr->N_x){
-	                				Spatial_Nhood[p][q][r] = ScannedObjectPtr->Object[i_new][idxp][idxq][idxr];
-        	        				Spatial_BDFlag[p][q][r] = true;
+	                				Mag3D_Nhood[p][q][r] = ScannedObjectPtr->MagObject[i_new][idxp][idxq][idxr];
+	                				Phase3D_Nhood[p][q][r] = ScannedObjectPtr->PhaseObject[i_new][idxp][idxq][idxr];
+        	        				BDFlag_3D[p][q][r] = true;
                     				}
 						else
 						{
-	                				Spatial_Nhood[p][q][r] = 0.0;
-                    					Spatial_BDFlag[p][q][r] = false;
+	                				Mag3D_Nhood[p][q][r] = 0.0;
+	                				Phase3D_Nhood[p][q][r] = 0.0;
+                    					BDFlag_3D[p][q][r] = false;
 						}
 					}
 				}
 		 		else
 				{
          				for (r = 0; r < NHOOD_X_MAXDIM; r++){
-	                			Spatial_Nhood[p][q][r] = 0.0;
-                    				Spatial_BDFlag[p][q][r] = false;
+	                			Mag3D_Nhood[p][q][r] = 0.0;
+	                			Phase3D_Nhood[p][q][r] = 0.0;
+                    				BDFlag_3D[p][q][r] = false;
 					}
 				}
                 	}
@@ -191,28 +187,31 @@ Real_t updateVoxels_Atten (int32_t time_begin, int32_t time_end, int32_t slice_b
         	{ 
 			for (q = 0; q < NHOOD_Y_MAXDIM; q++){
 				for (r = 0; r < NHOOD_X_MAXDIM; r++){
-	              			Spatial_Nhood[p][q][r] = 0.0;
-                   			Spatial_BDFlag[p][q][r] = false;
+	              			Mag3D_Nhood[p][q][r] = 0.0;
+	              			Phase3D_Nhood[p][q][r] = 0.0;
+                   			BDFlag_3D[p][q][r] = false;
 				}
 			}
                }
 	}
 
-        Spatial_Nhood[(NHOOD_Y_MAXDIM-1)/2][(NHOOD_X_MAXDIM-1)/2][(NHOOD_Z_MAXDIM-1)/2] = 0.0;
-        V = ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new]; /*Store the present value of the voxel*/
+        Mag3D_Nhood[(NHOOD_Y_MAXDIM-1)/2][(NHOOD_X_MAXDIM-1)/2][(NHOOD_Z_MAXDIM-1)/2] = 0.0;
+        Phase3D_Nhood[(NHOOD_Y_MAXDIM-1)/2][(NHOOD_X_MAXDIM-1)/2][(NHOOD_Z_MAXDIM-1)/2] = 0.0;
+        VMag = ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new]; /*Store the present value of the voxel*/
+        VPhase = ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new]; /*Store the present value of the voxel*/
 
 #ifdef ZERO_SKIPPING
 			  /*Zero Skipping Algorithm*/
 			 ZSFlag = true;
-			 if(V == 0.0 && Iter > 1) /*Iteration starts from 1. Iteration 0 corresponds to initial cost before ICD*/
+			 if(VMag == 0.0 && VPhase == 0.0 && Iter > 1) /*Iteration starts from 1. Iteration 0 corresponds to initial cost before ICD*/
 			  {
-					if (Time_Nhood[0] > 0.0 || Time_Nhood[1] > 0.0)
+					if (MagTime_Nhood[0] > 0.0 || MagTime_Nhood[1] > 0.0 || PhaseTime_Nhood[0] > 0.0 || PhaseTime_Nhood[1] > 0.0)
 						ZSFlag = false;
 			
 					for(p = 0; p < NHOOD_Y_MAXDIM; p++)
 						for(q = 0; q < NHOOD_X_MAXDIM; q++)
 					  		for(r = 0; r < NHOOD_Z_MAXDIM; r++)
-							  	if(Spatial_Nhood[p][q][r] > 0.0)
+							  	if(Mag3D_Nhood[p][q][r] > 0.0 || Phase3D_Nhood[p][q][r] > 0.0)
 							  	{
 									  ZSFlag = false;
 								 	  break;
@@ -227,9 +226,9 @@ Real_t updateVoxels_Atten (int32_t time_begin, int32_t time_end, int32_t slice_b
 #endif /*#ifdef ZERO_SKIPPING*/
 	if(ZSFlag == false)
 	{
-		compute_voxel_update_Atten (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, ErrorSino, AMatrixPtr, /*VoxelLineResponse,*/ Spatial_Nhood, Time_Nhood, Spatial_BDFlag, Time_BDFlag, i_new, slice, j_new, k_new);
-	    	MagUpdateMap[j_new][k_new] += fabs(ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new] - V);
-	    	total_vox_mag += fabs(ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new]);
+		compute_voxel_update_Atten (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, MagErrorSino, PhaseErrorSino, AMatrixPtr, /*VoxelLineResponse,*/ Mag3D_Nhood, Phase3D_Nhood, MagTime_Nhood, PhaseTime_Nhood, BDFlag_3D, BDFlag_Time, i_new, slice, j_new, k_new);
+	    	MagUpdateMap[j_new][k_new] += sqrt(pow(ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] - VMag,2)+pow(ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] - VPhase,2));
+	    	total_vox_mag += sqrt(pow(ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new],2) + pow(ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new],2));
  	}
 		else
 		    (*zero_count)++;
@@ -249,9 +248,9 @@ Real_t updateVoxels_Atten (int32_t time_begin, int32_t time_end, int32_t slice_b
 }
 
 
-Real_t updateVoxels (int32_t time_begin, int32_t time_end, int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino, Real_arr_t** DetectorResponse_XY, /*AMatrixCol* VoxelLineResponse,*/ int32_t Iter, long int *zero_count, Real_arr_t** MagUpdateMap, uint8_t** Mask)
+Real_t updateVoxels (int32_t time_begin, int32_t time_end, int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** MagErrorSino, Real_arr_t*** PhaseErrorSino, Real_arr_t** DetectorResponse_XY, int32_t Iter, long int *zero_count, Real_arr_t** MagUpdateMap, uint8_t** Mask)
 {
 	Real_t total_vox_mag;
-	total_vox_mag = updateVoxels_Atten  (time_begin, time_end, slice_begin, slice_end, xy_begin, xy_end, x_rand_select, y_rand_select, SinogramPtr, ScannedObjectPtr, TomoInputsPtr, ErrorSino, DetectorResponse_XY, /*VoxelLineResponse,*/ Iter, zero_count, MagUpdateMap, Mask);
+	total_vox_mag = updateVoxels_Atten  (time_begin, time_end, slice_begin, slice_end, xy_begin, xy_end, x_rand_select, y_rand_select, SinogramPtr, ScannedObjectPtr, TomoInputsPtr, MagErrorSino, PhaseErrorSino, DetectorResponse_XY, Iter, zero_count, MagUpdateMap, Mask);
 	return (total_vox_mag);
 }

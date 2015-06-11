@@ -36,7 +36,7 @@
 #ifndef XT_CONSTANTS_H
 #define XT_CONSTANTS_H
 
-/*#define NO_COST_CALCULATE*/
+#define POSITIVITY_CONSTRAINT
 /*#define EXTRA_DEBUG_MESSAGES*/
 
 typedef double Real_t;
@@ -45,20 +45,26 @@ typedef float Real_arr_t; /*Don't change to 'double' without first changing the 
 #define MPI_REAL_ARR_DATATYPE MPI_FLOAT
 
 #define ZERO_SKIPPING
-#define PROJECTIONS_FILENAME "projections"
+#define MEASUREMENTS_FILENAME "measurements"
 #define WEIGHTS_FILENAME "weights"
-#define OBJECT_FILENAME "object"
-#define INIT_OBJECT_FILENAME "init_object"
+
+#define MAGOBJECT_FILENAME "mag_object"
+#define PHASEOBJECT_FILENAME "phase_object"
+#define INIT_MAGOBJECT_FILENAME "init_mag_object"
+#define INIT_PHASEOBJECT_FILENAME "init_phase_object"
+
 #define PROJ_OFFSET_FILENAME "proj_offset"
-#define MAG_UPDATE_FILENAME "mag_update"
+#define UPDATE_MAP_FILENAME "update_map"
 #define RUN_STATUS_FILENAME "status"
 #define VAR_PARAM_FILENAME "variance_estimate"
-#define SCALED_ERROR_SINO_FILENAME "scaled_errorsino"
+#define SCALED_MAGERROR_SINO_FILENAME "scaled_magerrorsino"
+#define SCALED_PHASEERROR_SINO_FILENAME "scaled_phaseerrorsino"
 #define DETECTOR_RESPONSE_FILENAME "detector_response"
 #define PROJ_SELECT_FILENAME "proj_select"
 #define COST_FILENAME "cost"
 
-#define OBJECT_INIT_VAL 0
+#define MAGOBJECT_INIT_VAL 0
+#define PHASEOBJECT_INIT_VAL 0
 #define MRF_P 1.2
 #define MRF_Q 2.0
 

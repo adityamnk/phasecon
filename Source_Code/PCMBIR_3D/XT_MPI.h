@@ -34,6 +34,6 @@
 
 #include <mpi.h>
 #include "XT_Structures.h"
-void MPI_Send_Recv_Z_Slices (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, MPI_Request* send_reqs, MPI_Request* recv_reqs, uint8_t select);
-void MPI_Wait_Z_Slices (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, MPI_Request* send_reqs, MPI_Request* recv_reqs, uint8_t select);
+void MPI_Send_Recv_Z_Slices (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, MPI_Request* mag_send_reqs, MPI_Request* mag_recv_reqs, MPI_Request* phase_send_reqs, MPI_Request* phase_recv_reqs, uint8_t select);
+void MPI_Wait_Z_Slices (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, MPI_Request* mag_send_reqs, MPI_Request* phase_send_reqs, MPI_Request* mag_recv_reqs, MPI_Request* phase_recv_reqs, uint8_t select);
 void compute_RMSE_Converged_Object(ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, int32_t Iter);

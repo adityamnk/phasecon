@@ -236,34 +236,31 @@ error:
 
 int32_t write_ObjectProjOff2TiffBinPerIter (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
 {
-	int32_t i, j, size, dim[4], flag = 0;
-	char object_file[100], projOffset_file[100];
+	int32_t i, j, size, flag = 0;
+	char object_file[100];
 
 	for (i = 0; i < ScannedObjectPtr->N_time; i++)
 	{
-		sprintf (object_file, "%s_time_%d", OBJECT_FILENAME, i);
 		size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
-		if (write_SharedBinFile_At (object_file, &(ScannedObjectPtr->Object[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
+
+		sprintf (object_file, "%s_time_%d", MAGOBJECT_FILENAME, i);
+		if (write_SharedBinFile_At (object_file, &(ScannedObjectPtr->MagObject[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
+		sprintf (object_file, "%s_time_%d", PHASEOBJECT_FILENAME, i);
+		if (write_SharedBinFile_At (object_file, &(ScannedObjectPtr->PhaseObject[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
+
 		if (TomoInputsPtr->Write2Tiff == 1)
 		{
 			for (j = 0; j < ScannedObjectPtr->N_z; j++)
 			{
-				sprintf (object_file, "%s_time_%d_z_%d", OBJECT_FILENAME, i, TomoInputsPtr->node_rank*ScannedObjectPtr->N_z + j);
-/*				sprintf (scaled_object_file, "scaled_%s_time_%d_z_%d", OBJECT_FILENAME, i, TomoInputsPtr->node_rank*ScannedObjectPtr->N_z + j);*/
-				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->Object[i][j+1], 0, TomoInputsPtr->debug_file_ptr)) flag = -1;
+				sprintf (object_file, "%s_time_%d_z_%d", MAGOBJECT_FILENAME, i, TomoInputsPtr->node_rank*ScannedObjectPtr->N_z + j);
+				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->MagObject[i][j+1], 0, TomoInputsPtr->debug_file_ptr)) flag = -1;
+				sprintf (object_file, "%s_time_%d_z_%d", PHASEOBJECT_FILENAME, i, TomoInputsPtr->node_rank*ScannedObjectPtr->N_z + j);
+				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->PhaseObject[i][j+1], 0, TomoInputsPtr->debug_file_ptr)) flag = -1;
 /*				Write2Tiff(scaled_object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, &(ScannedObjectPtr->Object[i][j+1][0][0]), 1, TomoInputsPtr->debug_file_ptr);*/
 			}
 		}
 			/*Changed above line so that output image is scaled from min to max*/
 	}
-
-	size = SinogramPtr->N_r*SinogramPtr->N_t;
-	dim[0] = 1; dim[1] = 1; dim[2] = SinogramPtr->N_r; dim[3] = SinogramPtr->N_t;
-	sprintf(projOffset_file, "%s", PROJ_OFFSET_FILENAME);
-	if (write_SharedBinFile_At (projOffset_file, &(SinogramPtr->ProjOffset[0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
-	sprintf(projOffset_file, "%s_n%d", PROJ_OFFSET_FILENAME, TomoInputsPtr->node_rank);
-	if (TomoInputsPtr->Write2Tiff == 1)
-		if (WriteMultiDimArray2Tiff (projOffset_file, dim, 0, 1, 2, 3, &(SinogramPtr->ProjOffset[0][0]), 0, TomoInputsPtr->debug_file_ptr)) flag = -1;
 
 	return (flag);
 }

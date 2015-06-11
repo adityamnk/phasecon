@@ -109,7 +109,7 @@ void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObj
     Ai->count = count;
 }
 
-
+/*
 void compute_2DAMatrixLine(Sinogram* SinogramPtr, Real_t** AMatrix2DLine, AMatrixCol* AMatrixPtr, int32_t* r_ax_start, int32_t* r_ax_count)
 {
 	int32_t i, r_idx;
@@ -184,4 +184,4 @@ void compute_LapMatrix_4m_AMatrix(Sinogram* SinogramPtr, Real_t*** LapMatrix2D, 
 	
 		multifree(*AMatrix2DLine,1);
 	}
-}
+}*/
