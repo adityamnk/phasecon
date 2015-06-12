@@ -44,7 +44,9 @@ typedef float Real_arr_t; /*Don't change to 'double' without first changing the 
 #define MPI_REAL_DATATYPE MPI_DOUBLE
 #define MPI_REAL_ARR_DATATYPE MPI_FLOAT
 
+#define EXPECTED_COUNT_MEASUREMENT 35000 
 #define ZERO_SKIPPING
+#define PHANTOM_FILENAME "phantom"
 #define MEASUREMENTS_FILENAME "measurements"
 #define WEIGHTS_FILENAME "weights"
 

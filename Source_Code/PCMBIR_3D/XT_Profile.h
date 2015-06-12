@@ -39,4 +39,5 @@ void calculateVoxelProfile(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPt
 void initializeBeamProfile(ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_t *BeamProfile);
 void storeVoxelLineResponse(Real_t* H_t,  AMatrixCol* VoxelLineResponse, ScannedObject* ScannedObjectPtr, Sinogram* SinogramPtr);
 void DetectorResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr);
+void ZLineResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr);
 #endif /*#ifndef XT_PROFILE_H*/

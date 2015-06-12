@@ -417,8 +417,8 @@ void freeMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInpu
 	if (SinogramPtr->cosine) free(SinogramPtr->cosine);
 	if (SinogramPtr->sine) free(SinogramPtr->sine);
 }
-/*
-int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t *offset_sim, Real_arr_t *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid, Real_t rot_center)
+
+int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t* projections, Real_arr_t* weights, Real_arr_t *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid, Real_t rot_center)
 {
 	MPI_Comm_size(MPI_COMM_WORLD, &(TomoInputsPtr->node_num));
 	MPI_Comm_rank(MPI_COMM_WORLD, &(TomoInputsPtr->node_rank));
@@ -441,9 +441,9 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	SinogramPtr->RMax = (SinogramPtr->N_r-TomoInputsPtr->RotCenter)*SinogramPtr->delta_r;
 	SinogramPtr->T0 = -SinogramPtr->Length_T/2.0;
 	SinogramPtr->TMax = SinogramPtr->Length_T/2.0;
-*/	
+	
 	/*Initializing parameters of the object to be reconstructed*/
-/*	ScannedObjectPtr->Length_X = SinogramPtr->Length_R;
+	ScannedObjectPtr->Length_X = SinogramPtr->Length_R;
     	ScannedObjectPtr->Length_Y = SinogramPtr->Length_R;
 	ScannedObjectPtr->Length_Z = SinogramPtr->Length_T;
 	
@@ -463,10 +463,10 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	ScannedObjectPtr->x0 = SinogramPtr->R0;
     	ScannedObjectPtr->z0 = SinogramPtr->T0;
     	ScannedObjectPtr->y0 = -ScannedObjectPtr->Length_Y/2.0;
-    	ScannedObjectPtr->BeamWidth = SinogramPtr->delta_r;*/ /*Weighting of the projections at different points of the detector*/
+    	ScannedObjectPtr->BeamWidth = SinogramPtr->delta_r; /*Weighting of the projections at different points of the detector*/
 /*	ScannedObjectPtr->Object = (Real_t****)multialloc(sizeof(Real_t), 4, ScannedObjectPtr->N_time, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->N_z);*/
 	/*OffsetR is stepsize of the distance between center of voxel of the object and the detector pixel, at which projections are computed*/
-/*	SinogramPtr->OffsetR = (ScannedObjectPtr->delta_xy/sqrt(2.0)+SinogramPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
+	SinogramPtr->OffsetR = (ScannedObjectPtr->delta_xy/sqrt(2.0)+SinogramPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
 	SinogramPtr->OffsetT = ((ScannedObjectPtr->delta_z/2) + SinogramPtr->delta_t/2)/DETECTOR_RESPONSE_BINS;
 
 	TomoInputsPtr->num_threads = omp_get_max_threads();
@@ -477,16 +477,43 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	SinogramPtr->ViewPtr = proj_angles;
 	calculateSinCos (SinogramPtr, TomoInputsPtr);
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
-	Real_arr_t* projections = (Real_arr_t*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(Real_arr_t));	
-	Real_arr_t* weights = (Real_arr_t*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(Real_arr_t));
-	Arr1DToArr3D(projections, SinogramPtr->Projection, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);	
-	Arr1DToArr3D(weights, TomoInputsPtr->Weight, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);	
-	Arr1DToArr2D(offset_sim, SinogramPtr->ProjOffset, SinogramPtr->N_t, SinogramPtr->N_r);
+	projections = (Real_arr_t*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(Real_arr_t));	
+	weights = (Real_arr_t*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(Real_arr_t));
 	
-	gen_offset_constraint_windows (SinogramPtr, TomoInputsPtr);
-		
 	return (0);
 error:
 	return (-1);
 }
+
+/*Free memory of several arrays*/
+void freePhantomMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr)
+{
+/*	int32_t i;
+	for (i=0; i<ScannedObjectPtr->N_time; i++)
+		{if (ScannedObjectPtr->ProjIdxPtr[i]) free(ScannedObjectPtr->ProjIdxPtr[i]);}
+	
+	if (ScannedObjectPtr->ProjIdxPtr) free(ScannedObjectPtr->ProjIdxPtr);
+	if (ScannedObjectPtr->ProjNum) free(ScannedObjectPtr->ProjNum);
 */
+/*	for (i = 0; i < ScannedObjectPtr->N_time; i++)
+		{if (ScannedObjectPtr->Object[i]) multifree(ScannedObjectPtr->Object[i],3);}
+	if (ScannedObjectPtr->Object) free(ScannedObjectPtr->Object);*/
+/*	multifree(ScannedObjectPtr->Object, 4);*/
+	
+/*	if (SinogramPtr->Measurements) multifree(SinogramPtr->Measurements,3);
+	if (SinogramPtr->MagTomoAux) multifree(SinogramPtr->MagTomoAux,3);
+	if (SinogramPtr->MagTomoDual) multifree(SinogramPtr->MagTomoDual,3);
+	if (SinogramPtr->PhaseTomoAux) multifree(SinogramPtr->PhaseTomoAux,3);
+	if (SinogramPtr->PhaseTomoDual) multifree(SinogramPtr->PhaseTomoDual,3);
+*/
+/*	if (TomoInputsPtr->x_rand_select) multifree(TomoInputsPtr->x_rand_select,3);
+	if (TomoInputsPtr->y_rand_select) multifree(TomoInputsPtr->y_rand_select,3);
+	if (TomoInputsPtr->x_NHICD_select) multifree(TomoInputsPtr->x_NHICD_select,3);
+	if (TomoInputsPtr->y_NHICD_select) multifree(TomoInputsPtr->y_NHICD_select,3);
+	if (TomoInputsPtr->UpdateSelectNum) multifree(TomoInputsPtr->UpdateSelectNum,2);
+	if (TomoInputsPtr->NHICDSelectNum) multifree(TomoInputsPtr->NHICDSelectNum,2);
+	if (TomoInputsPtr->Weight) multifree(TomoInputsPtr->Weight,3);	*/
+	if (SinogramPtr->cosine) free(SinogramPtr->cosine);
+	if (SinogramPtr->sine) free(SinogramPtr->sine);
+}
+

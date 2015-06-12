@@ -5,8 +5,8 @@ data = zeros(sz(1),sz(3),numel(theta));
 
 for j = 1:numel(theta)
     for i = 1:sz(3)
-        temp = radon(mag(:,:,i), theta(j));
-%        data_phase = radon(phase(:,:,i), theta(j));
+%        temp = radon(mag(:,:,i), theta(j));
+         temp = radon(phase(:,:,i), theta(j));
 %        temp = exp(-(data_mag + i*data_phase));
         data(:,i,j) = temp(floor((numel(temp) - sz(1))/2) : floor((numel(temp)-sz(1))/2) + sz(1) - 1); 
     end

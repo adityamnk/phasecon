@@ -46,6 +46,7 @@
 #include <ctype.h>
 #include <mpi.h>
 #include "XT_Debug.h"
+#include "XT_genSinogram.h"
 
 /*
 	- Function Name : reconstruct
@@ -191,8 +192,7 @@ error:
 	
 }
 
-/*
-int project (char obj_filename[], float **projections, float **weights, float *proj_angles, float *offset_sim, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, int32_t add_rings, int32_t add_streaks, FILE *debug_msg_ptr)
+int forwardproject (float **projections, float **weights, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, FILE *debug_msg_ptr)
 {
 	time_t start;	
 	int32_t flag, i, num_nodes, rank;
@@ -213,20 +213,17 @@ int project (char obj_filename[], float **projections, float **weights, float *p
 	check_error(proj_rows/num_nodes % 2 != 0 || proj_rows/num_nodes < MIN_ROWS_PER_NODE, rank==0, debug_msg_ptr, "The number of projection rows divided by the number of nodes should be an even number greater than or equal to %d.\n", MIN_ROWS_PER_NODE);
 
 	TomoInputsPtr->debug_file_ptr = debug_msg_ptr;
-	if (initPhantomStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, offset_sim, proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center)) {goto error;}
+	if (initPhantomStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, projections, weights, proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center)) {goto error;}
 
 #ifdef EXTRA_DEBUG_MESSAGES
-		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "SinogramPtr numerical variable values are N_r = %d, N_t = %d, N_p = %d, total_t_slices = %d, delta_r = %f, delta_t = %f, R0 = %f, RMax = %f, T0 = %f, TMax = %f, Length_R = %f, Length_T = %f, OffsetR = %f, OffsetT = %f, z_overlap_num = %d\n", SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->N_p, SinogramPtr->total_t_slices, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->R0, SinogramPtr->RMax, SinogramPtr->T0, SinogramPtr->TMax, SinogramPtr->Length_R, SinogramPtr->Length_T, SinogramPtr->OffsetR, SinogramPtr->OffsetT, SinogramPtr->z_overlap_num);	
-		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "ScannedObjectPtr numerical variable values are Length_X = %f, Length_Y = %f, Length_Z = %f, N_x = %d, N_y = %d, N_z = %d, N_time = %d, x0 = %f, y0 = %f, z0 = %f, delta_xy = %f, delta_z = %f, mult_xy = %f, mult_z = %f, BeamWidth = %f, Sigma_S = %f, Sigma_t = %f, C_S = %f, C_T = %f, NHICD_Iterations = %d, delta_recon = %f.\n", ScannedObjectPtr->Length_X, ScannedObjectPtr->Length_Y, ScannedObjectPtr->Length_Z, ScannedObjectPtr->N_x, ScannedObjectPtr->N_y, ScannedObjectPtr->N_z, ScannedObjectPtr->N_time, ScannedObjectPtr->x0, ScannedObjectPtr->y0, ScannedObjectPtr->z0, ScannedObjectPtr->delta_xy, ScannedObjectPtr->delta_z, ScannedObjectPtr->mult_xy, ScannedObjectPtr->mult_z, ScannedObjectPtr->BeamWidth, ScannedObjectPtr->Sigma_S, ScannedObjectPtr->Sigma_T, ScannedObjectPtr->C_S, ScannedObjectPtr->C_T, ScannedObjectPtr->NHICD_Iterations, ScannedObjectPtr->delta_recon);
-		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "TomoInputsPtr numerical variable values are NumIter = %d, StopThreshold = %f, RotCenter = %f, radius_obj = %f, Sigma_S_Q = %f, Sigma_T_Q = %f, Sigma_S_Q_P = %f, Sigma_T_Q_P = %f, var_est = %f, alpha = %f, cost_thresh = %f, initICD = %d, Write2Tiff = %d, updateProjOffset = %d, EnforceZeroMeanOffset = %d, no_NHICD = %d, WritePerIter = %d, num_z_blocks = %d, prevnum_z_blocks = %d, ErrorSinoThresh = %f, ErrorSinoDelta = %f, node_num = %d, node_rank = %d, updateVar = %d, initMagUpMap = %d, ErrorSinoCost = %f, Forward_Cost = %f, Prior_Cost = %f, num_threads = %d\n", TomoInputsPtr->NumIter, TomoInputsPtr->StopThreshold, TomoInputsPtr->RotCenter, TomoInputsPtr->radius_obj, TomoInputsPtr->Sigma_S_Q, TomoInputsPtr->Sigma_T_Q, TomoInputsPtr->Sigma_S_Q_P, TomoInputsPtr->Sigma_T_Q_P, TomoInputsPtr->var_est, TomoInputsPtr->alpha, TomoInputsPtr->cost_thresh, TomoInputsPtr->initICD, TomoInputsPtr->Write2Tiff, TomoInputsPtr->updateProjOffset, TomoInputsPtr->EnforceZeroMeanOffset, TomoInputsPtr->no_NHICD, TomoInputsPtr->WritePerIter, TomoInputsPtr->num_z_blocks, TomoInputsPtr->prevnum_z_blocks, TomoInputsPtr->ErrorSinoThresh, TomoInputsPtr->ErrorSinoDelta, TomoInputsPtr->node_num, TomoInputsPtr->node_rank, TomoInputsPtr->updateVar, TomoInputsPtr->initMagUpMap, TomoInputsPtr->ErrorSino_Cost, TomoInputsPtr->Forward_Cost, TomoInputsPtr->Prior_Cost, TomoInputsPtr->num_threads);
+		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "SinogramPtr numerical variable values are N_r = %d, N_t = %d, N_p = %d, total_t_slices = %d, delta_r = %f, delta_t = %f, R0 = %f, RMax = %f, T0 = %f, TMax = %f, Length_R = %f, Length_T = %f, OffsetR = %f, OffsetT = %f, z_overlap_num = %d\n", SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->N_p, SinogramPtr->total_t_slices, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->R0, SinogramPtr->RMax, SinogramPtr->T0, SinogramPtr->TMax, SinogramPtr->Length_R, SinogramPtr->Length_T, SinogramPtr->OffsetR, SinogramPtr->OffsetT, SinogramPtr->z_overlap_num);
+	check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "ScannedObjectPtr numerical variable values are Length_X = %f, Length_Y = %f, Length_Z = %f, N_x = %d, N_y = %d, N_z = %d, N_time = %d, x0 = %f, y0 = %f, z0 = %f, delta_xy = %f, delta_z = %f, mult_xy = %f, mult_z = %f, BeamWidth = %f, Sigma_S = %f, Sigma_t = %f, C_S = %f, C_T = %f, NHICD_Iterations = %d, delta_recon = %f.\n", ScannedObjectPtr->Length_X, ScannedObjectPtr->Length_Y, ScannedObjectPtr->Length_Z, ScannedObjectPtr->N_x, ScannedObjectPtr->N_y, ScannedObjectPtr->N_z, ScannedObjectPtr->N_time, ScannedObjectPtr->x0, ScannedObjectPtr->y0, ScannedObjectPtr->z0, ScannedObjectPtr->delta_xy, ScannedObjectPtr->delta_z, ScannedObjectPtr->mult_xy, ScannedObjectPtr->mult_z, ScannedObjectPtr->BeamWidth, ScannedObjectPtr->Sigma_S, ScannedObjectPtr->Sigma_T, ScannedObjectPtr->C_S, ScannedObjectPtr->C_T, ScannedObjectPtr->NHICD_Iterations, ScannedObjectPtr->delta_recon);
+		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "TomoInputsPtr numerical variable values are NumIter = %d, StopThreshold = %f, RotCenter = %f, radius_obj = %f, Sigma_S_Q = %f, Sigma_T_Q = %f, Sigma_S_Q_P = %f, Sigma_T_Q_P = %f, alpha = %f, cost_thresh = %f, initICD = %d, Write2Tiff = %d, no_NHICD = %d, WritePerIter = %d, num_z_blocks = %d, prevnum_z_blocks = %d, ErrorSinoThresh = %f, ErrorSinoDelta = %f, node_num = %d, node_rank = %d, initMagUpMap = %d, ErrorSinoCost = %f, Forward_Cost = %f, Prior_Cost = %f, num_threads = %d\n", TomoInputsPtr->NumIter, TomoInputsPtr->StopThreshold, TomoInputsPtr->RotCenter, TomoInputsPtr->radius_obj, TomoInputsPtr->Sigma_S_Q, TomoInputsPtr->Sigma_T_Q, TomoInputsPtr->Sigma_S_Q_P, TomoInputsPtr->Sigma_T_Q_P, TomoInputsPtr->alpha, TomoInputsPtr->cost_thresh, TomoInputsPtr->initICD, TomoInputsPtr->Write2Tiff, TomoInputsPtr->no_NHICD, TomoInputsPtr->WritePerIter, TomoInputsPtr->num_z_blocks, TomoInputsPtr->prevnum_z_blocks, TomoInputsPtr->ErrorSinoThresh, TomoInputsPtr->ErrorSinoDelta, TomoInputsPtr->node_num, TomoInputsPtr->node_rank, TomoInputsPtr->initMagUpMap, TomoInputsPtr->ErrorSino_Cost, TomoInputsPtr->Forward_Cost, TomoInputsPtr->Prior_Cost, TomoInputsPtr->num_threads);
 #endif
-	flag = ForwardProject(SinogramPtr, ScannedObjectPtr, TomoInputsPtr, obj_filename);
+	flag = ForwardProject(SinogramPtr, ScannedObjectPtr, TomoInputsPtr, projections, weights);
 	check_info(rank == 0, TomoInputsPtr->debug_file_ptr, "Time elapsed is %f minutes.\n", difftime(time(NULL), start)/60.0);
 	check_error(flag != 0, rank == 0, TomoInputsPtr->debug_file_ptr, "Forward projection failed!\n");
-	if (TomoInputsPtr->WritePerIter == 0)
-		if (write_ObjectProjOff2TiffBinPerIter (SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) {goto error;}
-	if (Write2Bin (RUN_STATUS_FILENAME, 1, 1, 1, 1, sizeof(int32_t), &last_multres, TomoInputsPtr->debug_file_ptr)) {goto error;}
-	freeMemory(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
+	freePhantomMemory(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
 	
 	free(SinogramPtr);
 	free(ScannedObjectPtr);
@@ -234,7 +231,7 @@ int project (char obj_filename[], float **projections, float **weights, float *p
 	return (0);
 
 error:
-	freeMemory(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
+	freePhantomMemory(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
 	if (SinogramPtr)
 		free(SinogramPtr);
 	if (ScannedObjectPtr)
@@ -244,4 +241,4 @@ error:
 	return (-1);
 	
 }
-*/
+

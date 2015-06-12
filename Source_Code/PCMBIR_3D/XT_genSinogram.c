@@ -48,24 +48,20 @@
 #include "XT_AMatrix.h"
 #include "XT_Profile.h"
 #include "randlib.h"
-#include "XT_Filter.h"
 #include "XT_Init.h"
 
 /*generates projection data from phantom*/
-int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, float *projections, float *weights, float *offset_sim)
+int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, float *projections, float *weights)
 {
 	FILE *fp;
-	AMatrixCol *VoxelLineResponse;
 	long int stream_offset, size, result;
 	int32_t i, j, k, m, n, idx, t, slice; 
 	Real_t proj_avg, weight_avg, pixel, val, **H_r, *H_t;
-  	uint8_t AvgNumXElements, AvgNumZElements, zinger_added = 0;
+  	uint8_t AvgNumXElements, AvgNumZElements;
 	char projection_file[100] = PROJECTION_FILENAME;
-	char offgndtruth_file[100] = "proj_offset_truth";
 	char weight_file[100] = WEIGHT_MATRIX_FILENAME;
 	char phantom_file[1000];
 	char detect_file[] = "detector_forwardproj";
-	char offset_sim_file[100] = "proj_offset_sim";
 	int dimTiff[4];
 
 	AMatrixCol* AMatrixPtr = (AMatrixCol*)get_spc(1,sizeof(AMatrixCol));
@@ -74,12 +70,13 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
   	AMatrixPtr->values = (Real_t*)get_spc((int32_t)AvgNumXElements,sizeof(Real_t));
   	AMatrixPtr->index  = (int32_t*)get_spc((int32_t)AvgNumXElements,sizeof(int32_t));
 
-	object = (float***)multialloc(sizeof(float), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
-	memset(&(projections[0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_t));	
+	object = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+	memset(&(projections[0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));	
 
-	H_r = (Real_t **)multialloc(sizeof(Real_t), 2, SinogramPtr->N_p, DETECTOR_RESPONSE_BINS+1);
-	H_t = (Real_t *)get_spc(DETECTOR_RESPONSE_BINS + 1, sizeof(Real_t));
-	DetectorResponseProfile (H_r, H_t, SinogramPtr, ScanndObjectPtr, TomoInputsPtr);
+	SinogramPtr->DetectorResponse = (Real_t **)multialloc(sizeof(Real_t), 2, SinogramPtr->N_p, DETECTOR_RESPONSE_BINS+1);
+	SinogramPtr->ZLineResponse = (Real_t *)get_spc(DETECTOR_RESPONSE_BINS + 1, sizeof(Real_t));
+	DetectorResponseProfile (SinogramPtr, ScanndObjectPtr, TomoInputsPtr);
+	ZLineResponseProfile (SinogramPtr, ScanndObjectPtr, TomoInputsPtr);
 	
   	AvgNumZElements = (uint8_t)((ScannedObjectPtr->delta_z/SinogramPtr->delta_t) + 2);
 	
@@ -90,27 +87,27 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	}
 	storeVoxelLineResponse(H_t, VoxelLineResponse, ScannedObjectPtr, SinogramPtr);
 
-	sprintf(phantom_file, "%s", PATH_TO_PHANTOM);
+	sprintf(phantom_file, "%s", PHANTOM_FILENAME);
 	fp = fopen (phantom_file, "rb");
 	
 	check_error(fp==NULL, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
 	size = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
 
 	check_info(TomoInputsPtr->debug_file_ptr, "Forward projecting phantom ...\n");	
+	stream_offset = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
+	result = fseek (fp, stream_offset*sizeof(float), SEEK_SET);
+  	check_error(result != 0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, i = %d, stream_offset = %ld\n",phantom_file,i,stream_offset);
+	result = fread (&(object[0][0][0]), sizeof(float), size, fp);
+  	check_error(result != size, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, i=%d, stream_offset=%ld, size=%ld\n",phantom_file,result,i,stream_offset,size);
+	
 	for (i=0; i<SinogramPtr->N_p; i++){
-		stream_offset = (long int)i*(long int)PHANTOM_Z_SIZE*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
-		stream_offset += (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
+	/*	stream_offset = (long int)i*(long int)PHANTOM_Z_SIZE*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
+		stream_offset += (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;*/
 		/*stream_offset += (long int)SinogramPtr->slice_begin*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;*/
-		result = fseek (fp, stream_offset*sizeof(float), SEEK_SET);
-
-  		check_error(result != 0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, i = %d, stream_offset = %ld\n",phantom_file,i,stream_offset);
-
-		result = fread (&(object[0][0][0]), sizeof(float), size, fp);
-  		check_error(result != size, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, i=%d, stream_offset=%ld, size=%ld\n",phantom_file,result,i,stream_offset,size);
 
 		for (j=0; j<ScannedObjectPtr->N_y; j++)
 		for (k=0; k<ScannedObjectPtr->N_x; k++){	
-	   	    	calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, H_r, AMatrixPtr, j, k, i); 
+	   	    	calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, AMatrixPtr, j, k, i); 
                 	for (slice=0; slice<ScannedObjectPtr->N_z; slice++){
 			    	pixel = (Real_t)(object[slice][j][k]);
 	     	          	for (m=0; m<AMatrixPtr->count; m++){
@@ -131,18 +128,9 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 
 	dimTiff[0] = 1; dimTiff[1] = 1; dimTiff[2] = SinogramPtr->N_p; dimTiff[3] = DETECTOR_RESPONSE_BINS+1;
 	if (TomoInputsPtr->Write2Tiff == 1)
-		if (WriteMultiDimArray2Tiff (detect_file, dimTiff, 0, 1, 2, 3, &(H_r[0][0]), 0, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff (detect_file, dimTiff, 0, 1, 2, 3, &(SinogramPtr->DetectorResponse[0][0]), 0, TomoInputsPtr->debug_file_ptr)) {goto error;}
        
-
-/*	offset_sim = (Real_t**)multialloc(sizeof(Real_t), 2, SinogramPtr->N_r, SinogramPtr->N_t);
-	Read4mBin(offset_sim_file, 1, 1, SinogramPtr->N_r, SinogramPtr->N_t, &(offset_sim[0][0]), TomoInputsPtr->debug_file_ptr);*/
-	dimTiff[0] = 1; dimTiff[1] = 1; dimTiff[2] = SinogramPtr->N_t; dimTiff[3] = SinogramPtr->N_r;
-	if (TomoInputsPtr->Write2Tiff == 1)
-		if (WriteMultiDimArray2Tiff (offgndtruth_file, dimTiff, 0, 1, 2, 3, &(offset_sim[0]), 0, TomoInputsPtr->debug_file_ptr)) {goto error;}
-
 	proj_avg = 0; weight_avg = 0;
-	if (TomoInputsPtr->No_Projection_Noise == 0)
-		check_info(TomoInputsPtr->debug_file_ptr, "The variance parameter, sigma^2, used to add noise is %f\n", TomoInputsPtr->sim_var_param);	
 	check_info(TomoInputsPtr->debug_file_ptr, "The expected count is %f\n", TomoInputsPtr->sim_exp_counts);	
 	for (i=0; i < SinogramPtr->N_p; i++)
 	for (slice=0; slice < SinogramPtr->N_t; slice++)
@@ -150,22 +138,23 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	{
 		idx = i*SinogramPtr->N_t*SinogramPtr->N_r + slice*SinogramPtr->N_r + j;
 		val = projections[idx];
-		val = TomoInputsPtr->sim_exp_counts*exp(-val);
+		val = EXPECTED_COUNT_MEASUREMENT*exp(-val);
 		check_error(val == 0, "ERROR: val = %f, projection = %f, i = %d, j = %d, slice = %d\n", val, projections[idx], i, j, slice);
 		/*TomoInputsPtr->Weight[i][j] = val + sqrt(val)*random2();*/
-		if (TomoInputsPtr->No_Projection_Noise == 1)
+/*		if (TomoInputsPtr->No_Projection_Noise == 1)
 			weights[idx] = fabs(val);
-		else
-			weights[idx] = fabs(val + sqrt(TomoInputsPtr->sim_var_param*val)*normal());
+		else*/
+		weights[idx] = fabs(val + sqrt(val)*normal());
 		/*Scaling noise S.D. this way, is equivalent to using a incident photon count of EXPECTED_COUNTS_FOR_PHANTOM_DATA/VAR_PARAM_4_SIM_DATA,
  		adding Poisson noise (mean = standard deviation) and then scaling the result by a multiplicative factor of VAR_PARAM_4_SIM_DATA*/
 		
-		projections[idx] = log(TomoInputsPtr->sim_exp_counts/weights[idx]) - offset_sim[slice*SinogramPtr->N_r + j];
-		if (random2() > 0.999)
+		/*projections[idx] = log(TomoInputsPtr->sim_exp_counts/weights[idx]) - offset_sim[slice*SinogramPtr->N_r + j];*/
+		projections[idx] = log(TomoInputsPtr->sim_exp_counts/weights[idx]) ;
+		/*if (random2() > 0.999)
 		{
 			zinger_added = 1;
 			projections[idx] = 0;
-		}	
+		}	*/
 		weight_avg += weights[idx];	
 		proj_avg += projections[idx];	
 	}
@@ -175,14 +164,14 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	printf("genSinogramFromPhantom: The average of all projection data after weight computation with/without noise is %f\n", proj_avg);
 	printf("genSinogramFromPhantom: The average of all weight data is %f\n", weight_avg);
 	
-	check_info (zinger_added == 1, TomoInputsPtr->debug_file_ptr, "Simulated the occurence of zingers\n");
+/*	check_info (zinger_added == 1, TomoInputsPtr->debug_file_ptr, "Simulated the occurence of zingers\n");*/
 	
 	free(AMatrixPtr->values);
 	free(AMatrixPtr->index);
         free(VoxelLineResponse->values);
         free(VoxelLineResponse->index);
-	multifree(H_r,2);
-	free(H_t);
+	multifree(SinogramPtr->DetectorResponse,2);
+	free(SinogramPtr->ZLineResponse);
         free(AMatrixPtr);
         free(VoxelLineResponse);
 	fclose(fp);	
@@ -193,8 +182,8 @@ error:
 	free(AMatrixPtr->index);
         free(VoxelLineResponse->values);
         free(VoxelLineResponse->index);
-	multifree(H_r,2);
-	free(H_t);
+	multifree(SinogramPtr->DetectorResponse,2);
+	free(SinogramPtr->ZLineResponse);
         free(AMatrixPtr);
         free(VoxelLineResponse);
 	fclose(fp);	

@@ -176,8 +176,15 @@ void DetectorResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjec
     }
 	free(BeamProfile);
 	multifree(VoxProfile,2);
+}
 
-/*    for (i = 0; i < DETECTOR_RESPONSE_BINS; i++)
+void ZLineResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr)
+{
+    int32_t i;
+    Real_t ProfileCenterT;
+    Real_arr_t* H_t = SinogramPtr->ZLineResponse;    
+
+    for (i = 0; i < DETECTOR_RESPONSE_BINS; i++)
     {
       ProfileCenterT = i * SinogramPtr->OffsetT;
       if(ScannedObjectPtr->delta_z >= SinogramPtr->delta_t)
@@ -215,7 +222,6 @@ void DetectorResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjec
       H_t[i] = H_t[i]/SinogramPtr->delta_t;
     }
 	H_t[DETECTOR_RESPONSE_BINS] = 0;
-*/
   }
 
 /*Generates the voxel line response from H_t*/

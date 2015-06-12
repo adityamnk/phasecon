@@ -55,6 +55,7 @@
    Real_arr_t ***PhasePRetDual; /*ADMM dual vector corresponding to the phase retrieval split*/
 
    Real_arr_t** DetectorResponse;/*response of the detector as a function of distance between the voxel center and center of detector element*/
+   Real_arr_t* ZLineResponse;
     int32_t N_r;/*Number of detector elements in r direction (parallel to x-axis)*/
     int32_t N_t;/*Number of detector elements in t direction to be reconstructed (parallel to z axis)*/
     int32_t N_p;/*Total number of projections used in reconstruction*/
