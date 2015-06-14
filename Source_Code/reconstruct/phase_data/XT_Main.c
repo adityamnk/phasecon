@@ -7,7 +7,7 @@
 #include "pcmbir4d.h"
 
 /*Function prototype definitions which will be defined later in the file.*/
-void read_data (float *projections, float *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, FILE* debug_file_ptr);
+void read_data (float **projections, float **weights, float **proj_angles, float **proj_times, float **recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, FILE* debug_file_ptr);
 void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, int32_t *recon_num, float *vox_wid, float *rot_center, float *sig_s, float *sig_t, float *c_s, float *c_t, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr);
 
 /*The main function which reads the command line arguments, reads the data,
@@ -27,22 +27,17 @@ int main(int argc, char **argv)
 	
 	/*All messages to help debug any potential mistakes or bugs are written to debug.log*/
 	debug_msg_ptr = fopen("debug.log", "w");
-/*	debug_msg_ptr = stdout;*/	
+	debug_msg_ptr = stdout;	
 	/*Read the command line arguments to determine the reconstruction parameters*/
 	read_command_line_args (argc, argv, &proj_rows, &proj_cols, &proj_num, &recon_num, &vox_wid, &rot_center, &sig_s, &sig_t, &c_s, &c_t, &convg_thresh, &restart, debug_msg_ptr);
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Number of nodes is %d and command line input argument values are proj_rows = %d, proj_cols = %d, proj_num = %d, recon_num = %d, vox_wid = %f, rot_center = %f, sig_s = %f, sig_t = %f, c_s = %f, c_t = %f, convg_thresh = %f, restart = %d\n", nodes_num, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh, restart);	
 	
 	/*Allocate memory for data arrays used for reconstruction.*/
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Allocating memory for data ....\n");
-	measurements = (float*)calloc ((proj_num*proj_rows*proj_cols)/nodes_num, sizeof(float));
-	weights = (float*)calloc ((proj_num*proj_rows*proj_cols)/nodes_num, sizeof(float));
-	proj_angles = (float*)calloc (proj_num, sizeof(float));
-	proj_times = (float*)calloc (proj_num, sizeof(float));
-	recon_times = (float*)calloc (recon_num + 1, sizeof(float));
 
 	/*Read data*/
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Reading data ....\n");
-	read_data (measurements, weights, proj_angles, proj_times, recon_times, proj_rows, proj_cols, proj_num, recon_num, debug_msg_ptr);
+	read_data (&measurements, &weights, &proj_angles, &proj_times, &recon_times, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, debug_msg_ptr);
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Reconstructing the data ....\n");
 	/*Run the reconstruction*/
 	phcontomo_reconstruct (&magobject, &phaseobject, measurements, weights, proj_angles, proj_times, recon_times, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh, restart, debug_msg_ptr);
@@ -78,18 +73,23 @@ void read_BinFile (char filename[100], float* data, int32_t offset, int32_t size
 	MPI_File_close(&fh);
 }
 
-void read_data (float *measurements, float *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, FILE* debug_file_ptr)
+void read_data (float **measurements, float **weights, float **proj_angles, float **proj_times, float **recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, FILE* debug_file_ptr)
 {
-	char measurements_filename[] = MEASUREMENTS_FILENAME;
-	char weights_filename[] = WEIGHTS_FILENAME;
+	/*char measurements_filename[] = MEASUREMENTS_FILENAME;
+	char weights_filename[] = WEIGHTS_FILENAME;*/
 	char proj_angles_filename[] = PROJ_ANGLES_FILENAME;
 	char proj_times_filename[] = PROJ_TIMES_FILENAME;
 	char recon_times_filename[] = RECON_TIMES_FILENAME;
-	int32_t i, offset, size, rank, num_nodes;
+/*	int32_t i, offset, size, rank, num_nodes;*/
 
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	/*MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &num_nodes);
-	for (i = 0; i < proj_num; i++)
+	measurements = (float*)calloc ((proj_num*proj_rows*proj_cols)/nodes_num, sizeof(float));
+	weights = (float*)calloc ((proj_num*proj_rows*proj_cols)/nodes_num, sizeof(float));*/
+	*proj_angles = (float*)calloc (proj_num, sizeof(float));
+	*proj_times = (float*)calloc (proj_num, sizeof(float));
+	*recon_times = (float*)calloc (recon_num + 1, sizeof(float));
+/*	for (i = 0; i < proj_num; i++)
 	{
 		size = proj_rows*proj_cols/num_nodes;
 		offset = i*proj_rows*proj_cols + rank*size;
@@ -97,10 +97,11 @@ void read_data (float *measurements, float *weights, float *proj_angles, float *
 		read_BinFile (weights_filename, weights, offset, size, debug_file_ptr);
 		measurements = measurements + size;
 		weights = weights + size;
-	}
-	read_BinFile (proj_angles_filename, proj_angles, 0, proj_num, debug_file_ptr);
-	read_BinFile (proj_times_filename, proj_times, 0, proj_num, debug_file_ptr);
-	read_BinFile (recon_times_filename, recon_times, 0, recon_num + 1, debug_file_ptr);
+	}*/
+	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
+	read_BinFile (proj_times_filename, *proj_times, 0, proj_num, debug_file_ptr);
+	read_BinFile (recon_times_filename, *recon_times, 0, recon_num + 1, debug_file_ptr);
+	phcontomo_forward_project (measurements, weights, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);
 }
 
 /*Function which parses the command line input to the C code and initializes several variables.*/

@@ -451,11 +451,11 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	
 	int32_t phantom_mult_xy = PHANTOM_XY_SIZE/SinogramPtr->N_r;
 	int32_t phantom_mult_z = PHANTOM_Z_SIZE/SinogramPtr->total_t_slices;
-    	ScannedObjectPtr->N_x = (int32_t)(SinogramPtr->N_r*phantom_mult_xy);
-	ScannedObjectPtr->N_y = (int32_t)(SinogramPtr->N_r*phantom_mult_xy);
-	ScannedObjectPtr->N_z = (int32_t)(SinogramPtr->N_t*phantom_mult_z);	
-	ScannedObjectPtr->delta_xy = phantom_mult_xy*SinogramPtr->delta_r;
-	ScannedObjectPtr->delta_z = phantom_mult_z*SinogramPtr->delta_t;
+    	ScannedObjectPtr->N_x = (int32_t)(PHANTOM_XY_SIZE);
+	ScannedObjectPtr->N_y = (int32_t)(PHANTOM_XY_SIZE);
+	ScannedObjectPtr->N_z = (int32_t)(PHANTOM_Z_SIZE);	
+	ScannedObjectPtr->delta_xy = SinogramPtr->delta_r/phantom_mult_xy;
+	ScannedObjectPtr->delta_z = SinogramPtr->delta_t/phantom_mult_z;
 
 	if (ScannedObjectPtr->delta_xy != ScannedObjectPtr->delta_z)
 		check_warn (TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Voxel width in x-y plane is not equal to that along z-axis. The spatial invariance of prior does not hold.\n");

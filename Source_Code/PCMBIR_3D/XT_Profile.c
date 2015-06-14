@@ -225,7 +225,7 @@ void ZLineResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPt
   }
 
 /*Generates the voxel line response from H_t*/
-void storeVoxelLineResponse(Real_t* H_t,  AMatrixCol* VoxelLineResponse, ScannedObject* ScannedObjectPtr, Sinogram* SinogramPtr)
+void storeVoxelLineResponse(AMatrixCol* VoxelLineResponse, ScannedObject* ScannedObjectPtr, Sinogram* SinogramPtr)
 {
   
   Real_t ProfileThickness = 0.0;
@@ -237,6 +237,7 @@ void storeVoxelLineResponse(Real_t* H_t,  AMatrixCol* VoxelLineResponse, Scanned
   Real_t center_t,delta_t;
   int32_t index_delta_t;
   Real_t w3,w4;
+  Real_arr_t* H_t = SinogramPtr->ZLineResponse;
 
   /*Storing the response along t-direction for each voxel line*/
   for (i = 0; i < (int32_t)ScannedObjectPtr->N_z; i++)

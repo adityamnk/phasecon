@@ -46,7 +46,7 @@ typedef float Real_arr_t; /*Don't change to 'double' without first changing the 
 
 #define EXPECTED_COUNT_MEASUREMENT 35000 
 #define ZERO_SKIPPING
-#define PHANTOM_FILENAME "phantom"
+#define PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/phase_phantom.bin"
 #define MEASUREMENTS_FILENAME "measurements"
 #define WEIGHTS_FILENAME "weights"
 
@@ -124,7 +124,7 @@ typedef float Real_arr_t; /*Don't change to 'double' without first changing the 
 	#define HOUNSFIELD_MIN 10000
 #endif
 
-#define PHANTOM_XY_SIZE 1024
-#define PHANTOM_Z_SIZE 4
+#define PHANTOM_XY_SIZE 256
+#define PHANTOM_Z_SIZE 256
 
 #endif /*#ifndef XT_CONSTANTS_H*/
