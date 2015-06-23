@@ -8,7 +8,7 @@
 
 /*Function prototype definitions which will be defined later in the file.*/
 void read_data (float **projections, float **weights, float **proj_angles, float **proj_times, float **recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, FILE* debug_file_ptr);
-void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, int32_t *recon_num, float *vox_wid, float *rot_center, float *sig_s, float *sig_t, float *c_s, float *c_t, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr);
+void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, int32_t *recon_num, float *vox_wid, float *rot_center, float *mag_sig_s, float *mag_sig_t, float *mag_c_s, float *mag_c_t, float *phase_sig_s, float *phase_sig_t, float *phase_c_s, float *phase_c_t, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr);
 
 /*The main function which reads the command line arguments, reads the data,
   and does the reconstruction.*/
@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 {
 	uint8_t restart;
 	int32_t proj_rows, proj_cols, proj_num, recon_num, nodes_num, nodes_rank;
-	float *magobject, *phaseobject, *measurements, *weights, *proj_angles, *proj_times, *recon_times, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh;
+	float *magobject, *phaseobject, *measurements, *weights, *proj_angles, *proj_times, *recon_times, vox_wid, rot_center, mag_sig_s, mag_sig_t, mag_c_s, mag_c_t, phase_sig_s, phase_sig_t, phase_c_s, phase_c_t, convg_thresh;
 	FILE *debug_msg_ptr;
 
 	/*initialize MPI process.*/	
@@ -29,8 +29,8 @@ int main(int argc, char **argv)
 	debug_msg_ptr = fopen("debug.log", "w");
 	debug_msg_ptr = stdout;	
 	/*Read the command line arguments to determine the reconstruction parameters*/
-	read_command_line_args (argc, argv, &proj_rows, &proj_cols, &proj_num, &recon_num, &vox_wid, &rot_center, &sig_s, &sig_t, &c_s, &c_t, &convg_thresh, &restart, debug_msg_ptr);
-	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Number of nodes is %d and command line input argument values are proj_rows = %d, proj_cols = %d, proj_num = %d, recon_num = %d, vox_wid = %f, rot_center = %f, sig_s = %f, sig_t = %f, c_s = %f, c_t = %f, convg_thresh = %f, restart = %d\n", nodes_num, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh, restart);	
+	read_command_line_args (argc, argv, &proj_rows, &proj_cols, &proj_num, &recon_num, &vox_wid, &rot_center, &mag_sig_s, &mag_sig_t, &mag_c_s, &mag_c_t, &phase_sig_s, &phase_sig_t, &phase_c_s, &phase_c_t, &convg_thresh, &restart, debug_msg_ptr);
+	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Number of nodes is %d and command line input argument values are proj_rows = %d, proj_cols = %d, proj_num = %d, recon_num = %d, vox_wid = %f, rot_center = %f, mag_sig_s = %f, mag_sig_t = %f, mag_c_s = %f, mag_c_t = %f, phase_sig_s = %f, phase_sig_t = %f, phase_c_s = %f, phase_c_t = %f, convg_thresh = %f, restart = %d\n", nodes_num, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, mag_sig_s, mag_sig_t, mag_c_s, mag_c_t, phase_sig_s, phase_sig_t, phase_c_s, phase_c_t, convg_thresh, restart);	
 	
 	/*Allocate memory for data arrays used for reconstruction.*/
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Allocating memory for data ....\n");
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 	read_data (&measurements, &weights, &proj_angles, &proj_times, &recon_times, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, debug_msg_ptr);
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Reconstructing the data ....\n");
 	/*Run the reconstruction*/
-	phcontomo_reconstruct (&magobject, &phaseobject, measurements, weights, proj_angles, proj_times, recon_times, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, sig_s, sig_t, c_s, c_t, convg_thresh, restart, debug_msg_ptr);
+	phcontomo_reconstruct (&magobject, &phaseobject, measurements, weights, proj_angles, proj_times, recon_times, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, mag_sig_s, mag_sig_t, mag_c_s, mag_c_t, phase_sig_s, phase_sig_t, phase_c_s, phase_c_t, convg_thresh, restart, debug_msg_ptr);
 	free(measurements);
 	free(weights);
 	free(proj_angles);
@@ -75,37 +75,35 @@ void read_BinFile (char filename[100], float* data, int32_t offset, int32_t size
 
 void read_data (float **measurements, float **weights, float **proj_angles, float **proj_times, float **recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, FILE* debug_file_ptr)
 {
-	/*char measurements_filename[] = MEASUREMENTS_FILENAME;
-	char weights_filename[] = WEIGHTS_FILENAME;*/
+	char measurements_filename[] = MEASUREMENTS_FILENAME;
+	char weights_filename[] = WEIGHTS_FILENAME;
 	char proj_angles_filename[] = PROJ_ANGLES_FILENAME;
 	char proj_times_filename[] = PROJ_TIMES_FILENAME;
 	char recon_times_filename[] = RECON_TIMES_FILENAME;
-/*	int32_t i, offset, size, rank, num_nodes;*/
+	int32_t i, offset, size, rank, num_nodes;
 
-	/*MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &num_nodes);
-	measurements = (float*)calloc ((proj_num*proj_rows*proj_cols)/nodes_num, sizeof(float));
-	weights = (float*)calloc ((proj_num*proj_rows*proj_cols)/nodes_num, sizeof(float));*/
+	*measurements = (float*)calloc ((2*proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
+	*weights = (float*)calloc ((2*proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 	*proj_angles = (float*)calloc (proj_num, sizeof(float));
 	*proj_times = (float*)calloc (proj_num, sizeof(float));
 	*recon_times = (float*)calloc (recon_num + 1, sizeof(float));
-/*	for (i = 0; i < proj_num; i++)
+	for (i = 0; i < proj_num; i++)
 	{
-		size = proj_rows*proj_cols/num_nodes;
-		offset = i*proj_rows*proj_cols + rank*size;
-		read_BinFile (measurements_filename, measurements, offset, size, debug_file_ptr);
-		read_BinFile (weights_filename, weights, offset, size, debug_file_ptr);
-		measurements = measurements + size;
-		weights = weights + size;
-	}*/
+		size = 2*proj_rows*proj_cols/num_nodes;
+		offset = i*proj_rows*proj_cols*2 + rank*size;
+		read_BinFile (measurements_filename, *measurements + i*size, offset, size, debug_file_ptr);
+		read_BinFile (weights_filename, *weights + i*size, offset, size, debug_file_ptr);
+	}
 	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
 	read_BinFile (proj_times_filename, *proj_times, 0, proj_num, debug_file_ptr);
 	read_BinFile (recon_times_filename, *recon_times, 0, recon_num + 1, debug_file_ptr);
-	phcontomo_forward_project (measurements, weights, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);
+/*	phcontomo_forward_project (measurements, weights, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);*/
 }
 
+void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, int32_t *recon_num, float *vox_wid, float *rot_center, float *mag_sig_s, float *mag_sig_t, float *mag_c_s, float *mag_c_t, float *phase_sig_s, float *phase_sig_t, float *phase_c_s, float *phase_c_t, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr)
 /*Function which parses the command line input to the C code and initializes several variables.*/
-void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, int32_t *recon_num, float *vox_wid, float *rot_center, float *sig_s, float *sig_t, float *c_s, float *c_t, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr)
 {
 	int32_t option_index;
 	char c;
@@ -121,24 +119,28 @@ void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int3
                {"rot_center",    required_argument, 0, 'f'}, /*Center of rotation of object, in units of detector pixels. 
 		For example, if center of rotation is exactly at the center of the object, then rot_center = proj_num_cols/2.
 		If not, then specify as to which detector column does the center of rotation of the object projects to. */
-               {"sig_s",  required_argument, 0, 'g'}, /*Spatial regularization parameter of the prior model.*/
-               {"sig_t",  required_argument, 0, 'h'}, /*Temporal regularization parameter of the prior model.*/
-               {"c_s",  required_argument, 0, 'i'}, 
+               {"mag_sig_s",  required_argument, 0, 'g'}, /*Spatial regularization parameter of the prior model.*/
+               {"mag_sig_t",  required_argument, 0, 'h'}, /*Temporal regularization parameter of the prior model.*/
+               {"mag_c_s",  required_argument, 0, 'i'}, 
 		/*parameter of the spatial qGGMRF prior model. 
  		Should be fixed to be much lesser (typically 0.01 times) than the ratio of voxel difference over an edge to sigma_s.*/ 
-               {"c_t",  required_argument, 0, 'j'}, 
+               {"mag_c_t",  required_argument, 0, 'j'}, 
 		/*parameter of the temporal qGGMRF prior model. 
   		Should be fixed to be much lesser (typically 0.01 times) than the ratio of voxel difference over an edge to sigma_t.*/ 
                {"convg_thresh",    required_argument, 0, 'k'}, /*Used to determine when the algorithm is converged at each stage of multi-resolution.
 		If the ratio of the average magnitude of voxel updates to the average voxel value expressed as a percentage is less
 		than "convg_thresh" then the algorithm is assumed to have converged and the algorithm stops.*/
                {"restart",    no_argument, 0, 'n'}, /*If the reconstruction gets killed due to any unfortunate reason (like exceeding walltime in a super-computing cluster), use this flag to restart the reconstruction from the beginning of the current multi-resolution stage. Don't use restart if WRITE_EVERY_ITER  is 1.*/
+               {"phase_sig_s",  required_argument, 0, 'o'}, /*Spatial regularization parameter of the prior model.*/
+               {"phase_sig_t",  required_argument, 0, 'p'}, /*Temporal regularization parameter of the prior model.*/
+               {"phase_c_s",  required_argument, 0, 'q'}, 
+               {"phase_c_t",  required_argument, 0, 'r'}, 
                {0, 0, 0, 0}
          };
 
 	while(1)
 	{		
-	   c = getopt_long (argc, argv, "a:b:c:d:e:f:g:h:i:j:k:n", long_options, &option_index);
+	   c = getopt_long (argc, argv, "a:b:c:d:e:f:g:h:i:j:k:no:p:q:r:", long_options, &option_index);
            /* Detect the end of the options. */
           if (c == -1) break;
 	  switch (c) { 
@@ -149,12 +151,16 @@ void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int3
 		case 'd': *recon_num = (int32_t)atoi(optarg);			break;
 		case 'e': *vox_wid = (float)atof(optarg);			break;
 		case 'f': *rot_center = (float)atof(optarg);			break;
-		case 'g': *sig_s = (float)atof(optarg);			break;
-		case 'h': *sig_t = (float)atof(optarg);			break;
-		case 'i': *c_s = (float)atof(optarg);				break;
-		case 'j': *c_t = (float)atof(optarg);				break;
+		case 'g': *mag_sig_s = (float)atof(optarg);			break;
+		case 'h': *mag_sig_t = (float)atof(optarg);			break;
+		case 'i': *mag_c_s = (float)atof(optarg);				break;
+		case 'j': *mag_c_t = (float)atof(optarg);				break;
 		case 'k': *convg_thresh = (float)atof(optarg);			break;
 		case 'n': *restart = (uint8_t)atoi(optarg);		break;
+		case 'o': *phase_sig_s = (float)atof(optarg);			break;
+		case 'p': *phase_sig_t = (float)atof(optarg);			break;
+		case 'q': *phase_c_s = (float)atof(optarg);				break;
+		case 'r': *phase_c_t = (float)atof(optarg);				break;
 		case '?': fprintf(debug_msg_ptr, "ERROR: read_command_line_args: Cannot recognize argument %s\n",optarg); break;
 		}
 	}
@@ -162,5 +168,4 @@ void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int3
 	if(argc-optind > 0)
 		fprintf(debug_msg_ptr, "ERROR: read_command_line_args: Argument list has an error\n");
 }
-
 

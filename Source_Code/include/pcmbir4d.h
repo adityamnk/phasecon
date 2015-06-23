@@ -32,7 +32,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 #ifndef PHMBIR4D_H_
-int phcontomo_reconstruct (float **magobject, float **phaseobject, float *measurements, float *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, float sig_s, float sig_t, float c_s, float c_t, float convg_thresh, uint8_t restart, FILE *debug_msg_ptr);
+int phcontomo_reconstruct (float **magobject, float **phaseobject, float *measurements, float *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, float mag_sig_s, float mag_sig_t, float mag_c_s, float mag_c_t, float phase_sig_s, float phase_sig_t, float phase_c_s, float phase_c_t, float convg_thresh, uint8_t restart, FILE *debug_msg_ptr);
 int phcontomo_forward_project (float **measurements, float **weights, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, FILE *debug_msg_ptr);
 #define PHMBIR4D_H_
 #endif

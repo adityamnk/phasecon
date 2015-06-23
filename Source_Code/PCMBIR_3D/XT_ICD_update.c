@@ -51,23 +51,15 @@
 #include "XT_MPIIO.h"
 #include "XT_Debug.h"
 #include "XT_OffsetError.h"
+#include "XT_Prior.h"
+#include "XT_Search.h"
 
 /*computes the location of (i,j,k) th element in a 1D array*/
 int32_t array_loc_1D (int32_t i, int32_t j, int32_t k, int32_t N_j, int32_t N_k)
 {
   return (i*N_j*N_k + j*N_k + k);
 }
-/*finds the maximum in a array 'array_in' with number of elements being 'num'*/
-int32_t find_max(int32_t* array_in, int32_t num)
-{
-  int32_t i, maxnum;
-  maxnum = array_in[0];
-  for (i=1; i<num; i++)
-  if (array_in[i] > maxnum)
-  maxnum = array_in[i];
-  
-  return(maxnum);
-}
+
 /*converts the value 'val' to hounsfield units and returns it*/
 Real_t convert2Hounsfield (Real_t val)
 {
@@ -77,108 +69,6 @@ Real_t convert2Hounsfield (Real_t val)
   c=-slope*(AIR_MASS_ATT_COEFF*AIR_DENSITY*HFIELD_UNIT_CONV_CONST);
   
   return (slope*val + c);
-}
-/*Computes the qGGMRF spatial prior cost value at delta = x_i - x_j. i & j being the voxel and its neighbor*/
-Real_t CE_QGGMRF_Spatial_Value(Real_t delta, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
-{
-  return ((pow(fabs(delta),MRF_Q)/TomoInputsPtr->Sigma_S_Q)/(ScannedObjectPtr->C_S + pow(fabs(delta),MRF_Q - MRF_P)/TomoInputsPtr->Sigma_S_Q_P));
-}
-/*Computes the qGGMRF temporal prior cost value at delta = x_i - x_j. i & j being the voxel and its neighbor*/
-Real_t CE_QGGMRF_Temporal_Value(Real_t delta, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
-{
-  return ((pow(fabs(delta),MRF_Q)/TomoInputsPtr->Sigma_T_Q)/(ScannedObjectPtr->C_T + pow(fabs(delta),MRF_Q - MRF_P)/TomoInputsPtr->Sigma_T_Q_P));
-}
-/*Computes the qGGMRF spatial prior derivative at delta = x_i - x_j. i & j being the voxel and its neighbor*/
-Real_t CE_QGGMRF_Spatial_Derivative(Real_t delta, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
-{
-  Real_t temp1,temp2,temp3;
-  temp1=pow(fabs(delta),MRF_Q - MRF_P)/(TomoInputsPtr->Sigma_S_Q_P);
-  temp2=pow(fabs(delta),MRF_Q - 1);
-  temp3 = ScannedObjectPtr->C_S + temp1;
-  if(delta < 0)
-  return ((-1*temp2/(temp3*TomoInputsPtr->Sigma_S_Q))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
-  else
-  {
-    return ((temp2/(temp3*TomoInputsPtr->Sigma_S_Q))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
-  }
-}
-/*Computes the qGGMRF temporal prior derivative at delta = x_i - x_j. i & j being the voxel and its neighbor*/
-Real_t CE_QGGMRF_Temporal_Derivative(Real_t delta, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
-{
-  Real_t temp1,temp2,temp3;
-  temp1 = pow(fabs(delta),MRF_Q - MRF_P)/(TomoInputsPtr->Sigma_T_Q_P);
-  temp2 = pow(fabs(delta),MRF_Q - 1);
-  temp3 = ScannedObjectPtr->C_T + temp1;
-  if(delta < 0)
-  return ((-1*temp2/(temp3*TomoInputsPtr->Sigma_T_Q))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
-  else
-  {
-    return ((temp2/(temp3*TomoInputsPtr->Sigma_T_Q))*(MRF_Q - ((MRF_Q-MRF_P)*temp1)/(temp3)));
-  }
-}
-/*Computes the qGGMRF spatial prior second derivative at delta = 0*/
-Real_t CE_QGGMRF_Spatial_SecondDerivative(ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
-{
-  return MRF_Q/(TomoInputsPtr->Sigma_S_Q*ScannedObjectPtr->C_S);
-}
-/*Computes the qGGMRF spatial prior second derivative at delta = 0*/
-Real_t CE_QGGMRF_Temporal_SecondDerivative(ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
-{
-  return MRF_Q/(TomoInputsPtr->Sigma_T_Q*ScannedObjectPtr->C_T);
-}
-/*Computes the voxel update and returns it. V is the present value of voxel.
-THETA1 and THETA2 are the values used in voxel update. Spatial_Nhood and Time_Nhood gives the
-values of voxels in the neighborhood of V. Time_BDFlag and Spatial_BDFlag are masks which determine
-whether a neighbor should be included in the neighorhood or not.*/
-Real_t CE_FunctionalSubstitution(Real_t V, Real_t THETA1, Real_t THETA2, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_t Spatial_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], Real_t Time_Nhood[NHOOD_TIME_MAXDIM-1], bool Spatial_BDFlag[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], bool Time_BDFlag[NHOOD_TIME_MAXDIM-1])
-{
-  Real_t u,temp1=0,temp2=0,temp_const,RefValue=0,Delta0;
-  Real_t QGGMRF_Params;
-  int32_t i,j,k;
-  RefValue = V;
-  /*Need to Loop this for multiple iterations of substitute function*/
-  for (i=0; i < NHOOD_Y_MAXDIM; i++)
-  for (j=0; j < NHOOD_X_MAXDIM; j++)
-  for (k=0; k < NHOOD_Z_MAXDIM; k++)
-  {
-    if(Spatial_BDFlag[i][j][k] == true && (i != (NHOOD_Y_MAXDIM-1)/2 || j != (NHOOD_X_MAXDIM-1)/2 || k != (NHOOD_Z_MAXDIM-1)/2))
-    {
-      Delta0 = (RefValue - Spatial_Nhood[i][j][k]);
-      if(Delta0 != 0)
-      QGGMRF_Params = CE_QGGMRF_Spatial_Derivative(Delta0,ScannedObjectPtr,TomoInputsPtr)/(Delta0);
-      else {
-        QGGMRF_Params = CE_QGGMRF_Spatial_SecondDerivative(ScannedObjectPtr,TomoInputsPtr);
-      }
-      temp_const = TomoInputsPtr->Spatial_Filter[i][j][k]*QGGMRF_Params;
-      temp1 += temp_const*Spatial_Nhood[i][j][k];
-      temp2 += temp_const;
-    }
-  }
-  for (i=0; i < NHOOD_TIME_MAXDIM - 1; i++)
-  {
-    if(Time_BDFlag[i] == true)
-    {
-      Delta0 = (RefValue - Time_Nhood[i]);
-      if(Delta0 != 0)
-      QGGMRF_Params = CE_QGGMRF_Temporal_Derivative(Delta0,ScannedObjectPtr,TomoInputsPtr)/(Delta0);
-      else {
-        QGGMRF_Params = CE_QGGMRF_Temporal_SecondDerivative(ScannedObjectPtr,TomoInputsPtr);
-      }
-      
-      temp_const = TomoInputsPtr->Time_Filter[0]*QGGMRF_Params;
-      temp1 += temp_const*Time_Nhood[i];
-      temp2 += temp_const;
-    }
-  }
-  
-  u=(temp1+ (THETA2*V) - THETA1)/(temp2 + THETA2);
-  
-  RefValue = RefValue + TomoInputsPtr->alpha*(u-RefValue);
-  #ifdef POSITIVITY_CONSTRAINT
-  if (RefValue <= 0)
-  RefValue = 0;
-  #endif
-  return RefValue;
 }
 
 /*computes the value of cost function. 'ErrorSino' is the error sinogram*/
@@ -194,9 +84,9 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
   for (j = 0; j < SinogramPtr->N_r; j++)
   for (k = 0; k < SinogramPtr->N_t; k++)
   {
-    temp = SinogramPtr->MagErrorSino[i][j][k];
+    temp = SinogramPtr->MagErrorSino[i][j][k]*TomoInputsPtr->ADMM_mu;
     cost += temp*temp;
-    temp = SinogramPtr->PhaseErrorSino[i][j][k];
+    temp = SinogramPtr->PhaseErrorSino[i][j][k]*TomoInputsPtr->ADMM_mu;
     cost += temp*temp;
   }
   cost /= 2.0;
@@ -222,26 +112,26 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
       
       if(k_plus == true) {
         delta = (ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p][j][k + 1]);
-        temp += TomoInputsPtr->Spatial_Filter[1][1][2] * CE_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+        temp += TomoInputsPtr->Spatial_Filter[1][1][2] * Mag_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
         delta = (ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p][j][k + 1]);
-        temp += TomoInputsPtr->Spatial_Filter[1][1][2] * CE_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+        temp += TomoInputsPtr->Spatial_Filter[1][1][2] * Phase_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
       }
       if(j_plus == true) {
         if(k_minus == true) {
           delta = (ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p][j + 1][k - 1]);
-          temp += TomoInputsPtr->Spatial_Filter[1][2][0] * CE_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[1][2][0] * Mag_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
           delta = (ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p][j + 1][k - 1]);
-          temp += TomoInputsPtr->Spatial_Filter[1][2][0] * CE_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[1][2][0] * Phase_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
         }
         delta = (ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p][j + 1][k]);
-        temp += TomoInputsPtr->Spatial_Filter[1][2][1] * CE_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+        temp += TomoInputsPtr->Spatial_Filter[1][2][1] * Mag_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
         delta = (ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p][j + 1][k]);
-        temp += TomoInputsPtr->Spatial_Filter[1][2][1] * CE_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+        temp += TomoInputsPtr->Spatial_Filter[1][2][1] * Phase_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
         if(k_plus == true) {
           delta = (ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p][j + 1][k + 1]);
-          temp += TomoInputsPtr->Spatial_Filter[1][2][2] * CE_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[1][2][2] * Mag_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
           delta = (ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p][j + 1][k + 1]);
-          temp += TomoInputsPtr->Spatial_Filter[1][2][2] * CE_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[1][2][2] * Phase_QGGMRF_Spatial_Value(delta,ScannedObjectPtr,TomoInputsPtr);
         }
       }
       if (p_plus == true)
@@ -249,76 +139,76 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
         if(j_minus == true)
         {
           delta = ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p + 1][j - 1][k];
-          temp += TomoInputsPtr->Spatial_Filter[2][0][1] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[2][0][1] * Mag_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
           delta = ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p + 1][j - 1][k];
-          temp += TomoInputsPtr->Spatial_Filter[2][0][1] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[2][0][1] * Phase_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
         }
         
         delta = ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p+1][j][k];
-        temp += TomoInputsPtr->Spatial_Filter[2][1][1] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+        temp += TomoInputsPtr->Spatial_Filter[2][1][1] * Mag_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
         delta = ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p+1][j][k];
-        temp += TomoInputsPtr->Spatial_Filter[2][1][1] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+        temp += TomoInputsPtr->Spatial_Filter[2][1][1] * Phase_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
         if(j_plus == true)
         {
           delta = ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p+1][j + 1][k];
-          temp += TomoInputsPtr->Spatial_Filter[2][2][1] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[2][2][1] * Mag_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
           delta = ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p+1][j + 1][k];
-          temp += TomoInputsPtr->Spatial_Filter[2][2][1] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[2][2][1] * Phase_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
         }
         if(j_minus == true)
         {
           if(k_minus == true)
           {
             delta = ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p + 1][j - 1][k - 1];
-            temp += TomoInputsPtr->Spatial_Filter[2][0][0] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+            temp += TomoInputsPtr->Spatial_Filter[2][0][0] * Mag_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
             delta = ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p + 1][j - 1][k - 1];
-            temp += TomoInputsPtr->Spatial_Filter[2][0][0] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+            temp += TomoInputsPtr->Spatial_Filter[2][0][0] * Phase_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
           }
           if(k_plus == true)
           {
             delta = ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p + 1][j - 1][k + 1];
-            temp += TomoInputsPtr->Spatial_Filter[2][0][2] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+            temp += TomoInputsPtr->Spatial_Filter[2][0][2] * Mag_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
             delta = ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p + 1][j - 1][k + 1];
-            temp += TomoInputsPtr->Spatial_Filter[2][0][2] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+            temp += TomoInputsPtr->Spatial_Filter[2][0][2] * Phase_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
           }
         }
         if(k_minus == true)
         {
           delta = ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p + 1][j][k - 1];
-          temp += TomoInputsPtr->Spatial_Filter[2][1][0] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[2][1][0] * Mag_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
           delta = ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p + 1][j][k - 1];
-          temp += TomoInputsPtr->Spatial_Filter[2][1][0] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[2][1][0] * Phase_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
         }
         if(j_plus == true)
         {
           if(k_minus == true)
           {
             delta = ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p + 1][j + 1][k - 1];
-            temp += TomoInputsPtr->Spatial_Filter[2][2][0] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+            temp += TomoInputsPtr->Spatial_Filter[2][2][0] * Mag_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
             delta = ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p + 1][j + 1][k - 1];
-            temp += TomoInputsPtr->Spatial_Filter[2][2][0] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+            temp += TomoInputsPtr->Spatial_Filter[2][2][0] * Phase_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
           }
           if(k_plus == true)
           {
             delta = ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p + 1][j + 1][k + 1];
-            temp += TomoInputsPtr->Spatial_Filter[2][2][2] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+            temp += TomoInputsPtr->Spatial_Filter[2][2][2] * Mag_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
             delta = ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p + 1][j + 1][k + 1];
-            temp += TomoInputsPtr->Spatial_Filter[2][2][2] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+            temp += TomoInputsPtr->Spatial_Filter[2][2][2] * Phase_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
           }
         }
         if(k_plus == true)
         {
           delta = ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i][p + 1][j][k + 1];
-          temp += TomoInputsPtr->Spatial_Filter[2][1][2] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[2][1][2] * Mag_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
           delta = ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i][p + 1][j][k + 1];
-          temp += TomoInputsPtr->Spatial_Filter[2][1][2] * CE_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
+          temp += TomoInputsPtr->Spatial_Filter[2][1][2] * Phase_QGGMRF_Spatial_Value(delta, ScannedObjectPtr, TomoInputsPtr);
         }
       }
       if(i_plus == true) {
         delta = (ScannedObjectPtr->MagObject[i][p][j][k] - ScannedObjectPtr->MagObject[i+1][p][j][k]);
-        temp += TomoInputsPtr->Time_Filter[0] * CE_QGGMRF_Temporal_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+        temp += TomoInputsPtr->Time_Filter[0] * Mag_QGGMRF_Temporal_Value(delta,ScannedObjectPtr,TomoInputsPtr);
         delta = (ScannedObjectPtr->PhaseObject[i][p][j][k] - ScannedObjectPtr->PhaseObject[i+1][p][j][k]);
-        temp += TomoInputsPtr->Time_Filter[0] * CE_QGGMRF_Temporal_Value(delta,ScannedObjectPtr,TomoInputsPtr);
+        temp += TomoInputsPtr->Time_Filter[0] * Phase_QGGMRF_Temporal_Value(delta,ScannedObjectPtr,TomoInputsPtr);
       }
     }
   }
@@ -730,8 +620,8 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
   for (j = 0; j < SinogramPtr->N_r; j++)
   for (k = 0; k < SinogramPtr->N_t; k++)
   {
-    MagErrorSino[i][j][k] = SinogramPtr->MagTomoAux[i][j][k] - SinogramPtr->MagTomoDual[i][j][k] - MagErrorSino[i][j][k];
-    PhaseErrorSino[i][j][k] = SinogramPtr->PhaseTomoAux[i][j][k] - SinogramPtr->PhaseTomoDual[i][j][k] - PhaseErrorSino[i][j][k];
+    MagErrorSino[i][j][k] = SinogramPtr->MagTomoAux[i][j][k][0] - SinogramPtr->MagTomoDual[i][j][k] - MagErrorSino[i][j][k];
+    PhaseErrorSino[i][j][k] = SinogramPtr->PhaseTomoAux[i][j][k][0] - SinogramPtr->PhaseTomoDual[i][j][k] - PhaseErrorSino[i][j][k];
     magavg += MagErrorSino[i][j][k];
     phaseavg += PhaseErrorSino[i][j][k];
   }
@@ -925,10 +815,9 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     Real_t cost, cost_0_iter, cost_last_iter, percentage_change_in_cost = 0;
     char costfile[100] = COST_FILENAME;
     #endif
-    Real_t x, y;
-    int32_t j, flag = 0, Iter, i, k;
+    Real_t x, y, zr, zi, ar, ai, br, bi, NMS_cost = 0, NMS_last_cost;
+    int32_t j, flag = 0, Iter, i, k, HeadIter, NMS_avgiter;
     int dimTiff[4];
-    char scaled_error_file[100];
     time_t start;
     char detect_file[100] = DETECTOR_RESPONSE_FILENAME;
     char MagUpdateMapFile[100] = UPDATE_MAP_FILENAME;
@@ -969,66 +858,99 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Time taken to read object = %fmins\n", difftime(time(NULL),start)/60.0);
     if (initErrorSinogam(SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
     check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Time taken to initialize object and compute error sinogram = %fmins\n", difftime(time(NULL),start)/60.0);
-    #ifndef NO_COST_CALCULATE
-    cost = computeCost(SinogramPtr,ScannedObjectPtr,TomoInputsPtr);
-    cost_0_iter = cost;
-    cost_last_iter = cost;
-    check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "------------- Iteration 0, Cost = %f------------\n",cost);
-    if (TomoInputsPtr->node_rank == 0)
-    	Write2Bin (costfile, 1, 1, 1, 1, sizeof(Real_t), &cost, TomoInputsPtr->debug_file_ptr);
-    #endif /*Cost calculation endif*/
    
     start=time(NULL);
-    for (Iter = 1; Iter <= TomoInputsPtr->NumIter; Iter++)
+  
+    for (HeadIter = 1; HeadIter <= TomoInputsPtr->MaxHeadIter; HeadIter++)
     {
-      flag = updateVoxelsTimeSlices (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Iter, Mask);
-      if (TomoInputsPtr->WritePerIter == 1)
-      	if (write_ObjectProjOff2TiffBinPerIter (SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
-      #ifndef NO_COST_CALCULATE
-      cost = computeCost(SinogramPtr,ScannedObjectPtr,TomoInputsPtr);
-      percentage_change_in_cost = ((cost - cost_last_iter)/(cost - cost_0_iter))*100.0;
-      check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Percentage change in cost is %f.\n", percentage_change_in_cost);
-      check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "------------- Iteration = %d, Cost = %f, Time since start of ICD = %fmins ------------\n",Iter,cost,difftime(time(NULL),start)/60.0);
-      if (TomoInputsPtr->node_rank == 0)
-	Append2Bin (costfile, 1, 1, 1, 1, sizeof(Real_t), &cost, TomoInputsPtr->debug_file_ptr);
-      check_error(cost > cost_last_iter, TomoInputsPtr->node_rank == 0, TomoInputsPtr->debug_file_ptr, "Cost value increased.\n");
-      cost_last_iter = cost;
-      /*if (percentage_change_in_cost < TomoInputsPtr->cost_thresh && flag != 0 && Iter > 1){*/
-      if (flag != 0 && Iter > 1){
-        check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Convergence criteria is met.\n");
-        break;
-      }
-      #else
-      check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "-------------ICD_BackProject: ICD Iter = %d, time since start of ICD = %fmins------------.\n",Iter,difftime(time(NULL),start)/60.0);
-      if (flag != 0 && Iter > 1){
-        check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Convergence criteria is met.\n");
-        break;
-      }
-      #endif
-      flag = fflush(TomoInputsPtr->debug_file_ptr);
-      if (flag != 0)
-      	check_warn(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot flush buffer.\n");
-    }
-   
-    for (i = 0; i < SinogramPtr->N_p; i++)
-    for (j = 0; j < SinogramPtr->N_r; j++)
-    for (k = 0; k < SinogramPtr->N_t; k++)
-    {    
-	SinogramPtr->MagErrorSino[i][j][k] *= sqrt(TomoInputsPtr->Weight[i][j][k]);
-	SinogramPtr->PhaseErrorSino[i][j][k] *= sqrt(TomoInputsPtr->Weight[i][j][k]);
-    }
+	NMS_avgiter = 0;
+	NMS_cost = 0;
+	NMS_last_cost = 0;
+    	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Running Nelder Mead simplex algorithm ....\n");
+        #pragma omp parallel for collapse(3) private(i,j,k,ar,ai,br,bi,zr,zi,cost,cost_last_iter) reduction(+:NMS_avgiter,NMS_cost,NMS_last_cost)
+	for (i = 0; i < SinogramPtr->N_p; i++)
+	for (j = 0; j < SinogramPtr->N_r; j++)
+	for (k = 0; k < SinogramPtr->N_t; k++)
+	{
+		ar = -(SinogramPtr->MagErrorSino[i][j][k] - SinogramPtr->MagTomoAux[i][j][k][0]);
+		ai = -(SinogramPtr->PhaseErrorSino[i][j][k] - SinogramPtr->PhaseTomoAux[i][j][k][0]);
+		br = SinogramPtr->MagPRetAux[i][j][k] - SinogramPtr->MagPRetDual[i][j][k];
+		bi = SinogramPtr->PhasePRetAux[i][j][k] - SinogramPtr->PhasePRetDual[i][j][k];
+		zr = SinogramPtr->MagTomoAux[i][j][k][0];
+		zi = SinogramPtr->PhaseTomoAux[i][j][k][0];
+#ifndef NO_COST_CALCULATE
+		cost_last_iter = Cost_NMS (zr, zi, ar, ai, br, bi);
+#endif
+		NMS_avgiter += Nelder_Mead_Simplex_2DSearch (SinogramPtr->MagTomoAux[i][j][k], SinogramPtr->PhaseTomoAux[i][j][k], ar, ai, br, bi, TomoInputsPtr->NMS_rho, TomoInputsPtr->NMS_chi, TomoInputsPtr->NMS_gamma, TomoInputsPtr->NMS_sigma, TomoInputsPtr->NMS_threshold, TomoInputsPtr->NMS_MaxIter, TomoInputsPtr->debug_file_ptr);
+		SinogramPtr->MagErrorSino[i][j][k] += SinogramPtr->MagTomoAux[i][j][k][0] - zr; 
+		SinogramPtr->PhaseErrorSino[i][j][k] += SinogramPtr->PhaseTomoAux[i][j][k][0] - zi; 
+#ifndef NO_COST_CALCULATE
+		cost = Cost_NMS (SinogramPtr->MagTomoAux[i][j][k][0], SinogramPtr->MagTomoAux[i][j][k][0], ar, ai, br, bi);
+      		if (cost > cost_last_iter)
+			check_warn(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "NMS cost increased for %d projection, %d column, %d row.\n", i, j, k);
+		NMS_cost += cost;
+		NMS_last_cost += cost_last_iter;
+#endif
+	}
+      
+    	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The average number of NMS iterations is %d.\n", NMS_avgiter/(SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t));
+    	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The new NMS cost is %f. The prev iteration NMS cost was %f.\n", NMS_cost, NMS_last_cost);
+
+#ifndef NO_COST_CALCULATE
+	    cost = computeCost(SinogramPtr,ScannedObjectPtr,TomoInputsPtr);
+	    cost_0_iter = cost;
+	    cost_last_iter = cost;
+	    check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "------------- Iteration 0, Cost = %f------------\n",cost);
+	    if (TomoInputsPtr->node_rank == 0)
+	    	Write2Bin (costfile, 1, 1, 1, 1, sizeof(Real_t), &cost, TomoInputsPtr->debug_file_ptr);
+#endif /*Cost calculation endif*/
+    	for (Iter = 1; Iter <= TomoInputsPtr->NumIter; Iter++)
+    	{
+      		flag = updateVoxelsTimeSlices (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Iter, Mask);
+      		if (TomoInputsPtr->WritePerIter == 1)
+      			if (write_ObjectProjOff2TiffBinPerIter (SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
+#ifndef NO_COST_CALCULATE
+	      cost = computeCost(SinogramPtr,ScannedObjectPtr,TomoInputsPtr);
+	      percentage_change_in_cost = ((cost - cost_last_iter)/(cost - cost_0_iter))*100.0;
+	      check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Percentage change in cost is %f.\n", percentage_change_in_cost);
+	      check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "------------- Iteration = %d, Cost = %f, Time since start of ICD = %fmins ------------\n",Iter,cost,difftime(time(NULL),start)/60.0);
+	      if (TomoInputsPtr->node_rank == 0)
+			Append2Bin (costfile, 1, 1, 1, 1, sizeof(Real_t), &cost, TomoInputsPtr->debug_file_ptr);
+	      check_error(cost > cost_last_iter, TomoInputsPtr->node_rank == 0, TomoInputsPtr->debug_file_ptr, "Cost value increased.\n");
+	      cost_last_iter = cost;
+	      /*if (percentage_change_in_cost < TomoInputsPtr->cost_thresh && flag != 0 && Iter > 1){*/
+	      if (flag != 0 && Iter > 1){
+		        check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Convergence criteria is met.\n");
+        		break;
+      		}
+#else
+	      check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "-------------ICD_BackProject: ICD Iter = %d, time since start of ICD = %fmins------------.\n",Iter,difftime(time(NULL),start)/60.0);
+		if (flag != 0 && Iter > 1){
+        		check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Convergence criteria is met.\n");
+        		break;
+	      }
+#endif
+	      flag = fflush(TomoInputsPtr->debug_file_ptr);
+     		 if (flag != 0)
+      			check_warn(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot flush buffer.\n");
+    	}
+
+        #pragma omp parallel for collapse(3) private(i,j,k,ar,ai)
+	for (i = 0; i < SinogramPtr->N_p; i++)
+	for (j = 0; j < SinogramPtr->N_r; j++)
+	for (k = 0; k < SinogramPtr->N_t; k++)
+	{
+		ar = SinogramPtr->MagTomoDual[i][j][k]; ai = SinogramPtr->PhaseTomoDual[i][j][k];
+		SinogramPtr->MagTomoDual[i][j][k] = -SinogramPtr->MagErrorSino[i][j][k];
+		SinogramPtr->PhaseTomoDual[i][j][k] = -SinogramPtr->PhaseErrorSino[i][j][k];
+		SinogramPtr->MagErrorSino[i][j][k] += ar - SinogramPtr->MagTomoDual[i][j][k];
+		SinogramPtr->PhaseErrorSino[i][j][k] += ai - SinogramPtr->PhaseTomoDual[i][j][k];
+    	}
+	
+    }   
 
     int32_t size = ScannedObjectPtr->N_time*TomoInputsPtr->num_z_blocks*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
     if (write_SharedBinFile_At (MagUpdateMapFile, &(ScannedObjectPtr->UpdateMap[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) goto error;
-    
-    dimTiff[0] = 1; dimTiff[1] = SinogramPtr->N_p; dimTiff[2] = SinogramPtr->N_r; dimTiff[3] = SinogramPtr->N_t;
-    if (TomoInputsPtr->Write2Tiff == 1)
-    {
-      sprintf(scaled_error_file, "%s_n%d", SCALED_MAGERROR_SINO_FILENAME, TomoInputsPtr->node_rank);
-      if (WriteMultiDimArray2Tiff (scaled_error_file, dimTiff, 0, 3, 1, 2, &(SinogramPtr->MagErrorSino[0][0][0]), 0, TomoInputsPtr->debug_file_ptr)) goto error;
-      sprintf(scaled_error_file, "%s_n%d", SCALED_PHASEERROR_SINO_FILENAME, TomoInputsPtr->node_rank);
-      if (WriteMultiDimArray2Tiff (scaled_error_file, dimTiff, 0, 3, 1, 2, &(SinogramPtr->PhaseErrorSino[0][0][0]), 0, TomoInputsPtr->debug_file_ptr)) goto error;
-    }
     
     multifree(SinogramPtr->MagErrorSino,3);
     multifree(SinogramPtr->PhaseErrorSino,3);

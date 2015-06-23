@@ -45,8 +45,8 @@
    Real_arr_t ***Measurements; /*Stores the measurements (photon count measurements, intensity measurements, etc.)*/
    Real_arr_t ***MagErrorSino; /*Error sinogram of the magnitude component*/
    Real_arr_t ***PhaseErrorSino; /*Error sinogram of the phase component*/
-   Real_arr_t ***MagTomoAux; /*ADMM auxiliary vector for the tomography split*/
-   Real_arr_t ***PhaseTomoAux; /*ADMM auxiliary vector for the tomography split*/
+   Real_arr_t ****MagTomoAux; /*ADMM auxiliary vector for the tomography split*/
+   Real_arr_t ****PhaseTomoAux; /*ADMM auxiliary vector for the tomography split*/
    Real_arr_t ***MagTomoDual; /*ADMM dual vector corresponding to the tomography split*/
    Real_arr_t ***PhaseTomoDual; /*ADMM dual vector corresponding to the tomography split*/
    Real_arr_t ***MagPRetAux; /*ADMM auxiliary vector for the phase retrieval split*/
@@ -103,11 +103,16 @@
 
 /*However, at finest resolution, delta_x = delta_y = delta_z*/ 
     Real_t BeamWidth; /*Beamwidth of the detector response*/
-    Real_t Sigma_S; /*regularization parameter over space (over x-y slice). Its a parameter of qGGMRF prior model*/ 
-    Real_t Sigma_T; /*regularization parameter across time. Its a parameter of qGGMRF prior model*/ 
-
-    Real_t C_S; /*parameter c of qGGMRF prior model*/
-    Real_t C_T; /*parameter c of qGGMRF prior model*/
+    
+    Real_t Mag_Sigma_S; /*regularization parameter over space (over x-y slice). Its a parameter of qGGMRF prior model*/ 
+    Real_t Mag_Sigma_T; /*regularization parameter across time. Its a parameter of qGGMRF prior model*/ 
+    Real_t Mag_C_S; /*parameter c of qGGMRF prior model*/
+    Real_t Mag_C_T; /*parameter c of qGGMRF prior model*/
+    
+    Real_t Phase_Sigma_S; /*regularization parameter over space (over x-y slice). Its a parameter of qGGMRF prior model*/ 
+    Real_t Phase_Sigma_T; /*regularization parameter across time. Its a parameter of qGGMRF prior model*/ 
+    Real_t Phase_C_S; /*parameter c of qGGMRF prior model*/
+    Real_t Phase_C_T; /*parameter c of qGGMRF prior model*/
 
     int32_t **ProjIdxPtr; /*Dictates the mapping of projection views to time slices*/
     int32_t *ProjNum; /*Number of projections assigned to each time slices*/
@@ -130,12 +135,17 @@ typedef struct
     int32_t NumIter; /*Maximum number of iterations that the ICD can be run. Normally, ICD converges before completing all the iterations and exits*/
     Real_t StopThreshold; /*ICD exits after the average update of the voxels becomes less than this threshold. Its specified in units of HU.*/
     Real_t RotCenter; /*Center of rotation of the object as measured on the detector in units of pixels*/ 
-    
     Real_t radius_obj;	/*Radius of the object within which the voxels are updated*/
-    Real_t Sigma_S_Q; /*The parameter sigma_s raised to power of q*/
-    Real_t Sigma_T_Q; /*Parameter sigma_t raised to power of q*/
-    Real_t Sigma_S_Q_P; /*Parameter sigma_s raised to power of q-p*/
-    Real_t Sigma_T_Q_P; /*Parameter sigma_t raised to power of q-p*/
+    
+    Real_t Mag_Sigma_S_Q; /*The parameter sigma_s raised to power of q*/
+    Real_t Mag_Sigma_T_Q; /*Parameter sigma_t raised to power of q*/
+    Real_t Mag_Sigma_S_Q_P; /*Parameter sigma_s raised to power of q-p*/
+    Real_t Mag_Sigma_T_Q_P; /*Parameter sigma_t raised to power of q-p*/
+    
+    Real_t Phase_Sigma_S_Q; /*The parameter sigma_s raised to power of q*/
+    Real_t Phase_Sigma_T_Q; /*Parameter sigma_t raised to power of q*/
+    Real_t Phase_Sigma_S_Q_P; /*Parameter sigma_s raised to power of q-p*/
+    Real_t Phase_Sigma_T_Q_P; /*Parameter sigma_t raised to power of q-p*/
     
     Real_t Spatial_Filter[NHOOD_Z_MAXDIM][NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM]; /*Filter is the weighting kernel used in the prior model*/
     Real_t Time_Filter[(NHOOD_TIME_MAXDIM-1)/2]; /*Filter is the weighting kernel used in the prior model*/
@@ -173,6 +183,14 @@ typedef struct
     Real_t Prior_Cost;
 
     int32_t num_threads;
+    Real_t ADMM_mu;
+    Real_t NMS_rho;
+    Real_t NMS_chi;
+    Real_t NMS_gamma;
+    Real_t NMS_sigma;
+    Real_t NMS_threshold;
+    int32_t NMS_MaxIter;
+    int32_t MaxHeadIter; 
   } TomoInputs;
 
 #endif /*#define XT_STRUCTURES_H*/

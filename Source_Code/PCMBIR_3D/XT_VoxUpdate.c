@@ -3,11 +3,22 @@
 #include "XT_Constants.h"
 #include <stdio.h>
 #include "XT_Structures.h"
-#include "XT_ICD_update.h"
+#include "XT_Prior.h"
 #include "XT_AMatrix.h"
 #include <math.h>
 #include "allocate.h"
 
+/*finds the maximum in a array 'array_in' with number of elements being 'num'*/
+int32_t find_max(int32_t* array_in, int32_t num)
+{
+  int32_t i, maxnum;
+  maxnum = array_in[0];
+  for (i=1; i<num; i++)
+  if (array_in[i] > maxnum)
+  maxnum = array_in[i];
+  
+  return(maxnum);
+}
 
 void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** MagErrorSino, Real_arr_t*** PhaseErrorSino, AMatrixCol* AMatrixPtr, /*AMatrixCol* VoxelLineResponse,*/ Real_t Mag3D_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], Real_t Phase3D_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], Real_t MagTime_Nhood[], Real_t PhaseTime_Nhood[], bool BDFlag_3D[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], bool BDFlag_Time[], int32_t i_new, int32_t slice, int32_t j_new, int32_t k_new)
 {
@@ -34,9 +45,9 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 			{ 
 				/*i_t = VoxelLineResponse[slice].index[r];*/
 				i_t = slice*z_overlap_num + r;
-	        	   	THETA2 += ProjectionEntry*ProjectionEntry;
-               			THETA1Mag += -(MagErrorSino[sino_view][i_r][i_t]*ProjectionEntry);
-               			THETA1Phase += -(PhaseErrorSino[sino_view][i_r][i_t]*ProjectionEntry);
+	        	   	THETA2 += ProjectionEntry*ProjectionEntry*TomoInputsPtr->ADMM_mu;
+               			THETA1Mag += -(MagErrorSino[sino_view][i_r][i_t]*ProjectionEntry*TomoInputsPtr->ADMM_mu);
+               			THETA1Phase += -(PhaseErrorSino[sino_view][i_r][i_t]*ProjectionEntry*TomoInputsPtr->ADMM_mu);
             		}
 		}
         }
@@ -44,9 +55,9 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
             /*Solve the 1-D optimization problem
             TODO : What if theta1 = 0 ? Then this will give error*/
 
-        UpdatedVoxelValue = CE_FunctionalSubstitution(VMag, THETA1Mag, THETA2, ScannedObjectPtr, TomoInputsPtr, Mag3D_Nhood, MagTime_Nhood, BDFlag_3D, BDFlag_Time);
+        UpdatedVoxelValue = Mag_FunctionalSubstitution(VMag, THETA1Mag, THETA2, ScannedObjectPtr, TomoInputsPtr, Mag3D_Nhood, MagTime_Nhood, BDFlag_3D, BDFlag_Time);
         ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
-        UpdatedVoxelValue = CE_FunctionalSubstitution(VPhase, THETA1Phase, THETA2, ScannedObjectPtr, TomoInputsPtr, Phase3D_Nhood, PhaseTime_Nhood, BDFlag_3D, BDFlag_Time);
+        UpdatedVoxelValue = Phase_FunctionalSubstitution(VPhase, THETA1Phase, THETA2, ScannedObjectPtr, TomoInputsPtr, Phase3D_Nhood, PhaseTime_Nhood, BDFlag_3D, BDFlag_Time);
         ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
 	
 	for (p = 0; p < ScannedObjectPtr->ProjNum[i_new]; p++){

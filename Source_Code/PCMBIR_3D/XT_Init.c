@@ -208,16 +208,22 @@ void calculateSinCos(Sinogram* SinogramPtr, TomoInputs* TomoInputsPtr)
 
 /*Initializes the variables in the three major structures used throughout the code -
 Sinogram, ScannedObject, TomoInputs. It also allocates memory for several variables.*/
-int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, int32_t mult_idx, int32_t mult_xy[], int32_t mult_z[], Real_arr_t *measurements, Real_arr_t *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, Real_t vox_wid, Real_t rot_center, Real_t sig_s, Real_t sig_t, Real_t c_s, Real_t c_t, Real_t convg_thresh)
+int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, int32_t mult_idx, int32_t mult_xy[], int32_t mult_z[], Real_arr_t *measurements, Real_arr_t *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, Real_t vox_wid, Real_t rot_center, Real_t mag_sig_s, Real_t mag_sig_t, Real_t mag_c_s, Real_t mag_c_t, Real_t phase_sig_s, Real_t phase_sig_t, Real_t phase_c_s, Real_t phase_c_t, Real_t convg_thresh)
 {
 	int flag = 0;
 	MPI_Comm_size(MPI_COMM_WORLD, &(TomoInputsPtr->node_num));
 	MPI_Comm_rank(MPI_COMM_WORLD, &(TomoInputsPtr->node_rank));
 	
-	ScannedObjectPtr->Sigma_S = sig_s;
-	ScannedObjectPtr->C_S = c_s;
-	ScannedObjectPtr->Sigma_T = sig_t;
-	ScannedObjectPtr->C_T = c_t;
+	ScannedObjectPtr->Mag_Sigma_S = mag_sig_s;
+	ScannedObjectPtr->Mag_C_S = mag_c_s;
+	ScannedObjectPtr->Mag_Sigma_T = mag_sig_t;
+	ScannedObjectPtr->Mag_C_T = mag_c_t;
+	
+	ScannedObjectPtr->Phase_Sigma_S = phase_sig_s;
+	ScannedObjectPtr->Phase_C_S = phase_c_s;
+	ScannedObjectPtr->Phase_Sigma_T = phase_sig_t;
+	ScannedObjectPtr->Phase_C_T = phase_c_t;
+	
 	ScannedObjectPtr->mult_xy = mult_xy[mult_idx];
 	ScannedObjectPtr->mult_z = mult_z[mult_idx];		
 	SinogramPtr->Length_R = vox_wid*proj_cols;
@@ -259,11 +265,17 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	SinogramPtr->N_t = SinogramPtr->total_t_slices/TomoInputsPtr->node_num;
 	
 	SinogramPtr->Measurements = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
-	SinogramPtr->MagTomoAux = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->MagTomoAux = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t, 4);
 	SinogramPtr->MagTomoDual = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
-	SinogramPtr->PhaseTomoAux = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->PhaseTomoAux = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t, 4);
 	SinogramPtr->PhaseTomoDual = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+
+	SinogramPtr->MagPRetAux = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->MagPRetDual = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->PhasePRetAux = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->PhasePRetDual = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
 	TomoInputsPtr->Weight = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+
 	for (i = 0; i < SinogramPtr->N_p; i++)
 	for (j = 0; j < SinogramPtr->N_r; j++)
 	for (k = 0; k < SinogramPtr->N_t; k++)
@@ -272,9 +284,20 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		SinogramPtr->Measurements[i][j][k] = measurements[idx];		
 		TomoInputsPtr->Weight[i][j][k] = weights[idx];
 
-		SinogramPtr->MagTomoAux[i][j][k] = measurements[idx];		
+		SinogramPtr->MagPRetAux[i][j][k] = measurements[2*idx];		
+		SinogramPtr->MagPRetDual[i][j][k] = 0;		
+		SinogramPtr->PhasePRetAux[i][j][k] = measurements[2*idx+1];		
+		SinogramPtr->PhasePRetDual[i][j][k] = 0;		
+		
+		SinogramPtr->MagTomoAux[i][j][k][0] = 0;		
+		SinogramPtr->MagTomoAux[i][j][k][1] = 1;	
+		SinogramPtr->MagTomoAux[i][j][k][2] = -1;		
+		SinogramPtr->MagTomoAux[i][j][k][3] = 0;		
 		SinogramPtr->MagTomoDual[i][j][k] = 0;		
-		SinogramPtr->PhaseTomoAux[i][j][k] = measurements[idx];		
+		SinogramPtr->PhaseTomoAux[i][j][k][0] = 0;		
+		SinogramPtr->PhaseTomoAux[i][j][k][1] = 0;		
+		SinogramPtr->PhaseTomoAux[i][j][k][2] = -1;		
+		SinogramPtr->PhaseTomoAux[i][j][k][3] = 1;		
 		SinogramPtr->PhaseTomoDual[i][j][k] = 0;		
 	}
 	
@@ -369,13 +392,27 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	ScannedObjectPtr->recon_times = recon_times;
 	flag = initRandomAngles (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
 	/*TomoInputs holds the input parameters and some miscellaneous variables*/
-	TomoInputsPtr->Sigma_S_Q = pow((ScannedObjectPtr->Sigma_S*ScannedObjectPtr->mult_xy),MRF_Q);
-	TomoInputsPtr->Sigma_S_Q_P = pow(ScannedObjectPtr->Sigma_S*ScannedObjectPtr->mult_xy,MRF_Q-MRF_P);	
-	TomoInputsPtr->Sigma_T_Q = pow((ScannedObjectPtr->Sigma_T*ScannedObjectPtr->delta_recon),MRF_Q);
-	TomoInputsPtr->Sigma_T_Q_P = pow(ScannedObjectPtr->Sigma_T*ScannedObjectPtr->delta_recon,MRF_Q-MRF_P);
+	TomoInputsPtr->Mag_Sigma_S_Q = pow((ScannedObjectPtr->Mag_Sigma_S*ScannedObjectPtr->mult_xy),MRF_Q);
+	TomoInputsPtr->Mag_Sigma_S_Q_P = pow(ScannedObjectPtr->Mag_Sigma_S*ScannedObjectPtr->mult_xy,MRF_Q-MRF_P);	
+	TomoInputsPtr->Mag_Sigma_T_Q = pow((ScannedObjectPtr->Mag_Sigma_T*ScannedObjectPtr->delta_recon),MRF_Q);
+	TomoInputsPtr->Mag_Sigma_T_Q_P = pow(ScannedObjectPtr->Mag_Sigma_T*ScannedObjectPtr->delta_recon,MRF_Q-MRF_P);
+	
+	TomoInputsPtr->Phase_Sigma_S_Q = pow((ScannedObjectPtr->Phase_Sigma_S*ScannedObjectPtr->mult_xy),MRF_Q);
+	TomoInputsPtr->Phase_Sigma_S_Q_P = pow(ScannedObjectPtr->Phase_Sigma_S*ScannedObjectPtr->mult_xy,MRF_Q-MRF_P);	
+	TomoInputsPtr->Phase_Sigma_T_Q = pow((ScannedObjectPtr->Phase_Sigma_T*ScannedObjectPtr->delta_recon),MRF_Q);
+	TomoInputsPtr->Phase_Sigma_T_Q_P = pow(ScannedObjectPtr->Phase_Sigma_T*ScannedObjectPtr->delta_recon,MRF_Q-MRF_P);
 	initFilter (ScannedObjectPtr, TomoInputsPtr);
 	
 	calculateSinCos (SinogramPtr, TomoInputsPtr);
+	TomoInputsPtr->ADMM_mu = 1;	
+	TomoInputsPtr->NMS_rho = 1;	
+	TomoInputsPtr->NMS_chi = 2;	
+	TomoInputsPtr->NMS_gamma = 0.5;	
+	TomoInputsPtr->NMS_sigma = 0.5;	
+	TomoInputsPtr->NMS_threshold = 0.1;
+	TomoInputsPtr->NMS_MaxIter = 1000;
+	TomoInputsPtr->MaxHeadIter = 100;
+
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
 	
 	check_error(SinogramPtr->N_t % (int32_t)ScannedObjectPtr->mult_z != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_z, SinogramPtr->N_t);
@@ -402,10 +439,15 @@ void freeMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInpu
 /*	multifree(ScannedObjectPtr->Object, 4);*/
 	
 	if (SinogramPtr->Measurements) multifree(SinogramPtr->Measurements,3);
-	if (SinogramPtr->MagTomoAux) multifree(SinogramPtr->MagTomoAux,3);
+	if (SinogramPtr->MagTomoAux) multifree(SinogramPtr->MagTomoAux,4);
 	if (SinogramPtr->MagTomoDual) multifree(SinogramPtr->MagTomoDual,3);
-	if (SinogramPtr->PhaseTomoAux) multifree(SinogramPtr->PhaseTomoAux,3);
+	if (SinogramPtr->PhaseTomoAux) multifree(SinogramPtr->PhaseTomoAux,4);
 	if (SinogramPtr->PhaseTomoDual) multifree(SinogramPtr->PhaseTomoDual,3);
+	
+	if (SinogramPtr->MagPRetAux) multifree(SinogramPtr->MagPRetAux,3);
+	if (SinogramPtr->MagPRetDual) multifree(SinogramPtr->MagPRetDual,3);
+	if (SinogramPtr->PhasePRetAux) multifree(SinogramPtr->PhasePRetAux,3);
+	if (SinogramPtr->PhasePRetDual) multifree(SinogramPtr->PhasePRetDual,3);
 
 	if (TomoInputsPtr->x_rand_select) multifree(TomoInputsPtr->x_rand_select,3);
 	if (TomoInputsPtr->y_rand_select) multifree(TomoInputsPtr->y_rand_select,3);
@@ -466,7 +508,7 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
     	ScannedObjectPtr->BeamWidth = SinogramPtr->delta_r; /*Weighting of the projections at different points of the detector*/
 /*	ScannedObjectPtr->Object = (Real_t****)multialloc(sizeof(Real_t), 4, ScannedObjectPtr->N_time, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->N_z);*/
 	/*OffsetR is stepsize of the distance between center of voxel of the object and the detector pixel, at which projections are computed*/
-	SinogramPtr->OffsetR = (ScannedObjectPtr->delta_xy/sqrt(2.0)+SinogramPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
+	SinogramPtr->OffsetR = (ScannedObjectPtr->delta_xy/sqrt(2.0) + SinogramPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
 	SinogramPtr->OffsetT = ((ScannedObjectPtr->delta_z/2) + SinogramPtr->delta_t/2)/DETECTOR_RESPONSE_BINS;
 
 	TomoInputsPtr->num_threads = omp_get_max_threads();

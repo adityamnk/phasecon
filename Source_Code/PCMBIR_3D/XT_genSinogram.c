@@ -57,7 +57,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	FILE *fp;
 	long int stream_offset, size, result;
 	int32_t i, j, k, m, n, idx, t, slice; 
-	Real_t proj_avg, weight_avg, pixel, val;
+	Real_t proj_avg, weight_avg, magpixel, phasepixel, val;
   	uint8_t AvgNumXElements, AvgNumZElements;
 	char phantom_file[1000];
 	char detect_file[] = "detector_forwardproj";
@@ -69,8 +69,9 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
   	AMatrixPtr->values = (Real_t*)get_spc((int32_t)AvgNumXElements,sizeof(Real_t));
   	AMatrixPtr->index  = (int32_t*)get_spc((int32_t)AvgNumXElements,sizeof(int32_t));
 
-	Real_arr_t*** object = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
-	memset(&(measurements[0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));	
+	Real_arr_t*** magobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+	Real_arr_t*** phaseobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+	memset(&(measurements[0]), 0, 2*SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));	
 
 	SinogramPtr->DetectorResponse = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_p, DETECTOR_RESPONSE_BINS+1);
 	SinogramPtr->ZLineResponse = (Real_arr_t *)get_spc(DETECTOR_RESPONSE_BINS + 1, sizeof(Real_arr_t));
@@ -86,18 +87,29 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	}
 	storeVoxelLineResponse(VoxelLineResponse, ScannedObjectPtr, SinogramPtr);
 
-	sprintf(phantom_file, "%s", PHANTOM_FILEPATH);
+	sprintf(phantom_file, "%s", MAG_PHANTOM_FILEPATH);
 	fp = fopen (phantom_file, "rb");
-	
 	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
 	size = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
-
-	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "Forward projecting phantom ...\n");	
+	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "Forward projecting magnitude phantom ...\n");	
 	stream_offset = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
 	result = fseek (fp, stream_offset*sizeof(float), SEEK_SET);
   	check_error(result != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
-	result = fread (&(object[0][0][0]), sizeof(float), size, fp);
+	result = fread (&(magobject[0][0][0]), sizeof(float), size, fp);
   	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
+	fclose(fp);	
+	
+	sprintf(phantom_file, "%s", PHASE_PHANTOM_FILEPATH);
+	fp = fopen (phantom_file, "rb");
+	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
+	size = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
+	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "Forward projecting phase phantom ...\n");	
+	stream_offset = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
+	result = fseek (fp, stream_offset*sizeof(float), SEEK_SET);
+  	check_error(result != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
+	result = fread (&(phaseobject[0][0][0]), sizeof(float), size, fp);
+  	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
+	fclose(fp);	
 	
 	for (i=0; i<SinogramPtr->N_p; i++){
 	/*	stream_offset = (long int)i*(long int)PHANTOM_Z_SIZE*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
@@ -108,13 +120,17 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		for (k=0; k<ScannedObjectPtr->N_x; k++){	
 	   	    	calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, AMatrixPtr, j, k, i); 
                 	for (slice=0; slice<ScannedObjectPtr->N_z; slice++){
-			    	pixel = (Real_t)(object[slice][j][k]);
+			    	magpixel = (Real_t)(magobject[slice][j][k]);
+			    	phasepixel = (Real_t)(phaseobject[slice][j][k]);
 	     	          	for (m=0; m<AMatrixPtr->count; m++){
                             		idx=AMatrixPtr->index[m];
                             		val=AMatrixPtr->values[m];
                             		for (n=0; n<VoxelLineResponse[slice].count; n++)
-                                    		measurements[i*SinogramPtr->N_t*SinogramPtr->N_r + VoxelLineResponse[slice].index[n]*SinogramPtr->N_r + idx] += pixel*val*VoxelLineResponse[slice].values[n];
-	     			}
+					{
+                                    		measurements[2*(i*SinogramPtr->N_t*SinogramPtr->N_r + VoxelLineResponse[slice].index[n]*SinogramPtr->N_r + idx)] += magpixel*val*VoxelLineResponse[slice].values[n];
+                                    		measurements[2*(i*SinogramPtr->N_t*SinogramPtr->N_r + VoxelLineResponse[slice].index[n]*SinogramPtr->N_r + idx)+1] += phasepixel*val*VoxelLineResponse[slice].values[n];
+	     				}
+				}
 				/*proj_avg += SinogramPtr->Projection[i][idx][VoxelLineResponse[slice].index[n]];
 				if (proj_avg != proj_avg)
 				{
@@ -136,33 +152,46 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	for (j=0; j < SinogramPtr->N_r; j++)
 	{
 		idx = i*SinogramPtr->N_t*SinogramPtr->N_r + slice*SinogramPtr->N_r + j;
-		val = measurements[idx];
+		val = measurements[2*idx];
 		val = EXPECTED_COUNT_MEASUREMENT*exp(-val);
-		check_error(val == 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: val = %f, measurements = %f, i = %d, j = %d, slice = %d\n", val, measurements[idx], i, j, slice);
+		check_error(val == 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: val = %f, measurements = %f, i = %d, j = %d, slice = %d\n", val, measurements[2*idx], i, j, slice);
 		/*TomoInputsPtr->Weight[i][j] = val + sqrt(val)*random2();*/
 /*		if (TomoInputsPtr->No_Projection_Noise == 1)
 			weights[idx] = fabs(val);
 		else*/
-		weights[idx] = fabs(val + sqrt(val)*normal());
+		weights[2*idx] = fabs(val + sqrt(val)*normal());
 		/*Scaling noise S.D. this way, is equivalent to using a incident photon count of EXPECTED_COUNTS_FOR_PHANTOM_DATA/VAR_PARAM_4_SIM_DATA,
  		adding Poisson noise (mean = standard deviation) and then scaling the result by a multiplicative factor of VAR_PARAM_4_SIM_DATA*/
 		
 		/*projections[idx] = log(TomoInputsPtr->sim_exp_counts/weights[idx]) - offset_sim[slice*SinogramPtr->N_r + j];*/
-		measurements[idx] = log(EXPECTED_COUNT_MEASUREMENT/weights[idx]) ;
+		measurements[2*idx] = weights[2*idx]/EXPECTED_COUNT_MEASUREMENT;
 		/*if (random2() > 0.999)
 		{
 			zinger_added = 1;
 			projections[idx] = 0;
 		}	*/
-		weight_avg += weights[idx];	
-		proj_avg += measurements[idx];	
+		weight_avg += weights[2*idx];	
+		proj_avg += measurements[2*idx];	
+		
+		val = measurements[2*idx+1];
+		val = EXPECTED_COUNT_MEASUREMENT*exp(-val);
+		check_error(val == 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: val = %f, measurements = %f, i = %d, j = %d, slice = %d\n", val, measurements[2*idx+1], i, j, slice);
+		weights[2*idx+1] = fabs(val + sqrt(val)*normal());
+		measurements[2*idx+1] = weights[2*idx+1]/EXPECTED_COUNT_MEASUREMENT;
+		weight_avg += weights[2*idx+1];	
+		proj_avg += measurements[2*idx+1];	
 	}
 
-	proj_avg /= size;
-	weight_avg /= size;
+	proj_avg /= (2*size);
+	weight_avg /= (2*size);
 	printf("genSinogramFromPhantom: The average of all projection data after weight computation with/without noise is %f\n", proj_avg);
 	printf("genSinogramFromPhantom: The average of all weight data is %f\n", weight_avg);
 	
+    	if (TomoInputsPtr->node_rank == 0)
+	{
+    		Write2Bin (MEASUREMENTS_FILENAME, 1, 2*SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r, sizeof(float), measurements, TomoInputsPtr->debug_file_ptr);
+    		Write2Bin (WEIGHTS_FILENAME, 1, 2*SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r, sizeof(float), weights, TomoInputsPtr->debug_file_ptr);
+	}
 /*	check_info (zinger_added == 1, TomoInputsPtr->debug_file_ptr, "Simulated the occurence of zingers\n");*/
 	
 	free(AMatrixPtr->values);
@@ -173,8 +202,8 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	free(SinogramPtr->ZLineResponse);
         free(AMatrixPtr);
         free(VoxelLineResponse);
-	fclose(fp);	
-	multifree(object,3);
+	multifree(magobject,3);
+	multifree(phaseobject,3);
 	return (0);
 error:
 	free(AMatrixPtr->values);
@@ -185,8 +214,8 @@ error:
 	free(SinogramPtr->ZLineResponse);
         free(AMatrixPtr);
         free(VoxelLineResponse);
-	fclose(fp);	
-	multifree(object,3);
+	multifree(magobject,3);
+	multifree(phaseobject,3);
 	return (-1);
 }
 

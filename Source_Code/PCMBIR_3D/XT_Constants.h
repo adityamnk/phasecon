@@ -46,7 +46,8 @@ typedef float Real_arr_t; /*Don't change to 'double' without first changing the 
 
 #define EXPECTED_COUNT_MEASUREMENT 35000 
 #define ZERO_SKIPPING
-#define PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/phase_phantom.bin"
+#define MAG_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/mag_phantom.bin"
+#define PHASE_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/phase_phantom.bin"
 #define MEASUREMENTS_FILENAME "measurements"
 #define WEIGHTS_FILENAME "weights"
 
