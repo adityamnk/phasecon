@@ -84,8 +84,8 @@ void read_data (float **measurements, float **weights, float **proj_angles, floa
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &num_nodes);
-	*measurements = (float*)calloc ((2*proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
-	*weights = (float*)calloc ((2*proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
+/*	*measurements = (float*)calloc ((2*proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
+	*weights = (float*)calloc ((2*proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));*/
 	*proj_angles = (float*)calloc (proj_num, sizeof(float));
 	*proj_times = (float*)calloc (proj_num, sizeof(float));
 	*recon_times = (float*)calloc (recon_num + 1, sizeof(float));
@@ -93,13 +93,13 @@ void read_data (float **measurements, float **weights, float **proj_angles, floa
 	{
 		size = 2*proj_rows*proj_cols/num_nodes;
 		offset = i*proj_rows*proj_cols*2 + rank*size;
-		read_BinFile (measurements_filename, *measurements + i*size, offset, size, debug_file_ptr);
-		read_BinFile (weights_filename, *weights + i*size, offset, size, debug_file_ptr);
+/*		read_BinFile (measurements_filename, *measurements + i*size, offset, size, debug_file_ptr);
+		read_BinFile (weights_filename, *weights + i*size, offset, size, debug_file_ptr);*/
 	}
 	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
 	read_BinFile (proj_times_filename, *proj_times, 0, proj_num, debug_file_ptr);
 	read_BinFile (recon_times_filename, *recon_times, 0, recon_num + 1, debug_file_ptr);
-/*	phcontomo_forward_project (measurements, weights, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);*/
+	phcontomo_forward_project (measurements, weights, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);
 }
 
 void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, int32_t *recon_num, float *vox_wid, float *rot_center, float *mag_sig_s, float *mag_sig_t, float *mag_c_s, float *mag_c_t, float *phase_sig_s, float *phase_sig_t, float *phase_c_s, float *phase_c_t, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr)

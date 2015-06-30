@@ -50,7 +50,7 @@ void gen_offset_constraint_windows (Sinogram* SinogramPtr, TomoInputs* TomoInput
 	dim[0] = 1; dim[1] = num; dim[2] = SinogramPtr->N_r; dim[3] = SinogramPtr->N_t;
 	sprintf(constraint_file, "%s_n%d", constraint_file, node_rank);
 	if (TomoInputsPtr->Write2Tiff == 1)
-		WriteMultiDimArray2Tiff (constraint_file, dim, 0, 1, 2, 3, &(SinogramPtr->off_constraint[0][0][0]), 0, TomoInputsPtr->debug_file_ptr);
+		WriteMultiDimArray2Tiff (constraint_file, dim, 0, 1, 2, 3, &(SinogramPtr->off_constraint[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
 
 	fprintf(TomoInputsPtr->debug_file_ptr, "gen_offset_constraint_windows: r_size = %d, t_size = %d, number of constraints = %d\n", r_size, t_size, SinogramPtr->off_constraint_num);
 /*	SinogramPtr->off_constraint_size = SinogramPtr->N_r;

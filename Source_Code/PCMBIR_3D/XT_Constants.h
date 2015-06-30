@@ -37,17 +37,18 @@
 #define XT_CONSTANTS_H
 
 #define POSITIVITY_CONSTRAINT
-/*#define EXTRA_DEBUG_MESSAGES*/
+#define EXTRA_DEBUG_MESSAGES
 
 typedef double Real_t;
-typedef float Real_arr_t; /*Don't change to 'double' without first changing the floats to doubles in XT_Engine.c*/
+typedef double Real_arr_t; /*Don't change to 'double' without first changing the floats to doubles in XT_Engine.c*/
 #define MPI_REAL_DATATYPE MPI_DOUBLE
-#define MPI_REAL_ARR_DATATYPE MPI_FLOAT
+#define MPI_REAL_ARR_DATATYPE MPI_DOUBLE
 
+#define INFINITE_COST 100000000000
 #define EXPECTED_COUNT_MEASUREMENT 35000 
 #define ZERO_SKIPPING
-#define MAG_PHANTOM_FILEPATH "../reconstruct/phase_data/phantoms/mag_phantom.bin"
-#define PHASE_PHANTOM_FILEPATH "../reconstruct/phase_data/phantoms/phase_phantom.bin"
+#define MAG_PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/mag_phantom.bin"
+#define PHASE_PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/phase_phantom.bin"
 #define MEASUREMENTS_FILENAME "measurements"
 #define WEIGHTS_FILENAME "weights"
 
@@ -55,6 +56,10 @@ typedef float Real_arr_t; /*Don't change to 'double' without first changing the 
 #define PHASEOBJECT_FILENAME "phase_object"
 #define INIT_MAGOBJECT_FILENAME "init_mag_object"
 #define INIT_PHASEOBJECT_FILENAME "init_phase_object"
+#define MAGTOMOAUX_FILENAME "mag_tomo_aux"
+#define PHASETOMOAUX_FILENAME "phase_tomo_aux"
+#define MAGTOMODUAL_FILENAME "mag_tomo_dual"
+#define PHASETOMODUAL_FILENAME "phase_tomo_dual"
 
 #define PROJ_OFFSET_FILENAME "proj_offset"
 #define UPDATE_MAP_FILENAME "update_map"
@@ -98,14 +103,14 @@ typedef float Real_arr_t; /*Don't change to 'double' without first changing the 
 #define COST_CONVG_THRESHOLD 0.1
 #define PROJ_OFFSET_INIT 0
 #define NO_NHICD 0
-#define WRITE_EVERY_ITER 0
+#define WRITE_EVERY_ITER 1
 #define ZINGER_ENABLE_PARAM_T 4.0
 #define ZINGER_ENABLE_PARAM_DELTA 0.2
 #define VAR_PARAM_INIT 1
 #define COMPUTE_RMSE_CONVG 0
 #define ZINGER_DISABLE_PARAM_T 100000
 #define ZINGER_DISABLE_PARAM_DELTA 1
-#define MIN_XY_RECON_RES 64
+#define MIN_XY_RECON_RES 16
 #define MAX_MULTRES_NUM 8
 #define MIN_ROWS_PER_NODE 2
 #define MIN_PROJECTION_ROWS 4
@@ -125,7 +130,7 @@ typedef float Real_arr_t; /*Don't change to 'double' without first changing the 
 	#define HOUNSFIELD_MIN 10000
 #endif
 
-#define PHANTOM_XY_SIZE 256
-#define PHANTOM_Z_SIZE 256
+#define PHANTOM_XY_SIZE 128
+#define PHANTOM_Z_SIZE 128
 
 #endif /*#ifndef XT_CONSTANTS_H*/

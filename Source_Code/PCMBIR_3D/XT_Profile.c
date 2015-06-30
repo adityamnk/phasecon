@@ -147,7 +147,7 @@ void DetectorResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjec
   dimTiff[3] = PROFILE_RESOLUTION;
   sprintf(filename, "%s_n%d", filename, TomoInputsPtr->node_rank);
   if (TomoInputsPtr->Write2Tiff == 1)
-  WriteMultiDimArray2Tiff (filename, dimTiff, 0, 1, 2, 3, &(VoxProfile[0][0]), 0, TomoInputsPtr->debug_file_ptr);
+  WriteMultiDimArray2Tiff (filename, dimTiff, 0, 1, 2, 3, &(VoxProfile[0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
 
   BeamProfile=(Real_t*)get_spc(BEAM_RESOLUTION,sizeof(Real_t));
   initializeBeamProfile(ScannedObjectPtr, TomoInputsPtr, BeamProfile);

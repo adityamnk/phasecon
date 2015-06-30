@@ -42,7 +42,7 @@ Real_arr_t convert_um2HU (Real_arr_t val);
 int32_t Write2Bin (char *filename, size_t dim1, size_t dim2, size_t dim3, size_t dim4, size_t datatype_size, void* img, FILE *debug_file_ptr);
 int32_t Append2Bin (char *filename, size_t dim1, size_t dim2, size_t dim3, size_t dim4, size_t datatype_size, void* img, FILE *debug_file_ptr);
 int32_t Read4mBin (char *filename, size_t dim1, size_t dim2, size_t dim3, size_t dim4, size_t datatype_size, void* img, FILE *debug_file_ptr);
-int32_t WriteMultiDimArray2Tiff (char *filename, int dim[4], int dim2loop_1, int dim2loop_2, int dim2write_1, int dim2write_2, Real_arr_t* img, int hounsfield_flag, FILE* debug_file_ptr);
+int32_t WriteMultiDimArray2Tiff (char *filename, int dim[4], int dim2loop_1, int dim2loop_2, int dim2write_1, int dim2write_2, Real_arr_t* img, int hounsfield_flag, int dataskip_step, int dataskip_num, FILE* debug_file_ptr);
 int32_t write_ObjectProjOff2TiffBinPerIter (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr);
 int32_t WriteBoolArray2Tiff (char *filename, int dim[4], int dim2loop_1, int dim2loop_2, int dim2write_1, int dim2write_2, bool* imgin, int hounsfield_flag, FILE* debug_file_ptr);
 int32_t WriteInt32Tiff(char* filename, int height, int width, int32_t** imgin, int hounsfield_flag, FILE *debug_file_ptr);

@@ -164,14 +164,18 @@ int phcontomo_reconstruct (float **magobject, float **phaseobject, float *measur
 			if (write_ObjectProjOff2TiffBinPerIter (SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) {goto error;}
 		if (Write2Bin (RUN_STATUS_FILENAME, 1, 1, 1, 1, sizeof(int32_t), &last_multres, TomoInputsPtr->debug_file_ptr)) {goto error;}
 	
-		*magobject = Arr4DToArr1D(ScannedObjectPtr->MagObject);	
+		/**magobject = Arr4DToArr1D(ScannedObjectPtr->MagObject);	
 		*phaseobject = Arr4DToArr1D(ScannedObjectPtr->PhaseObject);	
 		if (i < multres_num - 1) {free(*magobject);}
-		if (i < multres_num - 1) {free(*phaseobject);}
+		if (i < multres_num - 1) {free(*phaseobject);}*/
+		multifree(ScannedObjectPtr->MagObject,4);
+		multifree(ScannedObjectPtr->PhaseObject,4);
 		freeMemory(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
 		check_info(rank==0, TomoInputsPtr->debug_file_ptr, "Completed multi-resolution stage %d.\n", i);
 	}
-	
+
+	*magobject = NULL;	
+	*phaseobject = NULL;	
 	free(SinogramPtr);
 	free(ScannedObjectPtr);
 	free(TomoInputsPtr);

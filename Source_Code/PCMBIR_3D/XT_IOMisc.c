@@ -188,7 +188,7 @@ int32_t WriteInt32Tiff(char* filename, int height, int width, int32_t** imgin, i
 /*Writes a multi-dimension array in 'img' to tiff files with dimension given in dim[4].
 dim2loop_1 and dim2loop_2 specifies the dimension over which we loop and write the tiff files.
 dim2write_1 and dim2write_2 specifies the dimensions which are written to tiff files.*/
-int32_t WriteMultiDimArray2Tiff (char *filename, int dim[4], int dim2loop_1, int dim2loop_2, int dim2write_1, int dim2write_2, Real_arr_t* img, int hounsfield_flag, FILE* debug_file_ptr)
+int32_t WriteMultiDimArray2Tiff (char *filename, int dim[4], int dim2loop_1, int dim2loop_2, int dim2write_1, int dim2write_2, Real_arr_t* img, int hounsfield_flag, int dataskip_step, int dataskip_num, FILE* debug_file_ptr)
 {
 	char file[100];
 	Real_arr_t** img_temp;
@@ -208,17 +208,17 @@ int32_t WriteMultiDimArray2Tiff (char *filename, int dim[4], int dim2loop_1, int
 	for (k=0; k<dim[dim2write_1]; k++){
 	for (l=0; l<dim[dim2write_2]; l++){
 		if (dim2write_1 == 2 && dim2write_2 == 3)
-			img_temp[k][l] = img[((i*dim[1]+j)*dim[2]+k)*dim[3]+l];
+			img_temp[k][l] = img[(((i*dim[1]+j)*dim[2]+k)*dim[3]+l)*dataskip_num + dataskip_step];
 		else if (dim2write_1 == 1 && dim2write_2 == 3)
-			img_temp[k][l] = img[((i*dim[1]+k)*dim[2]+j)*dim[3]+l]; 	
+			img_temp[k][l] = img[(((i*dim[1]+k)*dim[2]+j)*dim[3]+l)*dataskip_num + dataskip_step]; 	
 		else if (dim2write_1 == 0 && dim2write_2 == 3)
-			img_temp[k][l] = img[((k*dim[1]+i)*dim[2]+j)*dim[3]+l]; 
+			img_temp[k][l] = img[(((k*dim[1]+i)*dim[2]+j)*dim[3]+l)*dataskip_num + dataskip_step]; 
 		else if (dim2write_1 == 1 && dim2write_2 == 2)
-			img_temp[k][l] = img[((i*dim[1]+k)*dim[2]+l)*dim[3]+j]; 	
+			img_temp[k][l] = img[(((i*dim[1]+k)*dim[2]+l)*dim[3]+j)*dataskip_num + dataskip_step]; 	
 		else if (dim2write_1 == 0 && dim2write_2 == 2)
-			img_temp[k][l] = img[((k*dim[1]+i)*dim[2]+l)*dim[3]+j]; 	
+			img_temp[k][l] = img[(((k*dim[1]+i)*dim[2]+l)*dim[3]+j)*dataskip_num + dataskip_step]; 	
 		else if (dim2write_1 == 0 && dim2write_2 == 1)
-			img_temp[k][l] = img[((k*dim[1]+l)*dim[2]+i)*dim[3]+j]; 
+			img_temp[k][l] = img[(((k*dim[1]+l)*dim[2]+i)*dim[3]+j)*dataskip_num + dataskip_step]; 
 		else
 			sentinel(1, debug_file_ptr, "Dimensions not recognized.\n");
 	}}
@@ -280,7 +280,7 @@ int32_t WriteBoolArray2Tiff (char *filename, int dim[4], int dim2loop_1, int dim
 			img[i] = 0;
 	}
 
-	flag = WriteMultiDimArray2Tiff (filename, dim, dim2loop_1, dim2loop_2, dim2write_1, dim2write_2, img, hounsfield_flag, debug_file_ptr);
+	flag = WriteMultiDimArray2Tiff (filename, dim, dim2loop_1, dim2loop_2, dim2write_1, dim2write_2, img, hounsfield_flag, 0, 1, debug_file_ptr);
 	free(img);
 	return (flag);
 }
