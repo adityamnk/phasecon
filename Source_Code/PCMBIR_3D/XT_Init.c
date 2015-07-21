@@ -284,9 +284,9 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		SinogramPtr->Measurements[i][j][k] = measurements[idx];		
 		TomoInputsPtr->Weight[i][j][k] = weights[idx];
 
-		SinogramPtr->MagPRetAux[i][j][k] = measurements[2*idx];		
+		SinogramPtr->MagPRetAux[i][j][k] = 0;		
 		SinogramPtr->MagPRetDual[i][j][k] = 0;		
-		SinogramPtr->PhasePRetAux[i][j][k] = measurements[2*idx+1];		
+		SinogramPtr->PhasePRetAux[i][j][k] = 0;		
 		SinogramPtr->PhasePRetDual[i][j][k] = 0;		
 		
 		SinogramPtr->MagTomoAux[i][j][k][0] = 1.5/2;		
@@ -307,6 +307,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t*4;
 		if (read_SharedBinFile_At (MAGTOMOAUX_FILENAME, &(SinogramPtr->MagTomoAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
 		if (read_SharedBinFile_At (PHASETOMOAUX_FILENAME, &(SinogramPtr->PhaseTomoAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
+		if (read_SharedBinFile_At (MAGPRETAUX_FILENAME, &(SinogramPtr->MagPRetAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
+		if (read_SharedBinFile_At (PHASEPRETAUX_FILENAME, &(SinogramPtr->PhasePRetAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
 	}
 
 	SinogramPtr->delta_r = SinogramPtr->Length_R/(SinogramPtr->N_r);

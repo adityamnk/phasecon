@@ -38,13 +38,15 @@
 
 #define POSITIVITY_CONSTRAINT
 #define EXTRA_DEBUG_MESSAGES
+#include <float.h>
 
 typedef double Real_t;
 typedef double Real_arr_t; /*Don't change to 'double' without first changing the floats to doubles in XT_Engine.c*/
 #define MPI_REAL_DATATYPE MPI_DOUBLE
 #define MPI_REAL_ARR_DATATYPE MPI_DOUBLE
+#define EPSILON_ERROR DBL_MIN
+#define INFINITE_COST DBL_MAX
 
-#define INFINITE_COST 100000000000
 #define EXPECTED_COUNT_MEASUREMENT 35000 
 #define ZERO_SKIPPING
 #define MAG_PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/mag_phantom.bin"

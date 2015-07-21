@@ -43,6 +43,16 @@
   typedef struct
   {
    Real_arr_t ***Measurements; /*Stores the measurements (photon count measurements, intensity measurements, etc.)*/
+
+   Real_arr_t ***Omega_real;
+   Real_arr_t ***Omega_imag;
+   Real_arr_t ***D_real;
+   Real_arr_t ***D_imag;
+   fftcomplex **fftforw_arr;
+   fftcomplex **fftback_arr;
+   fftplan *fftforw_plan;
+   fftplan *fftback_plan;
+
    Real_arr_t ***MagErrorSino; /*Error sinogram of the magnitude component*/
    Real_arr_t ***PhaseErrorSino; /*Error sinogram of the phase component*/
    Real_arr_t ****MagTomoAux; /*ADMM auxiliary vector for the tomography split*/

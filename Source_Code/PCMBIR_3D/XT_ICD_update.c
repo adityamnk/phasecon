@@ -53,6 +53,7 @@
 #include "XT_OffsetError.h"
 #include "XT_Prior.h"
 #include "XT_Search.h"
+#include "XT_PhaseRet.h"
 
 /*computes the location of (i,j,k) th element in a 1D array*/
 int32_t array_loc_1D (int32_t i, int32_t j, int32_t k, int32_t N_j, int32_t N_k)
@@ -970,6 +971,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     char costfile[100] = COST_FILENAME;
     #endif
     Real_t x, y, zr, zi, ar, ai, br, bi, NMS_cost = 0, NMS_last_cost, orig_cost, orig_cost_last;
+    Real_arr_t **v_real, **v_imag;
     int32_t j, flag = 0, Iter, i, k, HeadIter, NMS_avgiter;
     int dimTiff[4];
     time_t start;
@@ -1018,11 +1020,35 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     orig_cost_last = compute_original_cost(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
     for (HeadIter = 1; HeadIter <= TomoInputsPtr->MaxHeadIter; HeadIter++)
     {
+        #pragma omp parallel for private(i,j,k,v_real,v_imag)
+	for (i = 0; i < SinogramPtr->N_p; i++)
+	{
+		v_real = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_t, SinogramPtr->N_r);
+		v_imag = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_t, SinogramPtr->N_r);
+		for (j = 0; j < SinogramPtr->N_t; j++)
+		for (k = 0; k < SinogramPtr->N_r; k++)
+		{
+			v_real[j][k] = exp(-SinogramPtr->MagTomoAux[i][j][k])*cos(-SinogramPtr->PhaseTomoAux[i][j][k]);
+			v_imag[j][k] = exp(-SinogramPtr->MagTomoAux[i][j][k])*sin(-SinogramPtr->PhaseTomoAux[i][j][k]);
+			v_real[j][k] += SinogramPtr->MagPRetDual[i][j][k];
+			v_imag[j][k] += SinogramPtr->PhasePRetDual[i][j][k];
+		}	
+
+		for (j = 0; j < TomoInputsPtr->SteepDes_MaxIter; j++)
+		{
+			steepest_descent_iter (SinogramPtr->Measurements[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->Weight[i], v_real, v_imag, SinogramPtr->ADMM_mu, SinogramPtr->N_t, SinogramPtr->N_r, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
+		}
+		
+		multifree(v_real, 2);
+		multifree(v_imag, 2);
+	}
+	
+
 	NMS_avgiter = 0;
 	NMS_cost = 0;
 	NMS_last_cost = 0;
     	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Top level iteration - %d.\n Running Nelder Mead simplex algorithm ....\n", HeadIter);
-/*        #pragma omp parallel for collapse(3) private(i,j,k,ar,ai,br,bi,zr,zi,cost,cost_last_iter) reduction(+:NMS_avgiter,NMS_cost,NMS_last_cost)*/
+        #pragma omp parallel for collapse(3) private(i,j,k,ar,ai,br,bi,zr,zi,cost,cost_last_iter) reduction(+:NMS_avgiter,NMS_cost,NMS_last_cost)
 	for (i = 0; i < SinogramPtr->N_p; i++)
 	for (j = 0; j < SinogramPtr->N_r; j++)
 	for (k = 0; k < SinogramPtr->N_t; k++)
@@ -1066,6 +1092,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 
     	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The average number of NMS iterations is %d.\n", NMS_avgiter/(SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t));
     	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The new NMS cost is %f. The prev iteration NMS cost was %f.\n", NMS_cost, NMS_last_cost);
+
 
 #ifndef NO_COST_CALCULATE
 	    cost = computeCost(SinogramPtr,ScannedObjectPtr,TomoInputsPtr);
