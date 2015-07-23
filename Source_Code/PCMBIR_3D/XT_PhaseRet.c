@@ -218,7 +218,7 @@ Real_t compute_cost (Real_arr_t** y, Real_arr_t** Omega_real, Real_arr_t** Omega
 void steepest_descent_iter (Real_arr_t** y, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** w_real, Real_arr_t** w_imag, Real_arr_t** Lambda, Real_arr_t** v_real, Real_arr_t** v_imag, Real_t mu, int32_t rows, int32_t cols, fftw_complex *fftforward_arr, fftw_plan *fftforward_plan, fftw_complex *fftbackward_arr, fftw_plan *fftbackward_plan)
 {
 	int32_t i, j;
-	Real_arr_t **g_real, **g_imag, alpha, gavg_real = 0, gavg_imag = 0, wavg_real = 0, wavg_imag = 0, vavg_real = 0, vavg_imag = 0;
+	Real_arr_t **g_real, **g_imag, alpha, gavg_real = 0, gavg_imag = 0, wavg_real = 0, wavg_imag = 0;
 	Real_t cost_old, cost_new;
 
 	g_real = (Real_arr_t**) multialloc(sizeof(Real_arr_t), 2, rows, cols); 
@@ -228,7 +228,7 @@ void steepest_descent_iter (Real_arr_t** y, Real_arr_t** Omega_real, Real_arr_t*
 
 	alpha = compute_stepsize (g_real, g_imag, Omega_real, Omega_imag, D_real, D_imag, Lambda, mu, rows, cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan);
 
-	printf("Stepsize alpha = %f\n", alpha);
+/*	printf("Stepsize alpha = %f\n", alpha);*/
 	
 	cost_old = compute_cost (y, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, mu, rows, cols, fftforward_arr, fftforward_plan);
 

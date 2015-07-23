@@ -276,6 +276,11 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	SinogramPtr->PhasePRetDual = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
 	TomoInputsPtr->Weight = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
 
+	SinogramPtr->Omega_real = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->Omega_imag = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->D_real = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->D_imag = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+
 	for (i = 0; i < SinogramPtr->N_p; i++)
 	for (j = 0; j < SinogramPtr->N_r; j++)
 	for (k = 0; k < SinogramPtr->N_t; k++)
@@ -299,7 +304,12 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		SinogramPtr->PhaseTomoAux[i][j][k][1] = 0.5;		
 		SinogramPtr->PhaseTomoAux[i][j][k][2] = 0.5;		
 		SinogramPtr->PhaseTomoAux[i][j][k][3] = 1;		
-		SinogramPtr->PhaseTomoDual[i][j][k] = 0;		
+		SinogramPtr->PhaseTomoDual[i][j][k] = 0;
+
+		SinogramPtr->Omega_real[i][j][k] = 1;		
+		SinogramPtr->Omega_imag[i][j][k] = 0;		
+		SinogramPtr->D_real[i][j][k] = EXPECTED_COUNT_MEASUREMENT;		
+		SinogramPtr->D_imag[i][j][k] = 0;		
 	}
 	
 	if (mult_idx != 0)
@@ -307,8 +317,11 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t*4;
 		if (read_SharedBinFile_At (MAGTOMOAUX_FILENAME, &(SinogramPtr->MagTomoAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
 		if (read_SharedBinFile_At (PHASETOMOAUX_FILENAME, &(SinogramPtr->PhaseTomoAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
-		if (read_SharedBinFile_At (MAGPRETAUX_FILENAME, &(SinogramPtr->MagPRetAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
-		if (read_SharedBinFile_At (PHASEPRETAUX_FILENAME, &(SinogramPtr->PhasePRetAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
+		size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t;
+		if (read_SharedBinFile_At (MAGPRETAUX_FILENAME, &(SinogramPtr->MagPRetAux[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
+		if (read_SharedBinFile_At (PHASEPRETAUX_FILENAME, &(SinogramPtr->PhasePRetAux[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
+		if (read_SharedBinFile_At (OMEGAREAL_FILENAME, &(SinogramPtr->Omega_real[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
+		if (read_SharedBinFile_At (OMEGAIMAG_FILENAME, &(SinogramPtr->Omega_imag[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
 	}
 
 	SinogramPtr->delta_r = SinogramPtr->Length_R/(SinogramPtr->N_r);
@@ -421,6 +434,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	TomoInputsPtr->NMS_threshold = 0.05;
 	TomoInputsPtr->NMS_MaxIter = 50;
 	TomoInputsPtr->MaxHeadIter = 20;
+	TomoInputsPtr->PRetMaxIter = 10;
+	TomoInputsPtr->SteepDesMaxIter = 50;
 
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
 	
@@ -460,6 +475,11 @@ void freeMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInpu
 	if (SinogramPtr->MagPRetDual) multifree(SinogramPtr->MagPRetDual,3);
 	if (SinogramPtr->PhasePRetAux) multifree(SinogramPtr->PhasePRetAux,3);
 	if (SinogramPtr->PhasePRetDual) multifree(SinogramPtr->PhasePRetDual,3);
+	
+	if (SinogramPtr->Omega_real) multifree(SinogramPtr->Omega_real,3);
+	if (SinogramPtr->Omega_imag) multifree(SinogramPtr->Omega_imag,3);
+	if (SinogramPtr->D_real) multifree(SinogramPtr->D_real,3);
+	if (SinogramPtr->D_imag) multifree(SinogramPtr->D_imag,3);
 
 	if (TomoInputsPtr->x_rand_select) multifree(TomoInputsPtr->x_rand_select,3);
 	if (TomoInputsPtr->y_rand_select) multifree(TomoInputsPtr->y_rand_select,3);
@@ -534,8 +554,6 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 		SinogramPtr->ViewPtr[i] = proj_angles[i];
 	calculateSinCos (SinogramPtr, TomoInputsPtr);
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
-	projections = (float*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(float));	
-	weights = (float*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(float));
 	
 	return (0);
 error:

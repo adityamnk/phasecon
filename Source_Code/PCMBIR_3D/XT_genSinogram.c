@@ -75,8 +75,8 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	fftarr = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*SinogramPtr->N_t*SinogramPtr->N_r);	
 	fftplan = fftw_plan_dft_2d(SinogramPtr->N_t, SinogramPtr->N_r, fftarr, fftarr, FFTW_FORWARD, FFTW_ESTIMATE);
 
-	memset(&(projs_real[0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));	  
-	memset(&(projs_imag[0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));	    
+	memset(&(projs_real[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));	  
+	memset(&(projs_imag[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));	    
 	memset(&(measurements[0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));
 	memset(&(weights[0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));
 
@@ -161,24 +161,30 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "The expected count is %d\n", EXPECTED_COUNT_MEASUREMENT);	
   	
 	for (i=0; i < SinogramPtr->N_p; i++)
-	for (slice=0; slice < SinogramPtr->N_t; slice++)
-	for (j=0; j < SinogramPtr->N_r; j++)
 	{
-		idx = i*SinogramPtr->N_t*SinogramPtr->N_r + slice*SinogramPtr->N_r + j;
+		for (slice=0; slice < SinogramPtr->N_t; slice++)
+		for (j=0; j < SinogramPtr->N_r; j++)
+		{
+			expval = exp(-projs_real[i][slice][j]);
+			fftarr[slice*SinogramPtr->N_r + j][0] = EXPECTED_COUNT_MEASUREMENT*expval*cos(-projs_imag[i][slice][j]);
+			fftarr[slice*SinogramPtr->N_r + j][1] = EXPECTED_COUNT_MEASUREMENT*expval*sin(-projs_imag[i][slice][j]);
+			/*weights[2*idx] = (val + sqrt(fabs(val))*normal());*/
+			/*weights[2*idx+1] = (val + sqrt(fabs(val))*normal());*/
+		}
 		
-		expval = exp(-projs_real[i][slice][j]);
-		fftarr[slice*SinogramPtr->N_r + j][0] = EXPECTED_COUNT_MEASUREMENT*expval*cos(-projs_imag[i][slice][j]);
-		fftarr[slice*SinogramPtr->N_r + j][1] = EXPECTED_COUNT_MEASUREMENT*expval*sin(-projs_imag[i][slice][j]);
-		/*weights[2*idx] = (val + sqrt(fabs(val))*normal());*/
-		/*weights[2*idx+1] = (val + sqrt(fabs(val))*normal());*/
-		
-		fftw_execute(fftplan);
-		measurements[idx] = sqrt(fftarr[slice*SinogramPtr->N_r + j][0]*fftarr[slice*SinogramPtr->N_r + j][0] + fftarr[slice*SinogramPtr->N_r + j][1]*fftarr[slice*SinogramPtr->N_r + j][1]);
-		measurements[idx] = (measurements[idx] + sqrt(fabs(measurements[idx]))*normal());
-		weights[idx] = 1.0/measurements[idx];
-		
-		weight_avg += weights[idx];	
-		measurement_avg += measurements[idx];	
+		fftw_execute(fftplan);		
+
+		for (slice=0; slice < SinogramPtr->N_t; slice++)
+		for (j=0; j < SinogramPtr->N_r; j++)
+		{
+			idx = i*SinogramPtr->N_t*SinogramPtr->N_r + slice*SinogramPtr->N_r + j;
+			measurements[idx] = sqrt(fftarr[slice*SinogramPtr->N_r + j][0]*fftarr[slice*SinogramPtr->N_r + j][0] + fftarr[slice*SinogramPtr->N_r + j][1]*fftarr[slice*SinogramPtr->N_r + j][1]);
+		/*	measurements[idx] = (measurements[idx] + sqrt(fabs(measurements[idx]))*normal());*/
+			weights[idx] = 1.0;
+			
+			weight_avg += weights[idx];	
+			measurement_avg += measurements[idx];	
+		}
 	}
 
 	tifarray = (Real_arr_t*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(Real_arr_t));
@@ -205,7 +211,8 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	multifree(projs_real,3);
 	multifree(projs_imag,3);
 	fftw_destroy_plan(fftplan);
-        fftw_free(fftarr); 
+        fftw_free(fftarr);
+	free(tifarray); 
 	return (0);
 error:
         free(VoxelLineResponse->values);

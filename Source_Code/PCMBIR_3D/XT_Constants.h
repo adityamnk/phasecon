@@ -62,6 +62,12 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define PHASETOMOAUX_FILENAME "phase_tomo_aux"
 #define MAGTOMODUAL_FILENAME "mag_tomo_dual"
 #define PHASETOMODUAL_FILENAME "phase_tomo_dual"
+#define MAGPRETAUX_FILENAME "mag_pret_aux"
+#define PHASEPRETAUX_FILENAME "phase_pret_aux"
+#define MAGPRETDUAL_FILENAME "mag_pret_dual"
+#define PHASEPRETDUAL_FILENAME "phase_pret_dual"
+#define OMEGAREAL_FILENAME "omega_real"
+#define OMEGAIMAG_FILENAME "omega_imag"
 
 #define PROJ_OFFSET_FILENAME "proj_offset"
 #define UPDATE_MAP_FILENAME "update_map"

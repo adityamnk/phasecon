@@ -38,6 +38,7 @@
 #include <stdint.h>
 #include "XT_Constants.h"
 #include <stdbool.h>
+#include <fftw3.h>
 
 /*Structure 'Sinogram' contains the sinogram itself and also other parameters related to the sinogram and the detector*/
   typedef struct
@@ -48,10 +49,10 @@
    Real_arr_t ***Omega_imag;
    Real_arr_t ***D_real;
    Real_arr_t ***D_imag;
-   fftcomplex **fftforw_arr;
-   fftcomplex **fftback_arr;
-   fftplan *fftforw_plan;
-   fftplan *fftback_plan;
+   fftw_complex **fftforw_arr;
+   fftw_complex **fftback_arr;
+   fftw_plan *fftforw_plan;
+   fftw_plan *fftback_plan;
 
    Real_arr_t ***MagErrorSino; /*Error sinogram of the magnitude component*/
    Real_arr_t ***PhaseErrorSino; /*Error sinogram of the phase component*/
@@ -201,6 +202,8 @@ typedef struct
     Real_t NMS_threshold;
     int32_t NMS_MaxIter;
     int32_t MaxHeadIter; 
+    int32_t PRetMaxIter;
+    int32_t SteepDesMaxIter;
   } TomoInputs;
 
 #endif /*#define XT_STRUCTURES_H*/

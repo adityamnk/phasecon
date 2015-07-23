@@ -4,7 +4,7 @@ EXEC = XT_Main
 OBJS = XT_Main.o
 SRCS = XT_Main.c
 HEADERS = XT_Main.h
-LIBFLAGS = -lpcmbir4d -lm
+LIBFLAGS = -lpcmbir4d -lm -lfftw3
 $(EXEC): $(OBJS)
 	$(CC) $(CFLAGS) -o $(EXEC) $(OBJS) $(LIBFLAGS) -L../../lib/
 $(OBJS): $(SRCS) $(HEADERS)
