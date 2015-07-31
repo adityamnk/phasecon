@@ -59,6 +59,7 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
         ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
         UpdatedVoxelValue = Phase_FunctionalSubstitution(VPhase, THETA1Phase, THETA2, ScannedObjectPtr, TomoInputsPtr, Phase3D_Nhood, PhaseTime_Nhood, BDFlag_3D, BDFlag_Time);
         ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
+        /*ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = 0;*/
 	
 	for (p = 0; p < ScannedObjectPtr->ProjNum[i_new]; p++){
 		sino_view = ScannedObjectPtr->ProjIdxPtr[i_new][p];

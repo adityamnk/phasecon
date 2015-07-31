@@ -106,10 +106,10 @@ int phcontomo_reconstruct (float **magobject, float **phaseobject, float *measur
 	TomoInputsPtr->debug_file_ptr = debug_msg_ptr;
 
 	multres_num = (int32_t)(log(((float)proj_cols)/MIN_XY_RECON_RES)/log(2.0) + 1);
-	if (multres_num > MAX_MULTRES_NUM)
-		multres_num = MAX_MULTRES_NUM;
 	if (multres_num < 2)
 		multres_num = 2;
+	if (multres_num > MAX_MULTRES_NUM)
+		multres_num = MAX_MULTRES_NUM;
 
 	mult_xy[0] = 1; 
 	mult_z[0] = 1;
@@ -217,7 +217,7 @@ int phcontomo_forward_project (float **measurements, float **weights, float *pro
 	check_error(proj_rows/num_nodes % 2 != 0 || proj_rows/num_nodes < MIN_ROWS_PER_NODE, rank==0, debug_msg_ptr, "The number of projection rows divided by the number of nodes should be an even number greater than or equal to %d.\n", MIN_ROWS_PER_NODE);
 
 	TomoInputsPtr->debug_file_ptr = debug_msg_ptr;
-	*measurements = (float*)get_spc(proj_rows*proj_cols*proj_num, sizeof(float));
+	*measurements = (float*)get_spc(2*proj_rows*proj_cols*proj_num, sizeof(float));
 	*weights = (float*)get_spc(proj_rows*proj_cols*proj_num, sizeof(float));
 	if (initPhantomStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, *measurements, *weights, proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center)) {goto error;}
 

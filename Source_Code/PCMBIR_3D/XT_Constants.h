@@ -47,7 +47,8 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define EPSILON_ERROR DBL_MIN
 #define INFINITE_COST DBL_MAX
 
-#define EXPECTED_COUNT_MEASUREMENT 35000 
+/*#define EXPECTED_COUNT_MEASUREMENT 35000*/ 
+#define EXPECTED_COUNT_MEASUREMENT 1
 #define ZERO_SKIPPING
 #define MAG_PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/mag_phantom.bin"
 #define PHASE_PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/phase_phantom.bin"
@@ -78,9 +79,10 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define DETECTOR_RESPONSE_FILENAME "detector_response"
 #define PROJ_SELECT_FILENAME "proj_select"
 #define COST_FILENAME "cost"
+#define ORIG_COST_FILENAME "orig_cost"
 
-#define MAGOBJECT_INIT_VAL 0
-#define PHASEOBJECT_INIT_VAL 0
+#define MAGOBJECT_INIT_VAL 0.0
+#define PHASEOBJECT_INIT_VAL 0.0
 #define MRF_P 1.2
 #define MRF_Q 2.0
 
@@ -119,7 +121,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define ZINGER_DISABLE_PARAM_T 100000
 #define ZINGER_DISABLE_PARAM_DELTA 1
 #define MIN_XY_RECON_RES 16
-#define MAX_MULTRES_NUM 8
+#define MAX_MULTRES_NUM 4
 #define MIN_ROWS_PER_NODE 2
 #define MIN_PROJECTION_ROWS 4
 

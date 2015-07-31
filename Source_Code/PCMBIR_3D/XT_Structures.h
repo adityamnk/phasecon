@@ -43,7 +43,8 @@
 /*Structure 'Sinogram' contains the sinogram itself and also other parameters related to the sinogram and the detector*/
   typedef struct
   {
-   Real_arr_t ***Measurements; /*Stores the measurements (photon count measurements, intensity measurements, etc.)*/
+   Real_arr_t ***Measurements_real; /*Stores the measurements (photon count measurements, intensity measurements, etc.)*/
+   Real_arr_t ***Measurements_imag; /*Stores the measurements (photon count measurements, intensity measurements, etc.)*/
 
    Real_arr_t ***Omega_real;
    Real_arr_t ***Omega_imag;
@@ -199,11 +200,16 @@ typedef struct
     Real_t NMS_chi;
     Real_t NMS_gamma;
     Real_t NMS_sigma;
-    Real_t NMS_threshold;
+
     int32_t NMS_MaxIter;
-    int32_t MaxHeadIter; 
-    int32_t PRetMaxIter;
-    int32_t SteepDesMaxIter;
+    int32_t Head_MaxIter; 
+    int32_t PRet_MaxIter;
+    int32_t SteepDes_MaxIter;
+    
+    Real_t NMS_threshold;
+    Real_t Head_threshold; 
+    Real_t PRet_threshold;
+    Real_t SteepDes_threshold;
   } TomoInputs;
 
 #endif /*#define XT_STRUCTURES_H*/

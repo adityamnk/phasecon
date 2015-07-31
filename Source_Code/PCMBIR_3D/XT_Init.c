@@ -229,7 +229,6 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	SinogramPtr->Length_R = vox_wid*proj_cols;
 	SinogramPtr->Length_T = vox_wid*proj_rows;
 	TomoInputsPtr->StopThreshold = convg_thresh;
-	TomoInputsPtr->NumIter = MAX_NUM_ITERATIONS;
 	TomoInputsPtr->RotCenter = rot_center;
 	TomoInputsPtr->alpha = OVER_RELAXATION_FACTOR;
 	if (mult_idx == 0)
@@ -264,7 +263,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	SinogramPtr->Length_T = SinogramPtr->Length_T/TomoInputsPtr->node_num;
 	SinogramPtr->N_t = SinogramPtr->total_t_slices/TomoInputsPtr->node_num;
 	
-	SinogramPtr->Measurements = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->Measurements_real = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	SinogramPtr->Measurements_imag = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
 	SinogramPtr->MagTomoAux = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t, 4);
 	SinogramPtr->MagTomoDual = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
 	SinogramPtr->PhaseTomoAux = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t, 4);
@@ -286,7 +286,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	for (k = 0; k < SinogramPtr->N_t; k++)
 	{
 		idx = i*SinogramPtr->N_t*SinogramPtr->N_r + k*SinogramPtr->N_r + j;
-		SinogramPtr->Measurements[i][j][k] = measurements[idx];		
+		SinogramPtr->Measurements_real[i][j][k] = measurements[2*idx];		
+		SinogramPtr->Measurements_imag[i][j][k] = measurements[2*idx+1];		
 		TomoInputsPtr->Weight[i][j][k] = weights[idx];
 
 		SinogramPtr->MagPRetAux[i][j][k] = 0;		
@@ -294,22 +295,22 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		SinogramPtr->PhasePRetAux[i][j][k] = 0;		
 		SinogramPtr->PhasePRetDual[i][j][k] = 0;		
 		
-		SinogramPtr->MagTomoAux[i][j][k][0] = 1.5/2;		
-		SinogramPtr->MagTomoAux[i][j][k][1] = 0.5;	
-		SinogramPtr->MagTomoAux[i][j][k][2] = 1;		
-		SinogramPtr->MagTomoAux[i][j][k][3] = 0.5;		
+		SinogramPtr->MagTomoAux[i][j][k][0] = 0.15/2;		
+		SinogramPtr->MagTomoAux[i][j][k][1] = 0.05;	
+		SinogramPtr->MagTomoAux[i][j][k][2] = 0.1;		
+		SinogramPtr->MagTomoAux[i][j][k][3] = 0.05;		
 		SinogramPtr->MagTomoDual[i][j][k] = 0;	
 	
-		SinogramPtr->PhaseTomoAux[i][j][k][0] = 1.0/2;		
-		SinogramPtr->PhaseTomoAux[i][j][k][1] = 0.5;		
-		SinogramPtr->PhaseTomoAux[i][j][k][2] = 0.5;		
-		SinogramPtr->PhaseTomoAux[i][j][k][3] = 1;		
+		SinogramPtr->PhaseTomoAux[i][j][k][0] = 0.10/2;		
+		SinogramPtr->PhaseTomoAux[i][j][k][1] = 0.05;		
+		SinogramPtr->PhaseTomoAux[i][j][k][2] = 0.05;		
+		SinogramPtr->PhaseTomoAux[i][j][k][3] = 0.1;		
 		SinogramPtr->PhaseTomoDual[i][j][k] = 0;
 
-		SinogramPtr->Omega_real[i][j][k] = 1;		
-		SinogramPtr->Omega_imag[i][j][k] = 0;		
-		SinogramPtr->D_real[i][j][k] = EXPECTED_COUNT_MEASUREMENT;		
-		SinogramPtr->D_imag[i][j][k] = 0;		
+		SinogramPtr->Omega_real[i][j][k] = 3;		
+		SinogramPtr->Omega_imag[i][j][k] = -2;		
+		SinogramPtr->D_real[i][j][k] = -5;	
+		SinogramPtr->D_imag[i][j][k] = 7;		
 	}
 	
 	if (mult_idx != 0)
@@ -431,11 +432,18 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	TomoInputsPtr->NMS_chi = 2;	
 	TomoInputsPtr->NMS_gamma = 0.5;	
 	TomoInputsPtr->NMS_sigma = 0.5;	
-	TomoInputsPtr->NMS_threshold = 0.05;
-	TomoInputsPtr->NMS_MaxIter = 50;
-	TomoInputsPtr->MaxHeadIter = 20;
-	TomoInputsPtr->PRetMaxIter = 10;
-	TomoInputsPtr->SteepDesMaxIter = 50;
+	
+/*	TomoInputsPtr->NumIter = MAX_NUM_ITERATIONS;*/
+	TomoInputsPtr->NumIter = 100;
+	TomoInputsPtr->NMS_MaxIter = 100;
+	TomoInputsPtr->Head_MaxIter = 50;
+	TomoInputsPtr->PRet_MaxIter = 50;
+	TomoInputsPtr->SteepDes_MaxIter = 100;
+	
+	TomoInputsPtr->NMS_threshold = 0.1;
+	TomoInputsPtr->Head_threshold = 0.1;
+	TomoInputsPtr->PRet_threshold = 0.1;
+	TomoInputsPtr->SteepDes_threshold = 0.1;
 
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
 	
@@ -465,7 +473,8 @@ void freeMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInpu
 	if (ScannedObjectPtr->Object) free(ScannedObjectPtr->Object);*/
 /*	multifree(ScannedObjectPtr->Object, 4);*/
 	
-	if (SinogramPtr->Measurements) multifree(SinogramPtr->Measurements,3);
+	if (SinogramPtr->Measurements_real) multifree(SinogramPtr->Measurements_real,3);
+	if (SinogramPtr->Measurements_imag) multifree(SinogramPtr->Measurements_imag,3);
 	if (SinogramPtr->MagTomoAux) multifree(SinogramPtr->MagTomoAux,4);
 	if (SinogramPtr->MagTomoDual) multifree(SinogramPtr->MagTomoDual,3);
 	if (SinogramPtr->PhaseTomoAux) multifree(SinogramPtr->PhaseTomoAux,4);

@@ -54,6 +54,7 @@
 #include "XT_Prior.h"
 #include "XT_Search.h"
 #include "XT_PhaseRet.h"
+#include "XT_CmplxArith.h"
 
 /*computes the location of (i,j,k) th element in a 1D array*/
 int32_t array_loc_1D (int32_t i, int32_t j, int32_t k, int32_t N_j, int32_t N_k)
@@ -238,20 +239,35 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
 Real_t compute_original_cost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
 {
   Real_t cost=0,temp=0, forward=0, prior=0;
-  Real_t delta, magtemp, costemp, sintemp;
+  Real_t delta, magtemp, costemp, sintemp, real, imag;
   int32_t i,j,k,p,N_z;
   bool j_minus, k_minus, i_plus, j_plus, k_plus, p_plus;
   
-  #pragma omp parallel for private(j, k, magtemp, costemp, sintemp) reduction(+:cost)
+  #pragma omp parallel for private(j, k, magtemp, costemp, sintemp, real, imag) reduction(+:cost)
   for (i = 0; i < SinogramPtr->N_p; i++)
-  for (j = 0; j < SinogramPtr->N_r; j++)
-  for (k = 0; k < SinogramPtr->N_t; k++)
   {
-    magtemp = exp(SinogramPtr->MagErrorSino[i][j][k] - SinogramPtr->MagTomoAux[i][j][k][1] + SinogramPtr->MagTomoDual[i][j][k]);
-    costemp = magtemp*cos(SinogramPtr->PhaseErrorSino[i][j][k] - SinogramPtr->PhaseTomoAux[i][j][k][1] + SinogramPtr->PhaseTomoDual[i][j][k]);
-    sintemp = magtemp*sin(SinogramPtr->PhaseErrorSino[i][j][k] - SinogramPtr->PhaseTomoAux[i][j][k][1] + SinogramPtr->PhaseTomoDual[i][j][k]);
-    cost = (SinogramPtr->MagPRetAux[i][j][k] - SinogramPtr->MagPRetDual[i][j][k] - costemp)*(SinogramPtr->MagPRetAux[i][j][k] - SinogramPtr->MagPRetDual[i][j][k] - costemp);
-    cost += (SinogramPtr->PhasePRetAux[i][j][k] - SinogramPtr->PhasePRetDual[i][j][k] - sintemp)*(SinogramPtr->PhasePRetAux[i][j][k] - SinogramPtr->PhasePRetDual[i][j][k] - sintemp);
+	for (j = 0; j < SinogramPtr->N_r; j++)
+  	for (k = 0; k < SinogramPtr->N_t; k++)
+  	{
+		magtemp = exp(SinogramPtr->MagErrorSino[i][j][k] - SinogramPtr->MagTomoAux[i][j][k][1] + SinogramPtr->MagTomoDual[i][j][k]);
+    		costemp = magtemp*cos(SinogramPtr->PhaseErrorSino[i][j][k] - SinogramPtr->PhaseTomoAux[i][j][k][1] + SinogramPtr->PhaseTomoDual[i][j][k]);
+    		sintemp = magtemp*sin(SinogramPtr->PhaseErrorSino[i][j][k] - SinogramPtr->PhaseTomoAux[i][j][k][1] + SinogramPtr->PhaseTomoDual[i][j][k]);
+		cmplx_mult (&(real), &(imag), costemp, sintemp, SinogramPtr->D_real[i][j][k], SinogramPtr->D_imag[i][j][k]);
+		SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][0] = real;
+		SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][1] = imag;
+    	}
+	
+	fftw_execute(SinogramPtr->fftforw_plan[i]);
+		
+	for (j = 0; j < SinogramPtr->N_r; j++)
+  	for (k = 0; k < SinogramPtr->N_t; k++)
+  	{
+/*		real = SinogramPtr->Measurements[i][j][k] - sqrt(pow(SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][0], 2) + pow(SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][1], 2));*/
+		costemp = SinogramPtr->Measurements_real[i][j][k] - SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][0];
+		sintemp = SinogramPtr->Measurements_imag[i][j][k] - SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][1];
+		cmplx_mult (&(real), &(imag), costemp, sintemp, costemp, -sintemp);
+		cost += real*TomoInputsPtr->Weight[i][j][k]*real;
+ 	}
   }
   cost /= 2.0;
   /*When computing the cost of the prior term it is important to make sure that you don't include the cost of any pair of neighbors more than once. In this code, a certain sense of causality is used to compute the cost. We also assume that the weghting kernel given by 'Filter' is symmetric. Let i, j and k correspond to the three dimensions. If we go forward to i+1, then all neighbors at j-1, j, j+1, k+1, k, k-1 are to be considered. However, if for the same i, if we go forward to j+1, then all k-1, k, and k+1 should be considered. For same i and j, only the neighbor at k+1 is considred.*/
@@ -568,6 +584,20 @@ void upsample_object_bilinear_3D (Real_arr_t*** Object, Real_arr_t*** Init, int3
   multifree(buffer3D,3);
 }
 
+void dwnsmpl_object_bilinear_3D (Real_arr_t*** Object, Real_arr_t*** Init, int32_t N_z, int32_t N_y, int32_t N_x, int32_t dwnsmpl_factor)
+{
+	int32_t i, j, k, m, n, p;
+
+	for (i = 0; i < N_z; i++)
+	for (j = 0; j < N_y; j++)
+	for (k = 0; k < N_x; k++)
+		for (m = 0; m < dwnsmpl_factor; m++)
+		for (n = 0; n < dwnsmpl_factor; n++)
+		for (p = 0; p < dwnsmpl_factor; p++)
+			Object[i][j][k] += Init[i*dwnsmpl_factor + m][j*dwnsmpl_factor + n][k*dwnsmpl_factor + p];
+
+}
+
 /*randomly select the voxels lines which need to be updated along the x-y plane for each z-block and time slice*/
 void randomly_select_x_y (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, uint8_t*** Mask)
 {
@@ -626,6 +656,13 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   	ScannedObjectPtr->PhaseObject[i][j+1][k][l] = PHASEOBJECT_INIT_VAL;
   }
 
+  /*Init = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, PHANTOM_Z_SIZE, PHANTOM_XY_SIZE, PHANTOM_XY_SIZE);
+  for (i = 0; i < ScannedObjectPtr->N_time; i++)
+  {
+	if (read_SharedBinFile_At (, &(ScannedObjectPtr->MagObject[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
+ 	dwnsmpl_object_bilinear_3D (&(ScannedObjectPtr->MagObject[i][1][0][0]), Init, N_z, N_y, N_x, dwnsmpl_factor);
+  }
+*/
   if (TomoInputsPtr->initICD > 3 || TomoInputsPtr->initICD < 0){
 	sentinel(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: initICD value not recognized.\n");
   }
@@ -968,9 +1005,9 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
   {
     #ifndef NO_COST_CALCULATE
     Real_t cost, cost_0_iter, cost_last_iter, percentage_change_in_cost = 0;
-    char costfile[100] = COST_FILENAME;
+    char costfile[100] = COST_FILENAME, origcostfile[100] = ORIG_COST_FILENAME;
     #endif
-    Real_t x, y, zr, zi, ar, ai, br, bi, NMS_cost = 0, NMS_last_cost = 0, orig_cost, orig_cost_last;
+    Real_t x, y, zr, zi, ar, ai, br, bi, NMS_cost = 0, NMS_last_cost = 0, orig_cost, orig_cost_last, steepdes_thresh = 0, avg_steepdes_thresh, avg_steepdes_iters;
     Real_arr_t **v_real, **v_imag;
     int32_t j, flag = 0, Iter, i, k, HeadIter, NMS_avgiter = 0, PRetIter;
     int dimTiff[4];
@@ -1029,16 +1066,21 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
  
     start=time(NULL);
     orig_cost_last = compute_original_cost(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
-    for (HeadIter = 1; HeadIter <= TomoInputsPtr->MaxHeadIter; HeadIter++)
+    if (TomoInputsPtr->node_rank == 0)
+	   Write2Bin (origcostfile, 1, 1, 1, 1, sizeof(Real_t), &orig_cost_last, TomoInputsPtr->debug_file_ptr);
+
+    for (HeadIter = 1; HeadIter <= TomoInputsPtr->Head_MaxIter; HeadIter++)
     {
     	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Doing phase retrieval ....\n");
-	for (PRetIter = 1; PRetIter <= TomoInputsPtr->PRetMaxIter; PRetIter++)
+	for (PRetIter = 1; PRetIter <= TomoInputsPtr->PRet_MaxIter; PRetIter++)
 	{
-/*        	#pragma omp parallel for private(i,j,k,v_real,v_imag)*/
+		avg_steepdes_thresh = 0;
+		avg_steepdes_iters = 0;
+/*        	#pragma omp parallel for private(i,j,k,v_real,v_imag,steepdes_thresh) reduction(avg_steepdes_thresh,avg_steepdes_iters:+)*/
 		for (i = 0; i < SinogramPtr->N_p; i++)
 		{
-			v_real = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_t, SinogramPtr->N_r);
-			v_imag = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_t, SinogramPtr->N_r);
+			v_real = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_r, SinogramPtr->N_t);
+			v_imag = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_r, SinogramPtr->N_t);
 			for (j = 0; j < SinogramPtr->N_r; j++)
 			for (k = 0; k < SinogramPtr->N_t; k++)
 			{
@@ -1048,20 +1090,25 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 				v_imag[j][k] += SinogramPtr->PhasePRetDual[i][j][k];
 			}	
 
-		for (j = 0; j < TomoInputsPtr->SteepDesMaxIter; j++)
+			for (j = 0; j < TomoInputsPtr->SteepDes_MaxIter; j++)
 			{
-				steepest_descent_iter (SinogramPtr->Measurements[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], TomoInputsPtr->Weight[i], v_real, v_imag, TomoInputsPtr->ADMM_mu, SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
-				
+				steepdes_thresh = steepest_descent_iter (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], TomoInputsPtr->Weight[i], v_real, v_imag, TomoInputsPtr->ADMM_mu, SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
+				if (steepdes_thresh < TomoInputsPtr->SteepDes_threshold && j > 1)
+					break;
 			}
+			avg_steepdes_thresh += steepdes_thresh;
+			avg_steepdes_iters += (j+1);
 		
 			multifree(v_real, 2);
 			multifree(v_imag, 2);
 		}
 
+    		check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Top level iteration - %d, pret iteration = %d.\n Avg steepest descent convg threshold = %e, convg iteration = %f.\nRunning Nelder Mead simplex algorithm ....\n", HeadIter, PRetIter, avg_steepdes_thresh/SinogramPtr->N_p, avg_steepdes_iters/SinogramPtr->N_p);
+		
 		NMS_avgiter = 0;
 		NMS_cost = 0;
 		NMS_last_cost = 0;
-    		check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Top level iteration - %d.\n Running Nelder Mead simplex algorithm ....\n", HeadIter);
+    		check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Running Nelder Mead simplex algorithm ....\n");
         	#pragma omp parallel for collapse(3) private(i,j,k,ar,ai,br,bi,zr,zi,cost,cost_last_iter) reduction(+:NMS_avgiter,NMS_cost,NMS_last_cost)
 		for (i = 0; i < SinogramPtr->N_p; i++)
 		for (j = 0; j < SinogramPtr->N_r; j++)
@@ -1089,6 +1136,16 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 			NMS_cost += cost;
 			NMS_last_cost += cost_last_iter;
 #endif
+		}
+
+		
+        	#pragma omp parallel for collapse(3) private(i,j,k)
+		for (i = 0; i < SinogramPtr->N_p; i++)
+		for (j = 0; j < SinogramPtr->N_r; j++)
+		for (k = 0; k < SinogramPtr->N_t; k++)
+		{
+			SinogramPtr->MagPRetDual[i][j][k] += exp(-SinogramPtr->MagTomoAux[i][j][k][1])*cos(-SinogramPtr->PhaseTomoAux[i][j][k][1]) - SinogramPtr->MagPRetAux[i][j][k];
+			SinogramPtr->PhasePRetDual[i][j][k] += exp(-SinogramPtr->MagTomoAux[i][j][k][1])*sin(-SinogramPtr->PhaseTomoAux[i][j][k][1]) - SinogramPtr->PhasePRetAux[i][j][k];
 		}
 	}
 	 
@@ -1169,12 +1226,12 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 		SinogramPtr->PhaseTomoDual[i][j][k] = -SinogramPtr->PhaseErrorSino[i][j][k];
 		SinogramPtr->MagErrorSino[i][j][k] += ar - SinogramPtr->MagTomoDual[i][j][k];
 		SinogramPtr->PhaseErrorSino[i][j][k] += ai - SinogramPtr->PhaseTomoDual[i][j][k];
-		SinogramPtr->MagPRetDual[i][j][k] += exp(-SinogramPtr->MagTomoAux[i][j][k][1])*cos(-SinogramPtr->PhaseTomoAux[i][j][k][1]) - SinogramPtr->MagPRetAux[i][j][k];
-		SinogramPtr->PhasePRetDual[i][j][k] += exp(-SinogramPtr->MagTomoAux[i][j][k][1])*sin(-SinogramPtr->PhaseTomoAux[i][j][k][1]) - SinogramPtr->PhasePRetAux[i][j][k];
     	}
 	
 	orig_cost = compute_original_cost(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
         check_info(TomoInputsPtr->node_rank == 0, TomoInputsPtr->debug_file_ptr, "The original cost value is %f. The decrease in original cost is %f.\n", orig_cost, orig_cost_last - orig_cost);
+    	if (TomoInputsPtr->node_rank == 0)
+	   Write2Bin (origcostfile, 1, 1, 1, 1, sizeof(Real_t), &orig_cost, TomoInputsPtr->debug_file_ptr);
 	
 	if (orig_cost > orig_cost_last)
       		check_warn(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cost of original cost function increased!\n");

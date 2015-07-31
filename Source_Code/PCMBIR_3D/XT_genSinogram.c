@@ -51,6 +51,7 @@
 #include "XT_Init.h"
 #include "XT_Debug.h"
 #include <fftw3.h>
+#include "XT_CmplxArith.h"
 
 /*generates projection data from phantom*/
 int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, float *measurements, float *weights)
@@ -58,7 +59,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	FILE *fp;
 	long int stream_offset, size, result;
 	int32_t i, j, k, m, n, idx, t, slice; 
-	Real_t measurement_avg = 0, weight_avg = 0, magpixel, phasepixel, val, expval;
+	Real_t measurement_avg = 0, weight_avg = 0, magpixel, phasepixel, val, expval, real, imag;
   	uint8_t AvgNumXElements, AvgNumZElements;
 	char phantom_file[1000];
 	int dimTiff[4];
@@ -77,7 +78,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 
 	memset(&(projs_real[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));	  
 	memset(&(projs_imag[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));	    
-	memset(&(measurements[0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));
+	memset(&(measurements[0]), 0, 2*SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));
 	memset(&(weights[0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));
 
 	/*AvgNumXElements over estimates the total number of entries in a single column of A matrix when indexed by both voxel and angle*/
@@ -132,6 +133,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
                 	for (slice=0; slice<ScannedObjectPtr->N_z; slice++){
 			    	magpixel = (Real_t)(magobject[slice][j][k]);
 			    	phasepixel = (Real_t)(phaseobject[slice][j][k]);
+			    	/*phasepixel = 0;*/
 				/*IMPORTANT: Always make sure phantom has no negative values.*/
 				if (magpixel < 0) magpixel = 0; if (phasepixel < 0) phasepixel = 0;
 	     	          	for (m=0; m<AMatrix.count; m++){
@@ -166,8 +168,11 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		for (j=0; j < SinogramPtr->N_r; j++)
 		{
 			expval = exp(-projs_real[i][slice][j]);
-			fftarr[slice*SinogramPtr->N_r + j][0] = EXPECTED_COUNT_MEASUREMENT*expval*cos(-projs_imag[i][slice][j]);
-			fftarr[slice*SinogramPtr->N_r + j][1] = EXPECTED_COUNT_MEASUREMENT*expval*sin(-projs_imag[i][slice][j]);
+			/*fftarr[j*SinogramPtr->N_t + slice][0] = EXPECTED_COUNT_MEASUREMENT*expval*cos(-projs_imag[i][slice][j]);
+			fftarr[j*SinogramPtr->N_t + slice][1] = EXPECTED_COUNT_MEASUREMENT*expval*sin(-projs_imag[i][slice][j]);*/
+			cmplx_mult (&real, &imag, expval*cos(-projs_imag[i][slice][j]), expval*sin(-projs_imag[i][slice][j]), (Real_t)(-5), (Real_t)(7));
+			fftarr[j*SinogramPtr->N_t + slice][0] = real;
+			fftarr[j*SinogramPtr->N_t + slice][1] = imag;
 			/*weights[2*idx] = (val + sqrt(fabs(val))*normal());*/
 			/*weights[2*idx+1] = (val + sqrt(fabs(val))*normal());*/
 		}
@@ -178,20 +183,26 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		for (j=0; j < SinogramPtr->N_r; j++)
 		{
 			idx = i*SinogramPtr->N_t*SinogramPtr->N_r + slice*SinogramPtr->N_r + j;
-			measurements[idx] = sqrt(fftarr[slice*SinogramPtr->N_r + j][0]*fftarr[slice*SinogramPtr->N_r + j][0] + fftarr[slice*SinogramPtr->N_r + j][1]*fftarr[slice*SinogramPtr->N_r + j][1]);
+			/*measurements[idx] = sqrt(fftarr[j*SinogramPtr->N_t+ slice][0]*fftarr[j*SinogramPtr->N_t + slice][0] + fftarr[j*SinogramPtr->N_t + slice][1]*fftarr[j*SinogramPtr->N_t + slice][1]);*/
+			cmplx_mult (&real, &imag, fftarr[j*SinogramPtr->N_t + slice][0], fftarr[j*SinogramPtr->N_t + slice][1], (Real_t)(3), (Real_t)(-2));
+			measurements[2*idx] = real;
+			measurements[2*idx+1] = imag;
 		/*	measurements[idx] = (measurements[idx] + sqrt(fabs(measurements[idx]))*normal());*/
 			weights[idx] = 1.0;
 			
 			weight_avg += weights[idx];	
-			measurement_avg += measurements[idx];	
+			measurement_avg += measurements[2*idx];	
+			measurement_avg += measurements[2*idx+1];	
 		}
 	}
 
 	tifarray = (Real_arr_t*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(Real_arr_t));
 	if (TomoInputsPtr->Write2Tiff == 1)
 	{
-		for (i = 0; i < SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r; i++) tifarray[i] = measurements[i];
-		if (WriteMultiDimArray2Tiff ("measurements", dimTiff, 0, 2, 1, 3, &(tifarray[0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		for (i = 0; i < SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r; i++) tifarray[i] = measurements[2*i];
+		if (WriteMultiDimArray2Tiff ("measurements_real", dimTiff, 0, 2, 1, 3, &(tifarray[0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		for (i = 0; i < SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r; i++) tifarray[i] = measurements[2*i+1];
+		if (WriteMultiDimArray2Tiff ("measurements_imag", dimTiff, 0, 2, 1, 3, &(tifarray[0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
 		for (i = 0; i < SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r; i++) tifarray[i] = weights[i];
 		if (WriteMultiDimArray2Tiff ("weights", dimTiff, 0, 2, 1, 3, &(tifarray[0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
 	}
