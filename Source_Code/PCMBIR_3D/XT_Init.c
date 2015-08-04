@@ -436,8 +436,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 /*	TomoInputsPtr->NumIter = MAX_NUM_ITERATIONS;*/
 	TomoInputsPtr->NumIter = 100;
 	TomoInputsPtr->NMS_MaxIter = 100;
-	TomoInputsPtr->Head_MaxIter = 50;
-	TomoInputsPtr->PRet_MaxIter = 50;
+	TomoInputsPtr->Head_MaxIter = 20;
+	TomoInputsPtr->PRet_MaxIter = 20;
 	TomoInputsPtr->SteepDes_MaxIter = 100;
 	
 	TomoInputsPtr->NMS_threshold = 0.1;

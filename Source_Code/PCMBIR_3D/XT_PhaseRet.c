@@ -241,8 +241,8 @@ Real_t steepest_descent_iter (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr
 
 	if (cost_new > cost_old)
 	{
-		printf("cost_old = %f, cost_new = %f\n", cost_old, cost_new);
-		printf("ERROR: Cost increased after w update!\n");
+/*		printf("cost_old = %f, cost_new = %f\n", cost_old, cost_new);
+		printf("ERROR: Cost increased after w update!\n");*/
 	}
 	cost_old = cost_new;
 
