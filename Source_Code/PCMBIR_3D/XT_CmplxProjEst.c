@@ -50,8 +50,8 @@ void estimate_complex_projection (Real_arr_t** measurements_real, Real_arr_t** m
 	zold_real = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, rows, cols);
 	zold_imag = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, rows, cols);
 
-  	/*memset(&(v_real[0][0]), 0, rows*cols*sizeof(Real_arr_t));
-  	memset(&(v_imag[0][0]), 0, rows*cols*sizeof(Real_arr_t));*/
+  	memset(&(v_real[0][0]), 0, rows*cols*sizeof(Real_arr_t));
+  	memset(&(v_imag[0][0]), 0, rows*cols*sizeof(Real_arr_t));
 
 	cost_old = compute_pretcost (measurements_real, measurements_imag, omega_real, omega_imag, D_real, D_imag, z_real, z_imag, Lambda, proj_real, proj_imag, rows, cols, mu, fftforw_arr, fftforw_plan);
 	for (iter = 0; iter < pret_iters; iter++)
