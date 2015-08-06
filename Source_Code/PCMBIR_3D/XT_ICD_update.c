@@ -585,18 +585,67 @@ void upsample_object_bilinear_3D (Real_arr_t*** Object, Real_arr_t*** Init, int3
   multifree(buffer3D,3);
 }
 
-void dwnsmpl_object_bilinear_3D (Real_arr_t*** Object, Real_arr_t*** Init, int32_t N_z, int32_t N_y, int32_t N_x, int32_t dwnsmpl_factor)
+void dwnsmpl_object (Real_arr_t*** Object, float*** Init, int32_t N_z, int32_t N_y, int32_t N_x, int32_t dwnsmpl_z, int32_t dwnsmpl_y, int32_t dwnsmpl_x, int32_t interp)
 {
 	int32_t i, j, k, m, n, p;
-
+	
 	for (i = 0; i < N_z; i++)
 	for (j = 0; j < N_y; j++)
 	for (k = 0; k < N_x; k++)
-		for (m = 0; m < dwnsmpl_factor; m++)
-		for (n = 0; n < dwnsmpl_factor; n++)
-		for (p = 0; p < dwnsmpl_factor; p++)
-			Object[i][j][k] += Init[i*dwnsmpl_factor + m][j*dwnsmpl_factor + n][k*dwnsmpl_factor + p];
+	{
+		Object[i][j][k] = 0;
+		for (m = 0; m < dwnsmpl_z; m++)
+		for (n = 0; n < dwnsmpl_y; n++)
+		for (p = 0; p < dwnsmpl_x; p++)
+		{
+			if (interp == 0 && Object[i][j][k] > Init[i*dwnsmpl_z + m][j*dwnsmpl_y + n][k*dwnsmpl_x + p])/*downsample with minimum in neiborhood*/
+				Object[i][j][k] = Init[i*dwnsmpl_z + m][j*dwnsmpl_y + n][k*dwnsmpl_x + p];
+			else if (interp == 1 && Object[i][j][k] < Init[i*dwnsmpl_z + m][j*dwnsmpl_y + n][k*dwnsmpl_x + p])/*downsample with maximum in neiborhood*/
+				Object[i][j][k] = Init[i*dwnsmpl_z + m][j*dwnsmpl_y + n][k*dwnsmpl_x + p];
+			else if (interp == 2)
+				Object[i][j][k] += Init[i*dwnsmpl_z + m][j*dwnsmpl_y + n][k*dwnsmpl_x + p];
+		}
+		
+		if (interp == 2)
+			Object[i][j][k] /= (dwnsmpl_z*dwnsmpl_y*dwnsmpl_x);
+	}
+}
 
+int init_minmax_object (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
+{
+	float ***Init;
+	FILE *fp;
+	int32_t size, result;
+	char maxobj_filename[] = MAX_OBJ_FILEPATH;
+	char minobj_filename[] = MIN_OBJ_FILEPATH;
+	int32_t dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, flag = 0;
+
+      	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initializing the min and max arrays (of object)...\n");
+	size = PHANTOM_Z_SIZE*PHANTOM_XY_SIZE*PHANTOM_XY_SIZE/TomoInputsPtr->node_num;
+	dwnsmpl_z = PHANTOM_Z_SIZE/(ScannedObjectPtr->N_z*TomoInputsPtr->node_num); 	
+	dwnsmpl_y = PHANTOM_XY_SIZE/ScannedObjectPtr->N_y; 	
+	dwnsmpl_x = PHANTOM_XY_SIZE/ScannedObjectPtr->N_x; 	
+
+	Init = (float***)multialloc(sizeof(float), 3, PHANTOM_Z_SIZE/TomoInputsPtr->node_num, PHANTOM_XY_SIZE, PHANTOM_XY_SIZE);
+
+	fp = fopen (minobj_filename, "rb");
+	result = fseek (fp, TomoInputsPtr->node_rank*size*sizeof(float), SEEK_SET);
+	result = fread (&(Init[0][0][0]), sizeof(float), size, fp);
+	fclose (fp);
+	dwnsmpl_object (ScannedObjectPtr->MagObjMin, Init, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, 0);
+	dwnsmpl_object (ScannedObjectPtr->PhaseObjMin, Init, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, 0);
+
+	fp = fopen (maxobj_filename, "rb");
+	result = fseek (fp, TomoInputsPtr->node_rank*size*sizeof(float), SEEK_SET);
+	result = fread (&(Init[0][0][0]), sizeof(float), size, fp);
+	fclose (fp);
+	dwnsmpl_object (ScannedObjectPtr->MagObjMax, Init, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, 1);
+	dwnsmpl_object (ScannedObjectPtr->PhaseObjMax, Init, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, 1);
+
+	multifree(Init, 3);
+      	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Completed initialization of min and max arrays.\n");
+	
+	return (flag);	
 }
 
 /*randomly select the voxels lines which need to be updated along the x-y plane for each z-block and time slice*/
@@ -1048,6 +1097,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     	if (WriteMultiDimArray2Tiff (detect_file, dimTiff, 0, 1, 2, 3, &(SinogramPtr->DetectorResponse[0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) goto error;
     start = time(NULL);
     if (initObject(SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
+    if (init_minmax_object (ScannedObjectPtr, TomoInputsPtr)) goto error;
     check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Time taken to read object = %fmins\n", difftime(time(NULL),start)/60.0);
     if (initErrorSinogam(SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
     check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Time taken to initialize object and compute error sinogram = %fmins\n", difftime(time(NULL),start)/60.0);

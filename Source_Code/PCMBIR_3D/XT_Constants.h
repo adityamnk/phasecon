@@ -50,8 +50,10 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 /*#define EXPECTED_COUNT_MEASUREMENT 35000*/ 
 #define EXPECTED_COUNT_MEASUREMENT 1
 #define ZERO_SKIPPING
-#define MAG_PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/mag_phantom.bin"
-#define PHASE_PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/phase_phantom.bin"
+#define PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/Phantom4D.bin"
+#define MIN_OBJ_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/Phantom4D_min.bin"
+#define MAX_OBJ_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/Phantom4D_max.bin"
+#define PHANTOM_OFFSET 128
 #define MEASUREMENTS_FILENAME "measurements"
 #define WEIGHTS_FILENAME "weights"
 

@@ -97,7 +97,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	}
 	storeVoxelLineResponse(VoxelLineResponse, ScannedObjectPtr, SinogramPtr);
 
-	sprintf(phantom_file, "%s", MAG_PHANTOM_FILEPATH);
+	sprintf(phantom_file, "%s", PHANTOM_FILEPATH);
 	fp = fopen (phantom_file, "rb");
 	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
 	size = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
@@ -109,12 +109,13 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
   	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
 	fclose(fp);	
 	
-	sprintf(phantom_file, "%s", PHASE_PHANTOM_FILEPATH);
+	sprintf(phantom_file, "%s", PHANTOM_FILEPATH);
 	fp = fopen (phantom_file, "rb");
 	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
 	size = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
 	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "Forward projecting phase phantom ...\n");	
-	stream_offset = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
+	stream_offset = (long int)PHANTOM_OFFSET*(long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_num;  
+	stream_offset += (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
 	result = fseek (fp, stream_offset*sizeof(float), SEEK_SET);
   	check_error(result != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
 	result = fread (&(phaseobject[0][0][0]), sizeof(float), size, fp);

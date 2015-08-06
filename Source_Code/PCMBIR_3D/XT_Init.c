@@ -355,6 +355,10 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	ScannedObjectPtr->MagObject = Arr1DToArr4D (object, ScannedObjectPtr->N_time, ScannedObjectPtr->N_z + 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
 	object = (Real_arr_t*)get_spc(ScannedObjectPtr->N_time*(ScannedObjectPtr->N_z + 2)*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x, sizeof(Real_arr_t));
 	ScannedObjectPtr->PhaseObject = Arr1DToArr4D (object, ScannedObjectPtr->N_time, ScannedObjectPtr->N_z + 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+	ScannedObjectPtr->MagObjMin = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
+	ScannedObjectPtr->MagObjMax = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
+	ScannedObjectPtr->PhaseObjMin = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
+	ScannedObjectPtr->PhaseObjMax = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
 	
 /*	ScannedObjectPtr->Object = (Real_arr_t****)get_spc(ScannedObjectPtr->N_time, sizeof(Real_arr_t***));
 	for (i = 0; i < ScannedObjectPtr->N_time; i++)
@@ -472,6 +476,11 @@ void freeMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInpu
 		{if (ScannedObjectPtr->Object[i]) multifree(ScannedObjectPtr->Object[i],3);}
 	if (ScannedObjectPtr->Object) free(ScannedObjectPtr->Object);*/
 /*	multifree(ScannedObjectPtr->Object, 4);*/
+
+	if (ScannedObjectPtr->MagObjMin) multifree(ScannedObjectPtr->MagObjMin, 3);
+	if (ScannedObjectPtr->MagObjMax) multifree(ScannedObjectPtr->MagObjMax, 3);
+	if (ScannedObjectPtr->PhaseObjMin) multifree(ScannedObjectPtr->PhaseObjMin, 3);
+	if (ScannedObjectPtr->PhaseObjMax) multifree(ScannedObjectPtr->PhaseObjMax, 3);
 	
 	if (SinogramPtr->Measurements_real) multifree(SinogramPtr->Measurements_real,3);
 	if (SinogramPtr->Measurements_imag) multifree(SinogramPtr->Measurements_imag,3);

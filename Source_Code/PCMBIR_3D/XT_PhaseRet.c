@@ -246,8 +246,8 @@ Real_t steepest_descent_iter (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr
 	}
 	cost_old = cost_new;
 
-/*	compute_phase_projection (y, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, rows, cols, fftforward_arr, fftforward_plan); 
-	cost_new = compute_cost (y, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, fftforward_arr, fftforward_plan);
+/*	compute_phase_projection (y, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, rows, cols, fftforward_arr, fftforward_plan);*/ 
+/*	cost_new = compute_cost (y, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, fftforward_arr, fftforward_plan);
 	if (cost_new > cost_old)
 	{
 		printf("cost_old = %f, cost_new = %f\n", cost_old, cost_new);

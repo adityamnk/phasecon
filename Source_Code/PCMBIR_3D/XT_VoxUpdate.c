@@ -38,7 +38,7 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 		for (q = 0; q < AMatrixPtr[p].count; q++)
 		{
       		    	i_r = (AMatrixPtr[p].index[q]);
-       		    	ProjectionEntry = (AMatrixPtr[p].values[q]*SinogramPtr->delta_t);
+       		    	ProjectionEntry = (AMatrixPtr[p].values[q]);
 /*      	 	ProjectionEntry = (AMatrixPtr[p].values[q]);
 			for (r = 0; r < VoxelLineResponse[slice].count; r++)*/
 			for (r = 0; r < z_overlap_num; r++)
@@ -56,9 +56,21 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
             TODO : What if theta1 = 0 ? Then this will give error*/
 
         UpdatedVoxelValue = Mag_FunctionalSubstitution(VMag, THETA1Mag, THETA2, ScannedObjectPtr, TomoInputsPtr, Mag3D_Nhood, MagTime_Nhood, BDFlag_3D, BDFlag_Time);
-        ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
+	if (UpdatedVoxelValue < ScannedObjectPtr->MagObjMin[slice][j_new][k_new])
+		ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = ScannedObjectPtr->MagObjMin[slice][j_new][k_new];
+	else if (UpdatedVoxelValue > ScannedObjectPtr->MagObjMax[slice][j_new][k_new])
+		ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = ScannedObjectPtr->MagObjMax[slice][j_new][k_new];
+	else 
+        	ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
+		
+
         UpdatedVoxelValue = Phase_FunctionalSubstitution(VPhase, THETA1Phase, THETA2, ScannedObjectPtr, TomoInputsPtr, Phase3D_Nhood, PhaseTime_Nhood, BDFlag_3D, BDFlag_Time);
-        ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
+	if (UpdatedVoxelValue < ScannedObjectPtr->PhaseObjMin[slice][j_new][k_new])
+		ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = ScannedObjectPtr->PhaseObjMin[slice][j_new][k_new];
+	else if (UpdatedVoxelValue > ScannedObjectPtr->PhaseObjMax[slice][j_new][k_new])
+		ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = ScannedObjectPtr->PhaseObjMax[slice][j_new][k_new];
+	else 
+        	ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
         /*ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = 0;*/
 	
 	for (p = 0; p < ScannedObjectPtr->ProjNum[i_new]; p++){
@@ -66,7 +78,7 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 		for (q = 0; q < AMatrixPtr[p].count; q++)
         	{
                	    	i_r = (AMatrixPtr[p].index[q]);
-        	    	ProjectionEntry = (AMatrixPtr[p].values[q]*SinogramPtr->delta_t);
+        	    	ProjectionEntry = (AMatrixPtr[p].values[q]);
         	    	/*ProjectionEntry = (AMatrixPtr[p].values[q]);
 			for (r = 0; r < VoxelLineResponse[slice].count; r++)*/
 			for (r = 0; r < z_overlap_num; r++)
