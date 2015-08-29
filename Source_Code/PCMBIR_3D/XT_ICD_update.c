@@ -56,7 +56,8 @@
 #include "XT_PhaseRet.h"
 #include "XT_CmplxArith.h"
 #include "XT_CmplxProjEst.h"
-
+#include "XT_PhaseRet.h"
+#include "XT_FresnelTran.h"
 /*computes the location of (i,j,k) th element in a 1D array*/
 int32_t array_loc_1D (int32_t i, int32_t j, int32_t k, int32_t N_j, int32_t N_k)
 {
@@ -240,11 +241,14 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
 Real_t compute_original_cost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
 {
   Real_t cost=0,temp=0, forward=0, prior=0;
-  Real_t delta, magtemp, costemp, sintemp, real, imag;
-  int32_t i,j,k,p,N_z;
+  Real_t delta, magtemp, costemp, sintemp; 
+  Real_t ***real, ***imag;
+  int32_t i,j,k,p,N_z,dimTiff[4];
   bool j_minus, k_minus, i_plus, j_plus, k_plus, p_plus;
   
-  #pragma omp parallel for private(j, k, magtemp, costemp, sintemp, real, imag) reduction(+:cost)
+  real = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+  imag = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+  #pragma omp parallel for private(j, k, magtemp, costemp, sintemp)
   for (i = 0; i < SinogramPtr->N_p; i++)
   {
 	for (j = 0; j < SinogramPtr->N_r; j++)
@@ -253,24 +257,43 @@ Real_t compute_original_cost(Sinogram* SinogramPtr, ScannedObject* ScannedObject
 		magtemp = exp(SinogramPtr->MagErrorSino[i][j][k] - SinogramPtr->MagTomoAux[i][j][k][1] + SinogramPtr->MagTomoDual[i][j][k]);
     		costemp = magtemp*cos(SinogramPtr->PhaseErrorSino[i][j][k] - SinogramPtr->PhaseTomoAux[i][j][k][1] + SinogramPtr->PhaseTomoDual[i][j][k]);
     		sintemp = magtemp*sin(SinogramPtr->PhaseErrorSino[i][j][k] - SinogramPtr->PhaseTomoAux[i][j][k][1] + SinogramPtr->PhaseTomoDual[i][j][k]);
-		cmplx_mult (&(real), &(imag), costemp, sintemp, SinogramPtr->D_real[i][j][k], SinogramPtr->D_imag[i][j][k]);
-		SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][0] = real;
-		SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][1] = imag;
+		cmplx_mult (&(real[i][j][k]), &(imag[i][j][k]), costemp, sintemp, SinogramPtr->D_real[i][j][k], SinogramPtr->D_imag[i][j][k]);
+		SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][0] = real[i][j][k];
+		SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][1] = imag[i][j][k];
     	}
-	
-	fftw_execute(SinogramPtr->fftforw_plan[i]);
+  }
+
+  if (TomoInputsPtr->Write2Tiff == 1)
+  {
+	dimTiff[0] = 1; dimTiff[1] = SinogramPtr->N_p; dimTiff[2] = SinogramPtr->N_r; dimTiff[3] = SinogramPtr->N_t;
+    	WriteMultiDimArray2Tiff ("cost_real_prefft", dimTiff, 0, 3, 1, 2, &(real[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
+    	WriteMultiDimArray2Tiff ("cost_imag_prefft", dimTiff, 0, 3, 1, 2, &(imag[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
+  }
+
+  #pragma omp parallel for private(j, k, magtemp, costemp, sintemp) reduction(+:cost)
+  for (i = 0; i < SinogramPtr->N_p; i++)
+  {
+	compute_FresnelTran (SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
 		
 	for (j = 0; j < SinogramPtr->N_r; j++)
   	for (k = 0; k < SinogramPtr->N_t; k++)
   	{
-/*		real = SinogramPtr->Measurements[i][j][k] - sqrt(pow(SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][0], 2) + pow(SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][1], 2));*/
-		costemp = SinogramPtr->Measurements_real[i][j][k] - SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][0];
-		sintemp = SinogramPtr->Measurements_imag[i][j][k] - SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][1];
-		cmplx_mult (&(real), &(imag), costemp, sintemp, costemp, -sintemp);
-		cost += real*TomoInputsPtr->Weight[i][j][k]*real;
+		real[i][j][k] = SinogramPtr->Measurements_real[i][j][k] - sqrt(pow(SinogramPtr->fftback_arr[i][j*SinogramPtr->N_t + k][0], 2) + pow(SinogramPtr->fftback_arr[i][j*SinogramPtr->N_t + k][1], 2));
+		imag[i][j][k] = 0;
+	/*	cmplx_mult (&(costemp), &(sintemp), SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][0], SinogramPtr->fftforw_arr[i][j*SinogramPtr->N_t + k][1], SinogramPtr->Omega_real[i][j][k], SinogramPtr->Omega_imag[i][j][k]);
+		real[i][j][k] = SinogramPtr->Measurements_real[i][j][k] - costemp;
+		imag[i][j][k] = SinogramPtr->Measurements_imag[i][j][k] - sintemp;*/
+		cost += (real[i][j][k]*real[i][j][k] + imag[i][j][k]*imag[i][j][k])*TomoInputsPtr->Weight[i][j][k];
  	}
   }
   cost /= 2.0;
+  
+  if (TomoInputsPtr->Write2Tiff == 1)
+  {
+	dimTiff[0] = 1; dimTiff[1] = SinogramPtr->N_p; dimTiff[2] = SinogramPtr->N_r; dimTiff[3] = SinogramPtr->N_t;
+    	WriteMultiDimArray2Tiff ("cost_real_postfft", dimTiff, 0, 3, 1, 2, &(real[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
+    	WriteMultiDimArray2Tiff ("cost_imag_postfft", dimTiff, 0, 3, 1, 2, &(imag[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
+  }
   /*When computing the cost of the prior term it is important to make sure that you don't include the cost of any pair of neighbors more than once. In this code, a certain sense of causality is used to compute the cost. We also assume that the weghting kernel given by 'Filter' is symmetric. Let i, j and k correspond to the three dimensions. If we go forward to i+1, then all neighbors at j-1, j, j+1, k+1, k, k-1 are to be considered. However, if for the same i, if we go forward to j+1, then all k-1, k, and k+1 should be considered. For same i and j, only the neighbor at k+1 is considred.*/
   temp = 0;
   N_z = ScannedObjectPtr->N_z + 2;
@@ -402,7 +425,9 @@ Real_t compute_original_cost(Sinogram* SinogramPtr, ScannedObject* ScannedObject
     check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Original Prior cost = %f\n",prior);
     cost = forward + prior;
   }
-  
+ 
+  multifree(real, 3); 
+  multifree(imag, 3); 
   /*Broadcase the value of cost to all nodes*/
   MPI_Bcast(&cost, 1, MPI_REAL_DATATYPE, 0, MPI_COMM_WORLD);
   return cost;
@@ -683,6 +708,141 @@ void randomly_select_x_y (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInput
   free(Counter);
 }
 
+void init_GroundTruth (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
+{
+	float ***Init;
+	char object_file[100];
+	int32_t dimTiff[4];
+	Real_arr_t ***RealObj, ***ImagObj, ***RealSino, ***ImagSino;
+	Real_t pixel; FILE *fp;
+	int32_t N_z, N_y, N_x, dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, sino_idx, i, j, k, l, p, slice;
+	long int stream_offset, size, result;
+	char phantom_filename[] = PHANTOM_FILEPATH;
+/*	char phantom_filename[] = MIN_OBJ_FILEPATH;*/ 
+  	AMatrixCol* AMatrixPtr = (AMatrixCol*)get_spc(ScannedObjectPtr->N_time, sizeof(AMatrixCol));
+  	uint8_t AvgNumXElements = (uint8_t)ceil(3*ScannedObjectPtr->delta_xy/SinogramPtr->delta_r);
+  
+	for (i = 0; i < ScannedObjectPtr->N_time; i++)
+	{
+    		AMatrixPtr[i].values = (Real_t*)get_spc(AvgNumXElements, sizeof(Real_t));
+    		AMatrixPtr[i].index = (int32_t*)get_spc(AvgNumXElements, sizeof(int32_t));
+  	}
+
+	N_z = PHANTOM_Z_SIZE/TomoInputsPtr->node_num;
+	N_y = PHANTOM_XY_SIZE;
+	N_x = PHANTOM_XY_SIZE;
+	size = N_z*N_y*N_x;	
+	dwnsmpl_z = N_z / ScannedObjectPtr->N_z;
+	dwnsmpl_y = N_y / ScannedObjectPtr->N_y;
+	dwnsmpl_x = N_x / ScannedObjectPtr->N_x;
+	Init = (float***)multialloc(sizeof(float), 3, N_z, N_y, N_x);
+	RealObj = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+	ImagObj = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+	RealSino = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	ImagSino = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	
+	fp = fopen (phantom_filename, "rb");
+/*	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_filename);*/
+	result = fread (&(Init[0][0][0]), sizeof(float), size, fp);
+/*  	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_filename,result,stream_offset,size);*/
+	dwnsmpl_object (RealObj, Init, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, 2);
+	fclose(fp);
+	
+	fp = fopen (phantom_filename, "rb");
+/*	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_filename);	*/	
+	stream_offset = (long int)PHANTOM_OFFSET * (long int)N_z * (long int)N_y * (long int)N_x;
+	result = fseek (fp, stream_offset*sizeof(float), SEEK_SET);
+/*  	check_error(result != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_filename,stream_offset);*/
+	result = fread (&(Init[0][0][0]), sizeof(float), size, fp);
+/*  	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_filename,result,stream_offset,size);*/
+	dwnsmpl_object (ImagObj, Init, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, 2);
+	fclose(fp);
+
+	memset(&(RealSino[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));
+	memset(&(ImagSino[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));
+  	#pragma omp parallel for private(j, k, p, sino_idx, slice, pixel)
+  	for (i=0; i<ScannedObjectPtr->N_time; i++)
+  	{
+  		for (j=0; j<ScannedObjectPtr->N_y; j++)
+    		{
+      			for (k=0; k<ScannedObjectPtr->N_x; k++){
+        		for (p=0; p<ScannedObjectPtr->ProjNum[i]; p++){
+      	    			sino_idx = ScannedObjectPtr->ProjIdxPtr[i][p];
+          			calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &(AMatrixPtr[i]), j, k, sino_idx);
+          			for (slice=0; slice<ScannedObjectPtr->N_z; slice++){
+            				pixel = RealObj[slice][j][k]; /*slice+1 to account for extra z slices required for MPI*/
+					if (magpixel < 0)
+						pixel = 0;
+					else
+						pixel = (ABSORP_COEF_2 - ABSORP_COEF_1)*pixel + ABSORP_COEF_1; 
+            				forward_project_voxel (SinogramPtr, pixel, RealSino, &(AMatrixPtr[i])/*, &(VoxelLineResponse[slice])*/, sino_idx, slice);
+            				pixel = ImagObj[slice][j][k]; /*slice+1 to account for extra z slices required for MPI*/
+					if (phasepixel < 0)
+						pixel = 0;
+					else
+						pixel = (REF_IND_DEC_2 - REF_IND_DEC_1)*pixel + REF_IND_DEC_1; 
+        	    			forward_project_voxel (SinogramPtr, pixel, ImagSino, &(AMatrixPtr[i])/*, &(VoxelLineResponse[slice])*/, sino_idx, slice);
+          			}
+        		}
+      			}
+    		}
+  	}
+	
+	for (i = 0; i < SinogramPtr->N_p; i++)	
+	for (j = 0; j < SinogramPtr->N_r; j++)	
+	for (k = 0; k < SinogramPtr->N_t; k++)
+	{
+		SinogramPtr->MagTomoAux[i][j][k][1] = RealSino[i][j][k];	
+		SinogramPtr->MagTomoAux[i][j][k][2] += RealSino[i][j][k];	
+		SinogramPtr->MagTomoAux[i][j][k][3] += RealSino[i][j][k];
+		SinogramPtr->MagTomoAux[i][j][k][0] = (SinogramPtr->MagTomoAux[i][j][k][1] + SinogramPtr->MagTomoAux[i][j][k][2])/2.0;
+		
+		SinogramPtr->PhaseTomoAux[i][j][k][1] = ImagSino[i][j][k];	
+		SinogramPtr->PhaseTomoAux[i][j][k][2] += ImagSino[i][j][k];	
+		SinogramPtr->PhaseTomoAux[i][j][k][3] += ImagSino[i][j][k];
+		SinogramPtr->PhaseTomoAux[i][j][k][0] = (SinogramPtr->PhaseTomoAux[i][j][k][1] + SinogramPtr->PhaseTomoAux[i][j][k][2])/2.0;
+
+		SinogramPtr->MagPRetAux[i][j][k] = exp(-SinogramPtr->MagTomoAux[i][j][k][1])*cos(-SinogramPtr->PhaseTomoAux[i][j][k][1]);
+		SinogramPtr->PhasePRetAux[i][j][k] = exp(-SinogramPtr->MagTomoAux[i][j][k][1])*sin(-SinogramPtr->PhaseTomoAux[i][j][k][1]);
+	}
+	
+	for (i = 0; i < SinogramPtr->N_p; i++)
+		compute_phase_projection (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
+	
+	for (i = 0; i < ScannedObjectPtr->N_time; i++)	
+	for (j = 0; j < ScannedObjectPtr->N_z; j++)	
+	for (k = 0; k < ScannedObjectPtr->N_y; k++)
+	for (l = 0; l < ScannedObjectPtr->N_x; l++)
+	{
+		ScannedObjectPtr->MagObject[i][j+1][k][l] = RealObj[j][k][l];
+		ScannedObjectPtr->PhaseObject[i][j+1][k][l] = ImagObj[j][k][l];
+	}
+
+    	if (TomoInputsPtr->Write2Tiff == 1)
+	  	for (i = 0; i < ScannedObjectPtr->N_time; i++)
+	  	{
+	    		dimTiff[0] = 1; dimTiff[1] = ScannedObjectPtr->N_z; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;
+			sprintf (object_file, "%s_n%d", INIT_MAGOBJECT_FILENAME, TomoInputsPtr->node_rank);
+		    	sprintf (object_file, "%s_time_%d", object_file, i);
+    			WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->MagObject[i][1][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
+			sprintf (object_file, "%s_n%d", INIT_PHASEOBJECT_FILENAME, TomoInputsPtr->node_rank);
+		    	sprintf (object_file, "%s_time_%d", object_file, i);
+    			WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->PhaseObject[i][1][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
+	  	}
+  	
+	for (i = 0; i < ScannedObjectPtr->N_time; i++)
+  	{
+  		free(AMatrixPtr[i].values);
+    		free(AMatrixPtr[i].index);
+  	}
+  
+	free (AMatrixPtr);
+	multifree(RealObj, 3);	
+	multifree(ImagObj, 3);	
+	multifree(RealSino, 3);	
+	multifree(ImagSino, 3);	
+	multifree(Init, 3);	
+}
 
 /*'InitObject' intializes the Object to be reconstructed to either 0 or an interpolated version of the previous reconstruction. It is used in multi resolution reconstruction in which after every coarse resolution reconstruction the object should be intialized with an interpolated version of the reconstruction following which the object will be reconstructed at a finer resolution.
 --initICD--
@@ -861,7 +1021,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
   }
   
   #pragma omp parallel for private(j, k) reduction(+:magavg,phaseavg)
-  for(i=0; i < SinogramPtr->N_p; i++)
+  for(i = 0; i < SinogramPtr->N_p; i++)
   for (j = 0; j < SinogramPtr->N_r; j++)
   for (k = 0; k < SinogramPtr->N_t; k++)
   {
@@ -1064,6 +1224,8 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     char detect_file[100] = DETECTOR_RESPONSE_FILENAME;
     char MagUpdateMapFile[100] = UPDATE_MAP_FILENAME, aux_filename[100];
     uint8_t ***Mask;
+    Real_arr_t*** omega_abs = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+
     /*AMatrixCol *VoxelLineResponse;*/
     #ifdef POSITIVITY_CONSTRAINT
     check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Enforcing positivity constraint\n");
@@ -1090,18 +1252,6 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
         Mask[i][j][k] = 0;
     }
     
-    DetectorResponseProfile (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
-    dimTiff[0] = 1; dimTiff[1] = 1; dimTiff[2] = SinogramPtr->N_p; dimTiff[3] = DETECTOR_RESPONSE_BINS+1;
-    sprintf(detect_file, "%s_n%d", detect_file, TomoInputsPtr->node_rank);
-    if (TomoInputsPtr->Write2Tiff == 1)
-    	if (WriteMultiDimArray2Tiff (detect_file, dimTiff, 0, 1, 2, 3, &(SinogramPtr->DetectorResponse[0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) goto error;
-    start = time(NULL);
-    if (initObject(SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
-    if (init_minmax_object (ScannedObjectPtr, TomoInputsPtr)) goto error;
-    check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Time taken to read object = %fmins\n", difftime(time(NULL),start)/60.0);
-    if (initErrorSinogam(SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
-    check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Time taken to initialize object and compute error sinogram = %fmins\n", difftime(time(NULL),start)/60.0);
-  
     SinogramPtr->fftforw_arr = (fftw_complex**)get_spc(SinogramPtr->N_p, sizeof(fftw_complex*));
     SinogramPtr->fftback_arr = (fftw_complex**)get_spc(SinogramPtr->N_p, sizeof(fftw_complex*));
     SinogramPtr->fftforw_plan = (fftw_plan*)get_spc(SinogramPtr->N_p, sizeof(fftw_plan));
@@ -1114,14 +1264,35 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 	SinogramPtr->fftback_plan[i] = fftw_plan_dft_2d(SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->fftback_arr[i], SinogramPtr->fftback_arr[i], FFTW_BACKWARD, FFTW_ESTIMATE);
     }
  
+    DetectorResponseProfile (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
+    dimTiff[0] = 1; dimTiff[1] = 1; dimTiff[2] = SinogramPtr->N_p; dimTiff[3] = DETECTOR_RESPONSE_BINS+1;
+    sprintf(detect_file, "%s_n%d", detect_file, TomoInputsPtr->node_rank);
+    if (TomoInputsPtr->Write2Tiff == 1)
+    	if (WriteMultiDimArray2Tiff (detect_file, dimTiff, 0, 1, 2, 3, &(SinogramPtr->DetectorResponse[0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) goto error;
+    start = time(NULL);
+    
+    if (initObject(SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
+
+    if (TomoInputsPtr->initICD == 0)  
+	    init_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
+    
+    if (init_minmax_object (ScannedObjectPtr, TomoInputsPtr)) goto error;
+    check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Time taken to read object = %fmins\n", difftime(time(NULL),start)/60.0);
+    if (initErrorSinogam(SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
+
+    check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Time taken to initialize object and compute error sinogram = %fmins\n", difftime(time(NULL),start)/60.0);
+  
     start=time(NULL);
     orig_cost_last = compute_original_cost(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
+    check_info(TomoInputsPtr->node_rank == 0, TomoInputsPtr->debug_file_ptr, "HeadIter = 0: The original cost value is %f. \n", orig_cost_last);
     if (TomoInputsPtr->node_rank == 0)
 	   Write2Bin (origcostfile, 1, 1, 1, 1, sizeof(Real_t), &orig_cost_last, TomoInputsPtr->debug_file_ptr);
 
     for (HeadIter = 1; HeadIter <= TomoInputsPtr->Head_MaxIter; HeadIter++)
     {
     	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Doing phase retrieval ....\n");
+
+        #pragma omp parallel for private(j,k)
 	for (i = 0; i < SinogramPtr->N_p; i++)
 	{
 		for (j = 0; j < SinogramPtr->N_r; j++)
@@ -1161,6 +1332,14 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
   		flag = WriteMultiDimArray2Tiff (aux_filename, dimTiff, 0, 3, 1, 2, &(SinogramPtr->MagPRetDual[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
   		sprintf(aux_filename, "%s_n%d", PHASEPRETDUAL_FILENAME, TomoInputsPtr->node_rank);
   		flag |= WriteMultiDimArray2Tiff (aux_filename, dimTiff, 0, 3, 1, 2, &(SinogramPtr->PhasePRetDual[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
+
+		for (i = 0; i < SinogramPtr->N_p; i++)
+		for (j = 0; j < SinogramPtr->N_r; j++)
+		for (k = 0; k < SinogramPtr->N_t; k++)
+			omega_abs[i][j][k] = sqrt(SinogramPtr->Omega_real[i][j][k]*SinogramPtr->Omega_real[i][j][k] + SinogramPtr->Omega_imag[i][j][k]*SinogramPtr->Omega_imag[i][j][k]);
+  		
+		sprintf(aux_filename, "%s_n%d", OMEGAABS_FILENAME, TomoInputsPtr->node_rank);
+  		flag |= WriteMultiDimArray2Tiff (aux_filename, dimTiff, 0, 3, 1, 2, &(omega_abs[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
   	}
 
 #ifndef NO_COST_CALCULATE
@@ -1217,7 +1396,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     	}
 	
 	orig_cost = compute_original_cost(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
-        check_info(TomoInputsPtr->node_rank == 0, TomoInputsPtr->debug_file_ptr, "The original cost value is %f. The decrease in original cost is %f.\n", orig_cost, orig_cost_last - orig_cost);
+        check_info(TomoInputsPtr->node_rank == 0, TomoInputsPtr->debug_file_ptr, "HeadIter = %d: The original cost value is %f. The decrease in original cost is %f.\n", HeadIter, orig_cost, orig_cost_last - orig_cost);
     	if (TomoInputsPtr->node_rank == 0)
 	   Write2Bin (origcostfile, 1, 1, 1, 1, sizeof(Real_t), &orig_cost, TomoInputsPtr->debug_file_ptr);
 	
@@ -1253,7 +1432,8 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     multifree(SinogramPtr->DetectorResponse,2);
     multifree(Mask,3);
     multifree(ScannedObjectPtr->UpdateMap, 4);
-   
+    multifree(omega_abs, 2);
+ 
     check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Finished running ICD_BackProject.\n");
     flag = fflush(TomoInputsPtr->debug_file_ptr);
     if (flag != 0)

@@ -286,8 +286,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	for (k = 0; k < SinogramPtr->N_t; k++)
 	{
 		idx = i*SinogramPtr->N_t*SinogramPtr->N_r + k*SinogramPtr->N_r + j;
-		SinogramPtr->Measurements_real[i][j][k] = measurements[2*idx];		
-		SinogramPtr->Measurements_imag[i][j][k] = measurements[2*idx+1];		
+		SinogramPtr->Measurements_real[i][j][k] = sqrt(measurements[2*idx]*measurements[2*idx] + measurements[2*idx+1]*measurements[2*idx+1]);		
+		SinogramPtr->Measurements_imag[i][j][k] = 0;		
 		TomoInputsPtr->Weight[i][j][k] = weights[idx];
 
 		SinogramPtr->MagPRetAux[i][j][k] = 0;		
@@ -295,20 +295,20 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		SinogramPtr->PhasePRetAux[i][j][k] = 0;		
 		SinogramPtr->PhasePRetDual[i][j][k] = 0;		
 		
-		SinogramPtr->MagTomoAux[i][j][k][0] = 0.15/2;		
-		SinogramPtr->MagTomoAux[i][j][k][1] = 0.05;	
-		SinogramPtr->MagTomoAux[i][j][k][2] = 0.1;		
-		SinogramPtr->MagTomoAux[i][j][k][3] = 0.05;		
+		SinogramPtr->MagTomoAux[i][j][k][0] = 0.015/2;		
+		SinogramPtr->MagTomoAux[i][j][k][1] = 0.005;	
+		SinogramPtr->MagTomoAux[i][j][k][2] = 0.01;		
+		SinogramPtr->MagTomoAux[i][j][k][3] = 0.005;		
 		SinogramPtr->MagTomoDual[i][j][k] = 0;	
 	
-		SinogramPtr->PhaseTomoAux[i][j][k][0] = 0.10/2;		
-		SinogramPtr->PhaseTomoAux[i][j][k][1] = 0.05;		
-		SinogramPtr->PhaseTomoAux[i][j][k][2] = 0.05;		
-		SinogramPtr->PhaseTomoAux[i][j][k][3] = 0.1;		
+		SinogramPtr->PhaseTomoAux[i][j][k][0] = 0.010/2;		
+		SinogramPtr->PhaseTomoAux[i][j][k][1] = 0.005;		
+		SinogramPtr->PhaseTomoAux[i][j][k][2] = 0.005;		
+		SinogramPtr->PhaseTomoAux[i][j][k][3] = 0.01;		
 		SinogramPtr->PhaseTomoDual[i][j][k] = 0;
 
-		SinogramPtr->Omega_real[i][j][k] = 3;		
-		SinogramPtr->Omega_imag[i][j][k] = -2;		
+		SinogramPtr->Omega_real[i][j][k] = 3/sqrt(13);		
+		SinogramPtr->Omega_imag[i][j][k] = -2/sqrt(13);		
 		SinogramPtr->D_real[i][j][k] = -5;	
 		SinogramPtr->D_imag[i][j][k] = 7;		
 	}

@@ -100,7 +100,7 @@ void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObj
 
             if(f1 > 0)
             {
-              Ai->values[count] = f1;
+              Ai->values[count] = f1*LIGHT_WAVENUMBER;
               Ai->index[count] = j;
               count++;
             }

@@ -52,6 +52,7 @@
 #include "XT_Debug.h"
 #include <fftw3.h>
 #include "XT_CmplxArith.h"
+#include "XT_FresnelTran.h"
 
 /*generates projection data from phantom*/
 int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, float *measurements, float *weights)
@@ -65,16 +66,17 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	int dimTiff[4];
 	Real_arr_t *tifarray;
 
-	float*** magobject = (float***)multialloc(sizeof(float), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
-	float*** phaseobject = (float***)multialloc(sizeof(float), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+	float*** object = (float***)multialloc(sizeof(float), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
 	
 	Real_arr_t*** projs_real = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);
 	Real_arr_t*** projs_imag = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);
-	fftw_complex *fftarr;
-	fftw_plan fftplan;
+	fftw_complex *fftforw_arr, *fftback_arr;
+	fftw_plan fftforw_plan, fftback_plan;
 
-	fftarr = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*SinogramPtr->N_t*SinogramPtr->N_r);	
-	fftplan = fftw_plan_dft_2d(SinogramPtr->N_t, SinogramPtr->N_r, fftarr, fftarr, FFTW_FORWARD, FFTW_ESTIMATE);
+	fftforw_arr = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*SinogramPtr->N_t*SinogramPtr->N_r);	
+	fftforw_plan = fftw_plan_dft_2d(SinogramPtr->N_t, SinogramPtr->N_r, fftforw_arr, fftforw_arr, FFTW_FORWARD, FFTW_ESTIMATE);
+	fftback_arr = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*SinogramPtr->N_t*SinogramPtr->N_r);	
+	fftback_plan = fftw_plan_dft_2d(SinogramPtr->N_t, SinogramPtr->N_r, fftback_arr, fftback_arr, FFTW_FORWARD, FFTW_ESTIMATE);
 
 	memset(&(projs_real[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));	  
 	memset(&(projs_imag[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));	    
@@ -101,18 +103,6 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	fp = fopen (phantom_file, "rb");
 	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
 	size = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
-	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "Forward projecting magnitude phantom ...\n");	
-	stream_offset = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
-	result = fseek (fp, stream_offset*sizeof(float), SEEK_SET);
-  	check_error(result != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
-	result = fread (&(magobject[0][0][0]), sizeof(float), size, fp);
-  	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
-	fclose(fp);	
-	
-	sprintf(phantom_file, "%s", PHANTOM_FILEPATH);
-	fp = fopen (phantom_file, "rb");
-	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
-	size = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
 	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "Forward projecting phase phantom ...\n");	
 	stream_offset = (long int)PHANTOM_OFFSET*(long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_num;  
 	stream_offset += (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
@@ -132,11 +122,18 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		for (k=0; k<ScannedObjectPtr->N_x; k++){	
 	   	    	calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &AMatrix, j, k, i); 
                 	for (slice=0; slice<ScannedObjectPtr->N_z; slice++){
-			    	magpixel = (Real_t)(magobject[slice][j][k]);
-			    	phasepixel = (Real_t)(phaseobject[slice][j][k]);
+			    	magpixel = (Real_t)(object[slice][j][k]);
+				if (magpixel < 0)
+					magpixel = 0;
+				else
+					magpixel = (ABSORP_COEF_2 - ABSORP_COEF_1)*magpixel + ABSORP_COEF_1; 
+			    	phasepixel = (Real_t)(object[slice][j][k]);
+				if (phasepixel < 0)
+					phasepixel = 0;
+				else
+					phasepixel = (REF_IND_DEC_2 - REF_IND_DEC_1)*magpixel + REF_IND_DEC_1; 
 			    	/*phasepixel = 0;*/
 				/*IMPORTANT: Always make sure phantom has no negative values.*/
-				if (magpixel < 0) magpixel = 0; if (phasepixel < 0) phasepixel = 0;
 	     	          	for (m=0; m<AMatrix.count; m++){
                             		idx=AMatrix.index[m];
                             		val=AMatrix.values[m];
@@ -172,22 +169,22 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 			/*fftarr[j*SinogramPtr->N_t + slice][0] = EXPECTED_COUNT_MEASUREMENT*expval*cos(-projs_imag[i][slice][j]);
 			fftarr[j*SinogramPtr->N_t + slice][1] = EXPECTED_COUNT_MEASUREMENT*expval*sin(-projs_imag[i][slice][j]);*/
 			cmplx_mult (&real, &imag, expval*cos(-projs_imag[i][slice][j]), expval*sin(-projs_imag[i][slice][j]), (Real_t)(-5), (Real_t)(7));
-			fftarr[j*SinogramPtr->N_t + slice][0] = real;
-			fftarr[j*SinogramPtr->N_t + slice][1] = imag;
+			fftforw_arr[j*SinogramPtr->N_t + slice][0] = real;
+			fftforw_arr[j*SinogramPtr->N_t + slice][1] = imag;
 			/*weights[2*idx] = (val + sqrt(fabs(val))*normal());*/
 			/*weights[2*idx+1] = (val + sqrt(fabs(val))*normal());*/
 		}
 		
-		fftw_execute(fftplan);		
+		compute_FresnelTran (SinogramPtr->N_t, SinogramPtr->N_r, fftforw_arr, &fftforw_plan, fftback_arr, &fftback_plan);
 
 		for (slice=0; slice < SinogramPtr->N_t; slice++)
 		for (j=0; j < SinogramPtr->N_r; j++)
 		{
 			idx = i*SinogramPtr->N_t*SinogramPtr->N_r + slice*SinogramPtr->N_r + j;
 			/*measurements[idx] = sqrt(fftarr[j*SinogramPtr->N_t+ slice][0]*fftarr[j*SinogramPtr->N_t + slice][0] + fftarr[j*SinogramPtr->N_t + slice][1]*fftarr[j*SinogramPtr->N_t + slice][1]);*/
-			cmplx_mult (&real, &imag, fftarr[j*SinogramPtr->N_t + slice][0], fftarr[j*SinogramPtr->N_t + slice][1], (Real_t)(3), (Real_t)(-2));
-			measurements[2*idx] = real;
-			measurements[2*idx+1] = imag;
+			/*cmplx_mult (&real, &imag, fftarr[j*SinogramPtr->N_t + slice][0], fftarr[j*SinogramPtr->N_t + slice][1], (Real_t)(3), (Real_t)(-2));*/
+			measurements[2*idx] = fftback_arr[j*SinogramPtr->N_t + slice][0];
+			measurements[2*idx+1] = fftback_arr[j*SinogramPtr->N_t + slice][1];
 		/*	measurements[idx] = (measurements[idx] + sqrt(fabs(measurements[idx]))*normal());*/
 			weights[idx] = 1.0;
 			
@@ -204,6 +201,8 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		if (WriteMultiDimArray2Tiff ("measurements_real", dimTiff, 0, 2, 1, 3, &(tifarray[0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
 		for (i = 0; i < SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r; i++) tifarray[i] = measurements[2*i+1];
 		if (WriteMultiDimArray2Tiff ("measurements_imag", dimTiff, 0, 2, 1, 3, &(tifarray[0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		for (i = 0; i < SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r; i++) tifarray[i] = sqrt(measurements[2*i]*measurements[2*i] + measurements[2*i+1]*measurements[2*i+1]);
+		if (WriteMultiDimArray2Tiff ("measurements_abs", dimTiff, 0, 2, 1, 3, &(tifarray[0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
 		for (i = 0; i < SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r; i++) tifarray[i] = weights[i];
 		if (WriteMultiDimArray2Tiff ("weights", dimTiff, 0, 2, 1, 3, &(tifarray[0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
 	}
@@ -218,12 +217,13 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	multifree(SinogramPtr->DetectorResponse,2);
 	free(SinogramPtr->ZLineResponse);
         free(VoxelLineResponse);
-	multifree(magobject,3);
-	multifree(phaseobject,3);
+	multifree(object,3);
 	multifree(projs_real,3);
 	multifree(projs_imag,3);
-	fftw_destroy_plan(fftplan);
-        fftw_free(fftarr);
+	fftw_destroy_plan(fftforw_plan);
+        fftw_free(fftforw_arr);
+	fftw_destroy_plan(fftback_plan);
+        fftw_free(fftback_arr);
 	free(tifarray); 
 	return (0);
 error:
@@ -232,13 +232,13 @@ error:
 	multifree(SinogramPtr->DetectorResponse,2);
 	free(SinogramPtr->ZLineResponse);
         free(VoxelLineResponse);
-	multifree(magobject,3);
-	multifree(phaseobject,3);
+	multifree(object,3);
 	multifree(projs_real,3);
 	multifree(projs_imag,3);
-	fftw_destroy_plan(fftplan);
-        fftw_free(fftarr); 
+	fftw_destroy_plan(fftforw_plan);
+        fftw_free(fftforw_arr);
+	fftw_destroy_plan(fftback_plan);
+        fftw_free(fftback_arr);
 	return (-1);
 }
-
 

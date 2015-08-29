@@ -112,8 +112,10 @@ int32_t Nelder_Mead_Simplex_2DSearch (Real_arr_t* zr, Real_arr_t* zi, Real_t ar,
 
 	for (i = 0; i < NMS_MaxIter; i++)
 	{	
-/*		printf("******* Iteration = %d, zr = %f,%f,%f,%f; zi = %f,%f,%f,%f ********\n", i, zr[0],zr[1],zr[2],zr[3],zi[0],zi[1],zi[2],zi[3]);	
-		printf("------- cost1 = %f, cost2 = %f, cost3 = %f --------\n", cost1, cost2, cost3);*/
+#ifdef EXTRA_DEBUG_MESSAGES
+		printf("******* Iteration = %d, zr = %f,%f,%f,%f; zi = %f,%f,%f,%f ********\n", i, zr[0],zr[1],zr[2],zr[3],zi[0],zi[1],zi[2],zi[3]);	
+		printf("------- cost1 = %f, cost2 = %f, cost3 = %f --------\n", cost1, cost2, cost3);
+#endif
 		/*Reflection*/
 		zr_ref = zr[0] + NMS_rho*(zr[0] - zr[3]);
 		zi_ref = zi[0] + NMS_rho*(zi[0] - zi[3]);
@@ -172,13 +174,15 @@ int32_t Nelder_Mead_Simplex_2DSearch (Real_arr_t* zr, Real_arr_t* zi, Real_t ar,
 			}
 		}
 		else
-			fprintf(debug_file_ptr, "ERROR: An iteration of Nelmead Mead Simplex failed to find a point with lower cost!");
+			fprintf(debug_file_ptr, "ERROR: An iteration of Nelder Mead Simplex failed to find a point with lower cost! cost_ref = %f, cost1 = %f, cost2 = %f, cost3 = %f.\n", cost_ref, cost1, cost2, cost3);
 		zr_ocen = zr[0]; zi_ocen = zi[0];
 		zr[0] = (zr[1] + zr[2])/2.0;
 		zi[0] = (zi[1] + zi[2])/2.0;
 
 		thresh = (fabs(zr_ocen - zr[0]) + fabs(zi_ocen - zi[0]))/(fabs(zr_ocen) + fabs(zi_ocen))*100;
-/*		fprintf(debug_file_ptr, "The convergence threshold attained is %f percent.\n", thresh);*/
+#ifdef EXTRA_DEBUG_MESSAGES
+		fprintf(debug_file_ptr, "The convergence threshold attained is %f percent.\n", thresh);
+#endif
 /*		if (thresh < NMS_threshold && i > 1)
 		{
 			fprintf(debug_file_ptr, "The convergence threshold attained is %f percent.\n", thresh);

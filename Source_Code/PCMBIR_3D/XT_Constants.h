@@ -37,7 +37,7 @@
 #define XT_CONSTANTS_H
 
 #define POSITIVITY_CONSTRAINT
-#define EXTRA_DEBUG_MESSAGES
+/*#define EXTRA_DEBUG_MESSAGES*/
 #include <float.h>
 
 typedef double Real_t;
@@ -48,12 +48,27 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define INFINITE_COST DBL_MAX
 
 /*#define EXPECTED_COUNT_MEASUREMENT 35000*/ 
+/*#define FAR_FIELD_DIFFRACTION*/
+#define REF_IND_DEC_1 1.3549e-06 /*Al*/ 
+#define REF_IND_DEC_2 1.2111e-06 /*Si*/
+#define ABSORP_COEF_1 4.0397e-09 /*Al*/
+#define ABSORP_COEF_2 4.5924e-09 /*Si*/
+#define ATT_COEF_1 (4*M_PI*ABSORP_COEF_1/LIGHT_WAVELENGTH)
+#define ATT_COEF_2 (4*M_PI*ABSORP_COEF_2/LIGHT_WAVELENGTH)
+
+#define LIGHT_ENERGY 20 /*Units of keV*/
+#define PLANCKS_CONSTANT 6.58211928e-19 /*Units of keV*s*/
+#define LIGHT_SPEED 299792458e+6 /*Units of um/s*/
+#define LIGHT_WAVELENGTH (PLANCKS_CONSTANT*LIGHT_SPEED/LIGHT_ENERGY)  /*Units of um*/
+#define LIGHT_WAVENUMBER (2*M_PI/LIGHT_WAVELENGTH) /*Units of um^-1*/
+#define FRESNEL_DISTANCE_FRACTION 0.01
+
 #define EXPECTED_COUNT_MEASUREMENT 1
 #define ZERO_SKIPPING
 #define PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/Phantom4D.bin"
 #define MIN_OBJ_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/Phantom4D_min.bin"
 #define MAX_OBJ_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/Phantom4D_max.bin"
-#define PHANTOM_OFFSET 128
+#define PHANTOM_OFFSET 511
 #define MEASUREMENTS_FILENAME "measurements"
 #define WEIGHTS_FILENAME "weights"
 
@@ -71,6 +86,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define PHASEPRETDUAL_FILENAME "phase_pret_dual"
 #define OMEGAREAL_FILENAME "omega_real"
 #define OMEGAIMAG_FILENAME "omega_imag"
+#define OMEGAABS_FILENAME "omega_abs"
 
 #define PROJ_OFFSET_FILENAME "proj_offset"
 #define UPDATE_MAP_FILENAME "update_map"
