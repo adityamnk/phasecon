@@ -108,7 +108,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	stream_offset += (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
 	result = fseek (fp, stream_offset*sizeof(float), SEEK_SET);
   	check_error(result != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
-	result = fread (&(phaseobject[0][0][0]), sizeof(float), size, fp);
+	result = fread (&(object[0][0][0]), sizeof(float), size, fp);
   	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
 	fclose(fp);	
 	
@@ -131,7 +131,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 				if (phasepixel < 0)
 					phasepixel = 0;
 				else
-					phasepixel = (REF_IND_DEC_2 - REF_IND_DEC_1)*magpixel + REF_IND_DEC_1; 
+					phasepixel = (REF_IND_DEC_2 - REF_IND_DEC_1)*phasepixel + REF_IND_DEC_1; 
 			    	/*phasepixel = 0;*/
 				/*IMPORTANT: Always make sure phantom has no negative values.*/
 	     	          	for (m=0; m<AMatrix.count; m++){
@@ -175,7 +175,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 			/*weights[2*idx+1] = (val + sqrt(fabs(val))*normal());*/
 		}
 		
-		compute_FresnelTran (SinogramPtr->N_t, SinogramPtr->N_r, fftforw_arr, &fftforw_plan, fftback_arr, &fftback_plan);
+		compute_FresnelTran (SinogramPtr->N_t, SinogramPtr->N_r, SinogramPtr->delta_t, SinogramPtr->delta_r, fftforw_arr, &fftforw_plan, fftback_arr, &fftback_plan);
 
 		for (slice=0; slice < SinogramPtr->N_t; slice++)
 		for (j=0; j < SinogramPtr->N_r; j++)

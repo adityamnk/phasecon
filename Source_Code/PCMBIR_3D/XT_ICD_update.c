@@ -273,7 +273,7 @@ Real_t compute_original_cost(Sinogram* SinogramPtr, ScannedObject* ScannedObject
   #pragma omp parallel for private(j, k, magtemp, costemp, sintemp) reduction(+:cost)
   for (i = 0; i < SinogramPtr->N_p; i++)
   {
-	compute_FresnelTran (SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
+	compute_FresnelTran (SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
 		
 	for (j = 0; j < SinogramPtr->N_r; j++)
   	for (k = 0; k < SinogramPtr->N_t; k++)
@@ -758,6 +758,17 @@ void init_GroundTruth (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, T
 	dwnsmpl_object (ImagObj, Init, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, 2);
 	fclose(fp);
 
+  	#pragma omp parallel for collapse(3)
+        for (slice=0; slice<ScannedObjectPtr->N_z; slice++)
+  		for (j=0; j<ScannedObjectPtr->N_y; j++)
+      			for (k=0; k<ScannedObjectPtr->N_x; k++)
+			{
+				if (RealObj[slice][j][k] < 0) RealObj[slice][j][k] = 0;
+				else RealObj[slice][j][k] = (ABSORP_COEF_2 - ABSORP_COEF_1)*RealObj[slice][j][k] + ABSORP_COEF_1; 
+				if (ImagObj[slice][j][k] < 0) ImagObj[slice][j][k] = 0;
+				else ImagObj[slice][j][k] = (REF_IND_DEC_2 - REF_IND_DEC_1)*ImagObj[slice][j][k] + REF_IND_DEC_1;
+ 			}
+
 	memset(&(RealSino[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));
 	memset(&(ImagSino[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));
   	#pragma omp parallel for private(j, k, p, sino_idx, slice, pixel)
@@ -766,24 +777,16 @@ void init_GroundTruth (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, T
   		for (j=0; j<ScannedObjectPtr->N_y; j++)
     		{
       			for (k=0; k<ScannedObjectPtr->N_x; k++){
-        		for (p=0; p<ScannedObjectPtr->ProjNum[i]; p++){
-      	    			sino_idx = ScannedObjectPtr->ProjIdxPtr[i][p];
-          			calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &(AMatrixPtr[i]), j, k, sino_idx);
-          			for (slice=0; slice<ScannedObjectPtr->N_z; slice++){
-            				pixel = RealObj[slice][j][k]; /*slice+1 to account for extra z slices required for MPI*/
-					if (magpixel < 0)
-						pixel = 0;
-					else
-						pixel = (ABSORP_COEF_2 - ABSORP_COEF_1)*pixel + ABSORP_COEF_1; 
-            				forward_project_voxel (SinogramPtr, pixel, RealSino, &(AMatrixPtr[i])/*, &(VoxelLineResponse[slice])*/, sino_idx, slice);
-            				pixel = ImagObj[slice][j][k]; /*slice+1 to account for extra z slices required for MPI*/
-					if (phasepixel < 0)
-						pixel = 0;
-					else
-						pixel = (REF_IND_DEC_2 - REF_IND_DEC_1)*pixel + REF_IND_DEC_1; 
-        	    			forward_project_voxel (SinogramPtr, pixel, ImagSino, &(AMatrixPtr[i])/*, &(VoxelLineResponse[slice])*/, sino_idx, slice);
-          			}
-        		}
+        			for (p=0; p<ScannedObjectPtr->ProjNum[i]; p++){
+      	    				sino_idx = ScannedObjectPtr->ProjIdxPtr[i][p];
+          				calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &(AMatrixPtr[i]), j, k, sino_idx);
+          				for (slice=0; slice<ScannedObjectPtr->N_z; slice++){
+            					pixel = RealObj[slice][j][k]; /*slice+1 to account for extra z slices required for MPI*/
+            					forward_project_voxel (SinogramPtr, pixel, RealSino, &(AMatrixPtr[i])/*, &(VoxelLineResponse[slice])*/, sino_idx, slice);
+            					pixel = ImagObj[slice][j][k]; /*slice+1 to account for extra z slices required for MPI*/
+	        	    			forward_project_voxel (SinogramPtr, pixel, ImagSino, &(AMatrixPtr[i])/*, &(VoxelLineResponse[slice])*/, sino_idx, slice);
+          				}
+        			}
       			}
     		}
   	}
@@ -807,7 +810,7 @@ void init_GroundTruth (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, T
 	}
 	
 	for (i = 0; i < SinogramPtr->N_p; i++)
-		compute_phase_projection (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
+		compute_phase_projection (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
 	
 	for (i = 0; i < ScannedObjectPtr->N_time; i++)	
 	for (j = 0; j < ScannedObjectPtr->N_z; j++)	
@@ -1302,7 +1305,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 			SinogramPtr->PhaseErrorSino[i][j][k] = -(SinogramPtr->PhaseErrorSino[i][j][k] - SinogramPtr->PhaseTomoAux[i][j][k][1]);
 		}
 
-		estimate_complex_projection (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagTomoAux[i], SinogramPtr->PhaseTomoAux[i], TomoInputsPtr->Weight[i], SinogramPtr->MagErrorSino[i], SinogramPtr->PhaseErrorSino[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->MagPRetDual[i], SinogramPtr->PhasePRetDual[i], SinogramPtr->N_r, SinogramPtr->N_t, TomoInputsPtr->NMS_rho, TomoInputsPtr->NMS_chi, TomoInputsPtr->NMS_gamma, TomoInputsPtr->NMS_sigma, TomoInputsPtr->NMS_threshold, TomoInputsPtr->NMS_MaxIter, TomoInputsPtr->SteepDes_threshold, TomoInputsPtr->SteepDes_MaxIter, TomoInputsPtr->PRet_threshold, TomoInputsPtr->PRet_MaxIter, TomoInputsPtr->ADMM_mu, TomoInputsPtr->ADMM_mu, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
+		estimate_complex_projection (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagTomoAux[i], SinogramPtr->PhaseTomoAux[i], TomoInputsPtr->Weight[i], SinogramPtr->MagErrorSino[i], SinogramPtr->PhaseErrorSino[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->MagPRetDual[i], SinogramPtr->PhasePRetDual[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, TomoInputsPtr->NMS_rho, TomoInputsPtr->NMS_chi, TomoInputsPtr->NMS_gamma, TomoInputsPtr->NMS_sigma, TomoInputsPtr->NMS_threshold, TomoInputsPtr->NMS_MaxIter, TomoInputsPtr->SteepDes_threshold, TomoInputsPtr->SteepDes_MaxIter, TomoInputsPtr->PRet_threshold, TomoInputsPtr->PRet_MaxIter, TomoInputsPtr->ADMM_mu, TomoInputsPtr->ADMM_mu, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]));
 	
 		for (j = 0; j < SinogramPtr->N_r; j++)
 		for (k = 0; k < SinogramPtr->N_t; k++)

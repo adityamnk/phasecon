@@ -49,10 +49,12 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 /*#define EXPECTED_COUNT_MEASUREMENT 35000*/ 
 /*#define FAR_FIELD_DIFFRACTION*/
-#define REF_IND_DEC_1 1.3549e-06 /*Al*/ 
-#define REF_IND_DEC_2 1.2111e-06 /*Si*/
-#define ABSORP_COEF_1 4.0397e-09 /*Al*/
-#define ABSORP_COEF_2 4.5924e-09 /*Si*/
+/*#define REF_IND_DEC_1 1.3549e-6*/ /*Al*/ 
+#define REF_IND_DEC_1 0.0 /*Al*/ 
+#define REF_IND_DEC_2 1.2111e-6 /*Si*/
+/*#define ABSORP_COEF_1 4.0397e-9*/ /*Al*/
+#define ABSORP_COEF_1 0.0 /*Al*/
+#define ABSORP_COEF_2 4.5924e-9 /*Si*/
 #define ATT_COEF_1 (4*M_PI*ABSORP_COEF_1/LIGHT_WAVELENGTH)
 #define ATT_COEF_2 (4*M_PI*ABSORP_COEF_2/LIGHT_WAVELENGTH)
 
@@ -65,9 +67,9 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 #define EXPECTED_COUNT_MEASUREMENT 1
 #define ZERO_SKIPPING
-#define PHANTOM_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/Phantom4D.bin"
-#define MIN_OBJ_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/Phantom4D_min.bin"
-#define MAX_OBJ_FILEPATH "/home/mohank/Academics/ECE699/Workspace/phasecon/Source_Code/reconstruct/phase_data/phantoms/Phantom4D_max.bin"
+#define PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Phantom4D.bin"
+#define MIN_OBJ_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Phantom4D_min.bin"
+#define MAX_OBJ_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Phantom4D_max.bin"
 #define PHANTOM_OFFSET 511
 #define MEASUREMENTS_FILENAME "measurements"
 #define WEIGHTS_FILENAME "weights"
