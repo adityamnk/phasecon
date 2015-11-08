@@ -55,8 +55,8 @@
 			*object is a pointer to a 1D array in raster order of size recon_num x proj_rows x proj_cols x proj_cols where 'recon_num' is the number of time samples in the reconstruction, 'proj_rows' is the number of projection slices (along the axis of rotation), and 'proj_cols' is the number columns in the projection (or number of pixels along a row of detector bins)
 		- float* projections : Pointer to the projection data. 
 			'projections' is a pointer to a 1D array in raster order of size proj_num x proj_cols x proj_rows. A projection is typically computed as the logarithm of the ratio of light intensity incident on the object to the measured intensity.
-		- float* weights : Pointer to the weight data.
-			'weights' is a pointer to a 1D array in raster order of size proj_num x proj_cols x proj_rows. Every entry of 'weights' is used to appropriately weigh each term of the 'projections' array in the likelihood term of MBIR.
+		- float* brights : Pointer to the bright data.
+			'brights' is a pointer to a 1D array in raster order of size proj_cols x proj_rows. Every entry of 'brights' is the measurement of the light intensity without the object.
 		- float* proj_angles : Pointer to the list of angles at which the projections are acquired.
 		- float* proj_times : Pointer to the list of times at which the projections are acquired.
 		- float* recon_times : Pointer to a array of reconstruction times. The reconstruction is assumed to be peicewise constant with fixed/varying step-sizes. Thus, the array 'recon_times' contains the times at which the steps occur. For example, to do a single 3D reconstruction, we use a array of two elements, first element being the time of the first projection and the second element being the time of the last projection.  
@@ -79,7 +79,7 @@
 		- FILE *debug_msg_ptr : Pointer to the file to which the debug messages should be directed. Use 'stdout' if you do not want to direct messages to a file on disk.
 	- Outputs (Return value) : '0' implies a safe return.  
 */
-int phcontomo_reconstruct (float **magobject, float **phaseobject, float *measurements, float *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, float mag_sig_s, float mag_sig_t, float mag_c_s, float  mag_c_t, float phase_sig_s, float phase_sig_t, float phase_c_s, float phase_c_t, float convg_thresh, uint8_t restart, FILE *debug_msg_ptr)
+int phcontomo_reconstruct (float **magobject, float **phaseobject, float *measurements, float *brights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, float vox_wid, float rot_center, float mag_sig_s, float mag_sig_t, float mag_c_s, float  mag_c_t, float phase_sig_s, float phase_sig_t, float phase_c_s, float phase_c_t, float convg_thresh, float obj2det_dist, float light_energy, float pag_regparam, uint8_t restart, uint8_t recon_type, FILE *debug_msg_ptr)
 {
 	time_t start;	
 	int32_t flag, multres_num, i, mult_xy[MAX_MULTRES_NUM], mult_z[MAX_MULTRES_NUM], num_nodes, rank, last_multres;
@@ -151,7 +151,7 @@ int phcontomo_reconstruct (float **magobject, float **phaseobject, float *measur
 	for (i = last_multres; i < multres_num; i++)
 	{
 		check_info(rank==0, TomoInputsPtr->debug_file_ptr, "Running multi-resolution stage %d with x-y voxel scale = %d and z voxel scale = %d.\n", i, multres_xy[i], multres_z[i]);
-		if (initStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, i, multres_xy, multres_z, measurements, weights, proj_angles, proj_times, recon_times, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, mag_sig_s, mag_sig_t, mag_c_s, mag_c_t, phase_sig_s, phase_sig_t, phase_c_s, phase_c_t, convg_thresh)) {goto error;}
+		if (initStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, i, multres_xy, multres_z, measurements, brights, proj_angles, proj_times, recon_times, proj_rows, proj_cols, proj_num, recon_num, vox_wid, rot_center, mag_sig_s, mag_sig_t, mag_c_s, mag_c_t, phase_sig_s, phase_sig_t, phase_c_s, phase_c_t, convg_thresh, obj2det_dist, light_energy, pag_regparam, recon_type)) {goto error;}
 #ifdef EXTRA_DEBUG_MESSAGES
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "SinogramPtr numerical variable values are N_r = %d, N_t = %d, N_p = %d, total_t_slices = %d, delta_r = %f, delta_t = %f, R0 = %f, RMax = %f, T0 = %f, TMax = %f, Length_R = %f, Length_T = %f, OffsetR = %f, OffsetT = %f, z_overlap_num = %d\n", SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->N_p, SinogramPtr->total_t_slices, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->R0, SinogramPtr->RMax, SinogramPtr->T0, SinogramPtr->TMax, SinogramPtr->Length_R, SinogramPtr->Length_T, SinogramPtr->OffsetR, SinogramPtr->OffsetT, SinogramPtr->z_overlap_num);	
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "ScannedObjectPtr numerical variable values are Length_X = %f, Length_Y = %f, Length_Z = %f, N_x = %d, N_y = %d, N_z = %d, N_time = %d, x0 = %f, y0 = %f, z0 = %f, delta_xy = %f, delta_z = %f, mult_xy = %f, mult_z = %f, BeamWidth = %f, Mag Sigma_S = %f, Mag Sigma_T = %f, Phase Sigma_S = %f, Phase Sigma_T = %f, Mag C_S = %f, Mag C_T = %f, Phase C_S = %f, Phase C_T = %f, NHICD_Iterations = %d, delta_recon = %f.\n", ScannedObjectPtr->Length_X, ScannedObjectPtr->Length_Y, ScannedObjectPtr->Length_Z, ScannedObjectPtr->N_x, ScannedObjectPtr->N_y, ScannedObjectPtr->N_z, ScannedObjectPtr->N_time, ScannedObjectPtr->x0, ScannedObjectPtr->y0, ScannedObjectPtr->z0, ScannedObjectPtr->delta_xy, ScannedObjectPtr->delta_z, ScannedObjectPtr->mult_xy, ScannedObjectPtr->mult_z, ScannedObjectPtr->BeamWidth, ScannedObjectPtr->Mag_Sigma_S, ScannedObjectPtr->Mag_Sigma_T, ScannedObjectPtr->Phase_Sigma_S, ScannedObjectPtr->Phase_Sigma_T, ScannedObjectPtr->Mag_C_S, ScannedObjectPtr->Mag_C_T, ScannedObjectPtr->Phase_C_S, ScannedObjectPtr->Phase_C_T, ScannedObjectPtr->NHICD_Iterations, ScannedObjectPtr->delta_recon);
@@ -196,7 +196,7 @@ error:
 	
 }
 
-int phcontomo_forward_project (float **measurements, float **weights, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, FILE *debug_msg_ptr)
+int phcontomo_forward_project (float **measurements, float **brights, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, float obj2det_dist, float light_energy, float pag_regparam, FILE *debug_msg_ptr)
 {
 	time_t start;	
 	int32_t flag, num_nodes, rank;
@@ -217,16 +217,14 @@ int phcontomo_forward_project (float **measurements, float **weights, float *pro
 	check_error(proj_rows/num_nodes % 2 != 0 || proj_rows/num_nodes < MIN_ROWS_PER_NODE, rank==0, debug_msg_ptr, "The number of projection rows divided by the number of nodes should be an even number greater than or equal to %d.\n", MIN_ROWS_PER_NODE);
 
 	TomoInputsPtr->debug_file_ptr = debug_msg_ptr;
-	*measurements = (float*)get_spc(2*proj_rows*proj_cols*proj_num, sizeof(float));
-	*weights = (float*)get_spc(proj_rows*proj_cols*proj_num, sizeof(float));
-	if (initPhantomStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, *measurements, *weights, proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center)) {goto error;}
+	if (initPhantomStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, *measurements, *brights, proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, obj2det_dist, light_energy, pag_regparam)) {goto error;}
 
 #ifdef EXTRA_DEBUG_MESSAGES
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "SinogramPtr numerical variable values are N_r = %d, N_t = %d, N_p = %d, total_t_slices = %d, delta_r = %f, delta_t = %f, R0 = %f, RMax = %f, T0 = %f, TMax = %f, Length_R = %f, Length_T = %f, OffsetR = %f, OffsetT = %f, z_overlap_num = %d\n", SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->N_p, SinogramPtr->total_t_slices, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->R0, SinogramPtr->RMax, SinogramPtr->T0, SinogramPtr->TMax, SinogramPtr->Length_R, SinogramPtr->Length_T, SinogramPtr->OffsetR, SinogramPtr->OffsetT, SinogramPtr->z_overlap_num);
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "ScannedObjectPtr numerical variable values are Length_X = %f, Length_Y = %f, Length_Z = %f, N_x = %d, N_y = %d, N_z = %d, N_time = %d, x0 = %f, y0 = %f, z0 = %f, delta_xy = %f, delta_z = %f, mult_xy = %f, mult_z = %f, BeamWidth = %f, Mag_Sigma_S = %f, Mag_Sigma_t = %f, Mag_C_S = %f, Mag_C_T = %f, Phase_Sigma_S = %f, Phase_Sigma_t = %f, Phase_C_S = %f, Phase_C_T = %f, NHICD_Iterations = %d, delta_recon = %f.\n", ScannedObjectPtr->Length_X, ScannedObjectPtr->Length_Y, ScannedObjectPtr->Length_Z, ScannedObjectPtr->N_x, ScannedObjectPtr->N_y, ScannedObjectPtr->N_z, ScannedObjectPtr->N_time, ScannedObjectPtr->x0, ScannedObjectPtr->y0, ScannedObjectPtr->z0, ScannedObjectPtr->delta_xy, ScannedObjectPtr->delta_z, ScannedObjectPtr->mult_xy, ScannedObjectPtr->mult_z, ScannedObjectPtr->BeamWidth, ScannedObjectPtr->Mag_Sigma_S, ScannedObjectPtr->Mag_Sigma_T, ScannedObjectPtr->Mag_C_S, ScannedObjectPtr->Mag_C_T, ScannedObjectPtr->Phase_Sigma_S, ScannedObjectPtr->Phase_Sigma_T, ScannedObjectPtr->Phase_C_S, ScannedObjectPtr->Phase_C_T, ScannedObjectPtr->NHICD_Iterations, ScannedObjectPtr->delta_recon);
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "TomoInputsPtr numerical variable values are NumIter = %d, StopThreshold = %f, RotCenter = %f, radius_obj = %f, Mag_Sigma_S_Q = %f, Mag_Sigma_T_Q = %f, Mag_Sigma_S_Q_P = %f, Mag_Sigma_T_Q_P = %f, Phase_Sigma_S_Q = %f, Phase_Sigma_T_Q = %f, Phase_Sigma_S_Q_P = %f, Phase_Sigma_T_Q_P = %f, alpha = %f, cost_thresh = %f, initICD = %d, Write2Tiff = %d, no_NHICD = %d, WritePerIter = %d, num_z_blocks = %d, prevnum_z_blocks = %d, node_num = %d, node_rank = %d, initMagUpMap = %d, ErrorSinoCost = %f, Forward_Cost = %f, Prior_Cost = %f, num_threads = %d\n", TomoInputsPtr->NumIter, TomoInputsPtr->StopThreshold, TomoInputsPtr->RotCenter, TomoInputsPtr->radius_obj, TomoInputsPtr->Mag_Sigma_S_Q, TomoInputsPtr->Mag_Sigma_T_Q, TomoInputsPtr->Mag_Sigma_S_Q_P, TomoInputsPtr->Mag_Sigma_T_Q_P, TomoInputsPtr->Phase_Sigma_S_Q, TomoInputsPtr->Phase_Sigma_T_Q, TomoInputsPtr->Phase_Sigma_S_Q_P, TomoInputsPtr->Phase_Sigma_T_Q_P, TomoInputsPtr->alpha, TomoInputsPtr->cost_thresh, TomoInputsPtr->initICD, TomoInputsPtr->Write2Tiff, TomoInputsPtr->no_NHICD, TomoInputsPtr->WritePerIter, TomoInputsPtr->num_z_blocks, TomoInputsPtr->prevnum_z_blocks, TomoInputsPtr->node_num, TomoInputsPtr->node_rank, TomoInputsPtr->initMagUpMap, TomoInputsPtr->ErrorSino_Cost, TomoInputsPtr->Forward_Cost, TomoInputsPtr->Prior_Cost, TomoInputsPtr->num_threads);
 #endif
-	flag = ForwardProject(SinogramPtr, ScannedObjectPtr, TomoInputsPtr, *measurements, *weights);
+	flag = ForwardProject(SinogramPtr, ScannedObjectPtr, TomoInputsPtr, *measurements, *brights);
 	check_info(rank == 0, TomoInputsPtr->debug_file_ptr, "Time elapsed is %f minutes.\n", difftime(time(NULL), start)/60.0);
 	check_error(flag != 0, rank == 0, TomoInputsPtr->debug_file_ptr, "Forward projection failed!\n");
 	freePhantomMemory(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);

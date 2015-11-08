@@ -22,6 +22,7 @@ int32_t read_SharedBinFile_At (char filename[100], Real_arr_t* data, int32_t off
 		return(-1);
 	}
 	return(0);
+	
 /*	else
 		fprintf (debug_file_ptr, "read_SharedBinFile_At: Read %d number of elements from the file %s at an offset of %d bytes.\n", size, filename, offset);*/
 }

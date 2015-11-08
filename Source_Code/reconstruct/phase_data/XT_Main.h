@@ -2,6 +2,7 @@
 #ifndef XT_MAIN_H_
 #define XT_MAIN_H_
 
+#define BRIGHTS_FILENAME "brights"
 #define WEIGHTS_FILENAME "weights"
 #define MEASUREMENTS_FILENAME "measurements"
 #define PROJ_ANGLES_FILENAME "proj_angles"

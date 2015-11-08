@@ -109,7 +109,7 @@ error:
 
 /*Writes values in 'img' to tiff files. dimensions of img are specified by height and width.
 hounsfield_flag if set, converts all values to HU and scales appropriately before writing to tiff file*/
-int32_t Write2Tiff(char* filename, int height, int width, Real_arr_t** img, int hounsfield_flag, FILE *debug_file_ptr)
+int32_t Write2Tiff(char* filename, int height, int width, Real_arr_t** img, int scale_flag, FILE *debug_file_ptr)
 {
 	struct TIFF_img out_img;
 	int i,j;
@@ -117,15 +117,7 @@ int32_t Write2Tiff(char* filename, int height, int width, Real_arr_t** img, int 
 	Real_arr_t maxpix,minpix,avgpix,scale;
 	FILE *fp;
 	char file[100];
-	Real_arr_t slope,c;
 
-	if(hounsfield_flag==1){
-		slope=(HOUNSFIELD_WATER_MAP-HOUNSFIELD_AIR_MAP)/(WATER_MASS_ATT_COEFF*WATER_DENSITY-AIR_MASS_ATT_COEFF*AIR_DENSITY)/HFIELD_UNIT_CONV_CONST;
-		c=-slope*(AIR_MASS_ATT_COEFF*AIR_DENSITY*HFIELD_UNIT_CONV_CONST);
-		for ( i = 0; i < height; i++ )
-	 	 for ( j = 0; j < width; j++ ) 
-			img[i][j]=slope*img[i][j]+c;
-	}	
 	get_TIFF ( &out_img, height, width, 'g' );
 	avgpix=0;
 		
@@ -139,10 +131,16 @@ int32_t Write2Tiff(char* filename, int height, int width, Real_arr_t** img, int 
 	avgpix/=(height*width);
 	check_debug(1, debug_file_ptr, "file=%s,maxpix=%e,minpix=%e,avgpix=%e,height=%d,width=%d.\n",filename,maxpix,minpix,avgpix,height,width);
 
-	if(hounsfield_flag==1){
-		maxpix=HOUNSFIELD_MAX;
-		minpix=HOUNSFIELD_MIN;
+	if (scale_flag == 1){
+		maxpix = ABSORP_COEF_MAX;
+		minpix = ABSORP_COEF_MIN;
 	}
+	else if (scale_flag == 2)
+	{
+		maxpix = REF_IND_DEC_MAX;
+		minpix = REF_IND_DEC_MIN;
+	}
+
 	scale=255/(maxpix-minpix);
 	 for ( i = 0; i < height; i++ )
  	 for ( j = 0; j < width; j++ ) {
@@ -163,6 +161,7 @@ int32_t Write2Tiff(char* filename, int height, int width, Real_arr_t** img, int 
 	if ( write_TIFF ( fp, &out_img ) )
     		check_error(1, 1, debug_file_ptr, "error writing TIFF file %s.\n", filename );
 
+	free_TIFF (&out_img);
   /* close image file */
   fclose ( fp );
   return(0);
@@ -188,7 +187,7 @@ int32_t WriteInt32Tiff(char* filename, int height, int width, int32_t** imgin, i
 /*Writes a multi-dimension array in 'img' to tiff files with dimension given in dim[4].
 dim2loop_1 and dim2loop_2 specifies the dimension over which we loop and write the tiff files.
 dim2write_1 and dim2write_2 specifies the dimensions which are written to tiff files.*/
-int32_t WriteMultiDimArray2Tiff (char *filename, int dim[4], int dim2loop_1, int dim2loop_2, int dim2write_1, int dim2write_2, Real_arr_t* img, int hounsfield_flag, int dataskip_step, int dataskip_num, FILE* debug_file_ptr)
+int32_t WriteMultiDimArray2Tiff (char *filename, int dim[4], int dim2loop_1, int dim2loop_2, int dim2write_1, int dim2write_2, Real_arr_t* img, int scale_flag, int dataskip_step, int dataskip_num, FILE* debug_file_ptr)
 {
 	char file[100];
 	Real_arr_t** img_temp;
@@ -223,7 +222,7 @@ int32_t WriteMultiDimArray2Tiff (char *filename, int dim[4], int dim2loop_1, int
 			sentinel(1, debug_file_ptr, "Dimensions not recognized.\n");
 	}}
 		sprintf(file, "%s_d1_%d_d2_%d",filename,i,j);
-		if (Write2Tiff(file, dim[dim2write_1], dim[dim2write_2], img_temp, hounsfield_flag, debug_file_ptr)) flag = -1;
+		if (Write2Tiff(file, dim[dim2write_1], dim[dim2write_2], img_temp, scale_flag, debug_file_ptr)) flag = -1;
 	}
 	}
 
@@ -253,9 +252,9 @@ int32_t write_ObjectProjOff2TiffBinPerIter (Sinogram* SinogramPtr, ScannedObject
 			for (j = 0; j < ScannedObjectPtr->N_z; j++)
 			{
 				sprintf (object_file, "%s_time_%d_z_%d", MAGOBJECT_FILENAME, i, TomoInputsPtr->node_rank*ScannedObjectPtr->N_z + j);
-				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->MagObject[i][j+1], 0, TomoInputsPtr->debug_file_ptr)) flag = -1;
+				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->MagObject[i][j+1], 1, TomoInputsPtr->debug_file_ptr)) flag = -1;
 				sprintf (object_file, "%s_time_%d_z_%d", PHASEOBJECT_FILENAME, i, TomoInputsPtr->node_rank*ScannedObjectPtr->N_z + j);
-				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->PhaseObject[i][j+1], 0, TomoInputsPtr->debug_file_ptr)) flag = -1;
+				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->PhaseObject[i][j+1], 2, TomoInputsPtr->debug_file_ptr)) flag = -1;
 /*				Write2Tiff(scaled_object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, &(ScannedObjectPtr->Object[i][j+1][0][0]), 1, TomoInputsPtr->debug_file_ptr);*/
 			}
 		}

@@ -47,7 +47,7 @@
 Ai - Pointer of A Matrix
 row, col - row and column of detector for which the A Matrix values are computed
 proj_idx - angle index at which A matrix values are computed for the given row, col*/
-void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Real_arr_t** DetectorResponse, AMatrixCol *Ai, int32_t row, int32_t col, int32_t proj_idx)
+void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Real_arr_t** DetectorResponse, AMatrixCol *Ai, int32_t row, int32_t col, int32_t proj_idx, Real_t light_wavenumber)
 {
   int32_t j;
   Real_t x,y;
@@ -100,7 +100,7 @@ void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObj
 
             if(f1 > 0)
             {
-              Ai->values[count] = f1*LIGHT_WAVENUMBER;
+              Ai->values[count] = f1*light_wavenumber;
               Ai->index[count] = j;
               count++;
             }

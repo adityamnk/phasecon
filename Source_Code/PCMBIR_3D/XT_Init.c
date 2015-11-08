@@ -208,12 +208,21 @@ void calculateSinCos(Sinogram* SinogramPtr, TomoInputs* TomoInputsPtr)
 
 /*Initializes the variables in the three major structures used throughout the code -
 Sinogram, ScannedObject, TomoInputs. It also allocates memory for several variables.*/
-int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, int32_t mult_idx, int32_t mult_xy[], int32_t mult_z[], float *measurements, float *weights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, Real_t vox_wid, Real_t rot_center, Real_t mag_sig_s, Real_t mag_sig_t, Real_t mag_c_s, Real_t mag_c_t, Real_t phase_sig_s, Real_t phase_sig_t, Real_t phase_c_s, Real_t phase_c_t, Real_t convg_thresh)
+int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, int32_t mult_idx, int32_t mult_xy[], int32_t mult_z[], float *measurements, float *brights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, Real_t vox_wid, Real_t rot_center, Real_t mag_sig_s, Real_t mag_sig_t, Real_t mag_c_s, Real_t mag_c_t, Real_t phase_sig_s, Real_t phase_sig_t, Real_t phase_c_s, Real_t phase_c_t, Real_t convg_thresh, float obj2det_dist, float light_energy, float pag_regparam, uint8_t recon_type)
 {
 	int flag = 0, size, i;
+
+	/*Propagation physics parameters*/
+	SinogramPtr->Light_Energy = light_energy;
+	SinogramPtr->Pag_RegParam = pag_regparam;
+	SinogramPtr->Light_Wavelength = PLANCKS_CONSTANT*LIGHT_SPEED/light_energy;
+	SinogramPtr->Light_Wavenumber = 2*M_PI/SinogramPtr->Light_Wavelength;
+	SinogramPtr->Obj2Det_Distance = obj2det_dist;
+	
+	/*MPI node number and total node count parameters*/
 	MPI_Comm_size(MPI_COMM_WORLD, &(TomoInputsPtr->node_num));
 	MPI_Comm_rank(MPI_COMM_WORLD, &(TomoInputsPtr->node_rank));
-	
+
 	ScannedObjectPtr->Mag_Sigma_S = mag_sig_s;
 	ScannedObjectPtr->Mag_C_S = mag_c_s;
 	ScannedObjectPtr->Mag_Sigma_T = mag_sig_t;
@@ -232,7 +241,12 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	TomoInputsPtr->RotCenter = rot_center;
 	TomoInputsPtr->alpha = OVER_RELAXATION_FACTOR;
 	if (mult_idx == 0)
-		TomoInputsPtr->initICD = 0;
+	{
+		if (recon_type == 2)
+			TomoInputsPtr->initICD = 1;
+		else
+			TomoInputsPtr->initICD = 0;
+	}
 	else if (mult_z[mult_idx] == mult_z[mult_idx-1]) 
 		TomoInputsPtr->initICD = 2;
 	else if (mult_z[mult_idx-1]/mult_z[mult_idx] == 2)
@@ -286,9 +300,9 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	for (k = 0; k < SinogramPtr->N_t; k++)
 	{
 		idx = i*SinogramPtr->N_t*SinogramPtr->N_r + k*SinogramPtr->N_r + j;
-		SinogramPtr->Measurements_real[i][j][k] = sqrt(measurements[2*idx]*measurements[2*idx] + measurements[2*idx+1]*measurements[2*idx+1]);		
+		SinogramPtr->Measurements_real[i][j][k] = sqrt(measurements[idx]);
 		SinogramPtr->Measurements_imag[i][j][k] = 0;		
-		TomoInputsPtr->Weight[i][j][k] = weights[idx];
+		TomoInputsPtr->Weight[i][j][k] = 1.0/SinogramPtr->Measurements_real[i][j][k];
 
 		SinogramPtr->MagPRetAux[i][j][k] = 0;		
 		SinogramPtr->MagPRetDual[i][j][k] = 0;		
@@ -309,16 +323,18 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 
 		SinogramPtr->Omega_real[i][j][k] = 3/sqrt(13);		
 		SinogramPtr->Omega_imag[i][j][k] = -2/sqrt(13);		
-		SinogramPtr->D_real[i][j][k] = -5;	
-		SinogramPtr->D_imag[i][j][k] = 7;		
+		SinogramPtr->D_real[i][j][k] = sqrt(brights[k*SinogramPtr->N_r + j]);	
+		SinogramPtr->D_imag[i][j][k] = 0;		
 	}
 	
-	if (mult_idx != 0)
+	if (mult_idx != 0 || (mult_idx == 0 && recon_type == 2))
 	{
 		size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t*4;
+		printf("size = %d\n", size);
 		if (read_SharedBinFile_At (MAGTOMOAUX_FILENAME, &(SinogramPtr->MagTomoAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
 		if (read_SharedBinFile_At (PHASETOMOAUX_FILENAME, &(SinogramPtr->PhaseTomoAux[0][0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
 		size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t;
+		printf("size = %d\n", size);
 		if (read_SharedBinFile_At (MAGPRETAUX_FILENAME, &(SinogramPtr->MagPRetAux[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
 		if (read_SharedBinFile_At (PHASEPRETAUX_FILENAME, &(SinogramPtr->PhasePRetAux[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
 		if (read_SharedBinFile_At (OMEGAREAL_FILENAME, &(SinogramPtr->Omega_real[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1; 
@@ -440,7 +456,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 /*	TomoInputsPtr->NumIter = MAX_NUM_ITERATIONS;*/
 	TomoInputsPtr->NumIter = 100;
 	TomoInputsPtr->NMS_MaxIter = 100;
-	TomoInputsPtr->Head_MaxIter = 20;
+	TomoInputsPtr->Head_MaxIter = 50;
 	TomoInputsPtr->PRet_MaxIter = 20;
 	TomoInputsPtr->SteepDes_MaxIter = 100;
 	
@@ -449,6 +465,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	TomoInputsPtr->PRet_threshold = 0.1;
 	TomoInputsPtr->SteepDes_threshold = 0.1;
 
+	TomoInputsPtr->recon_type = recon_type;
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
 	
 	check_error(SinogramPtr->N_t % (int32_t)ScannedObjectPtr->mult_z != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_z, SinogramPtr->N_t);
@@ -510,9 +527,16 @@ void freeMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInpu
 	if (SinogramPtr->sine) free(SinogramPtr->sine);
 }
 
-int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, float* projections, float* weights, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid, Real_t rot_center)
+int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, float* projections, float* weights, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid, Real_t rot_center, float obj2det_dist, float light_energy, float pag_regparam)
 {
 	int i;
+	
+	SinogramPtr->Light_Energy = light_energy;
+	SinogramPtr->Pag_RegParam = pag_regparam;
+	SinogramPtr->Light_Wavelength = PLANCKS_CONSTANT*LIGHT_SPEED/light_energy;
+	SinogramPtr->Light_Wavenumber = 2*M_PI/SinogramPtr->Light_Wavelength;
+	SinogramPtr->Obj2Det_Distance = obj2det_dist;
+	
 	MPI_Comm_size(MPI_COMM_WORLD, &(TomoInputsPtr->node_num));
 	MPI_Comm_rank(MPI_COMM_WORLD, &(TomoInputsPtr->node_rank));
 	

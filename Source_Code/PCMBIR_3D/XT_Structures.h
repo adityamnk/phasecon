@@ -89,6 +89,12 @@
     int32_t off_constraint_size;
     int32_t off_constraint_num;
 
+	Real_t Obj2Det_Distance;
+	Real_t Pag_RegParam;
+	Real_t Light_Energy;
+	Real_t Light_Wavelength;
+	Real_t Light_Wavenumber;
+
   } Sinogram;
 
   typedef struct
@@ -214,6 +220,8 @@ typedef struct
     Real_t Head_threshold; 
     Real_t PRet_threshold;
     Real_t SteepDes_threshold;
+
+    uint8_t recon_type;
   } TomoInputs;
 
 #endif /*#define XT_STRUCTURES_H*/
