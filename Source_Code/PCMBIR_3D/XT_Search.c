@@ -16,8 +16,8 @@ Real_t Cost_NMS (Real_t zr, Real_t zi, Real_t ar, Real_t ai, Real_t br, Real_t b
 	cost += ((cosval - br)*(cosval - br) + (sinval - bi)*(sinval - bi))*nu;
 	cost /= 2;
 
-/*	if (zr < 0 || zi < 0)
-		cost = INFINITE_COST;*/ 
+	if (zr < 0 || zi < 0)
+		cost = INFINITE_COST; 
 	return(cost);
 }
 

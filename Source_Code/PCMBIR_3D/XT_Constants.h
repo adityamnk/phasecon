@@ -36,7 +36,7 @@
 #ifndef XT_CONSTANTS_H
 #define XT_CONSTANTS_H
 
-/*#define POSITIVITY_CONSTRAINT*/
+#define POSITIVITY_CONSTRAINT
 /*#define EXTRA_DEBUG_MESSAGES*/
 #include <float.h>
 
@@ -50,15 +50,23 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 /*#define EXPECTED_COUNT_MEASUREMENT 35000*/ 
 /*#define FAR_FIELD_DIFFRACTION*/
 #define REF_IND_DEC_2 1.3549e-6 /*Al*/ 
+#define REF_IND_DEC_1 1.2111e-6  /*Si*/
+/*#define REF_IND_DEC_2 0.0 *//*Al*/ 
 /*#define REF_IND_DEC_1 0.0 *//*Al*/ 
-#define REF_IND_DEC_1 1.2111e-6 /*Si*/
 #define ABSORP_COEF_2 4.0397e-9 /*Al*/
+/*#define ABSORP_COEF_2 2.0397e-9*/ /*Al*/
 #define ABSORP_COEF_1 4.5924e-9 /*Si*/
-/*#define ABSORP_COEF_1 0.0 *//*Al*/
+/*#define ABSORP_COEF_1 0.0*/ /*Si*/
+/*#define ABSORP_COEF_2 0.0*/ /*Al*/
 #define ABSORP_COEF_MIN ABSORP_COEF_2 - (ABSORP_COEF_1 - ABSORP_COEF_2)/4.0
 #define ABSORP_COEF_MAX ABSORP_COEF_1 + (ABSORP_COEF_1 - ABSORP_COEF_2)/4.0
+/*#define ABSORP_COEF_MIN ABSORP_COEF_1/2.0
+#define ABSORP_COEF_MAX 2.0*ABSORP_COEF_2*/
+
 #define REF_IND_DEC_MIN REF_IND_DEC_1 - (REF_IND_DEC_2 - REF_IND_DEC_1)/4.0
 #define REF_IND_DEC_MAX REF_IND_DEC_2 + (REF_IND_DEC_2 - REF_IND_DEC_1)/4.0
+/*#define REF_IND_DEC_MIN 0.0
+#define REF_IND_DEC_MAX 1.5e-6*/
 
 #define MAGOBJECT_INIT_VAL 0
 #define PHASEOBJECT_INIT_VAL 0
@@ -66,14 +74,15 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define ATT_COEF_1 (4*M_PI*ABSORP_COEF_1/LIGHT_WAVELENGTH)
 #define ATT_COEF_2 (4*M_PI*ABSORP_COEF_2/LIGHT_WAVELENGTH)
 
-#define PLANCKS_CONSTANT 6.58211928e-19 /*Units of keV*s*/
+#define PLANCKS_CONSTANT 4.135668e-19 /*Units of keV*s*/
 #define LIGHT_SPEED 299792458e+6 /*Units of um/s*/
 
 #define EXPECTED_COUNT_MEASUREMENT 10000
 #define ZERO_SKIPPING
-#define PHANTOM_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom4D.bin"
-#define MIN_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom4D_min.bin"
-#define MAX_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom4D_max.bin"
+#define MAG_PHANTOM_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Absorp_Spheres_Phantom.bin"
+#define PHASE_PHANTOM_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/RefIndex_Spheres_Phantom.bin"
+#define MIN_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_min.bin"
+#define MAX_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_max.bin"
 #define PROJ_LENGTH_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/ProjLength.bin"
 #define PHANTOM_OFFSET 511
 #define MEASUREMENTS_FILENAME "measurements"
@@ -153,6 +162,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define ZINGER_DISABLE_PARAM_T 100000
 #define ZINGER_DISABLE_PARAM_DELTA 1
 #define MIN_XY_RECON_RES 16
+#define MAX_MULTRES_NUM 1
 #define MIN_ROWS_PER_NODE 2
 #define MIN_PROJECTION_ROWS 4
 
@@ -171,8 +181,8 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 	#define HOUNSFIELD_MIN 10000
 #endif
 
-#define PHANTOM_XY_SIZE 128
-#define PHANTOM_Z_SIZE 128
+#define PHANTOM_XY_SIZE 512
+#define PHANTOM_Z_SIZE 512
 
 #define MAGTOMOAUX_FILENAME "mag_tomo_aux"
 #define PHASETOMOAUX_FILENAME "phase_tomo_aux"
@@ -196,65 +206,5 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define PROJ_SELECT_FILENAME "proj_select"
 #define COST_FILENAME "cost"
 #define ORIG_COST_FILENAME "orig_cost"
-
-#define MRF_P 1.2
-#define MRF_Q 2.0
-
-#ifndef M_PI
-#define M_PI           3.14159265358979323846  /* pi */
-#endif
-
-#ifndef M_PI_2
-#define M_PI_2         1.57079632679489661923132169163975144   /* pi/2 */
-#endif
-
-#ifndef M_PI_4
-#define M_PI_4         0.785398163397448309615660845819875721  /* pi/4 */
-#endif
-
-#define PROFILE_RESOLUTION 1536
-#define BEAM_RESOLUTION 512
-#define DETECTOR_RESPONSE_BINS 64
-
-#define NHOOD_Z_MAXDIM 3
-#define NHOOD_Y_MAXDIM 3
-#define NHOOD_X_MAXDIM 3
-#define NHOOD_TIME_MAXDIM 3
-
-#define MAX_NUM_ITERATIONS 1000
-#define OVER_RELAXATION_FACTOR 1.5
-#define ENABLE_TIFF_WRITES 1 /*To disable generating tiff images use '0'*/
-#define COST_CONVG_THRESHOLD 0.1
-#define PROJ_OFFSET_INIT 0
-#define NO_NHICD 0
-#define WRITE_EVERY_ITER 1
-#define ZINGER_ENABLE_PARAM_T 4.0
-#define ZINGER_ENABLE_PARAM_DELTA 0.2
-#define VAR_PARAM_INIT 1
-#define COMPUTE_RMSE_CONVG 0
-#define ZINGER_DISABLE_PARAM_T 100000
-#define ZINGER_DISABLE_PARAM_DELTA 1
-#define MIN_XY_RECON_RES 16
-#define MAX_MULTRES_NUM 1
-#define MIN_ROWS_PER_NODE 2
-#define MIN_PROJECTION_ROWS 4
-
-#define HFIELD_UNIT_CONV_CONST 0.0001
-#define AIR_MASS_ATT_COEFF 0.496372335005353 /*in cm^2/g. computed using cubic interpolation*/
-#define WATER_MASS_ATT_COEFF 0.521225397034623
-
-#define WATER_DENSITY 1.0 /*in g/cm^3*/ 
-#define AIR_DENSITY 0.001205
-#define HOUNSFIELD_WATER_MAP 1000
-#define HOUNSFIELD_AIR_MAP 0
-#ifndef HOUNSFIELD_MAX
-	#define HOUNSFIELD_MAX 60000
-#endif
-#ifndef HOUNSFIELD_MIN
-	#define HOUNSFIELD_MIN 10000
-#endif
-
-#define PHANTOM_XY_SIZE 128
-#define PHANTOM_Z_SIZE 128
 
 #endif /*#ifndef XT_CONSTANTS_H*/

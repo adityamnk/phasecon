@@ -635,10 +635,10 @@ void do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	    		dimTiff[0] = 1; dimTiff[1] = ScannedObjectPtr->N_z; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;
 			sprintf (object_file, "%s_n%d", PAG_MAGOBJECT_FILENAME, TomoInputsPtr->node_rank);
 		    	sprintf (object_file, "%s_time_%d", object_file, i);
-    			WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->MagObject[i][1][0][0]), 1, 0, 1, TomoInputsPtr->debug_file_ptr);
+    			WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->MagObject[i][1][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
 			sprintf (object_file, "%s_n%d", PAG_PHASEOBJECT_FILENAME, TomoInputsPtr->node_rank);
 		    	sprintf (object_file, "%s_time_%d", object_file, i);
-    			WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->PhaseObject[i][1][0][0]), 2, 0, 1, TomoInputsPtr->debug_file_ptr);
+    			WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->PhaseObject[i][1][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
 	  	}
 	}
 
@@ -954,15 +954,15 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     
     if (TomoInputsPtr->recon_type == 1)
     {
-/*	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);*/
-	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);
+	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
+/*	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);*/
     }
     else if (TomoInputsPtr->recon_type == 2)
     {
 
     if (initObject(SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
     if (initErrorSinogam(SinogramPtr, ScannedObjectPtr, TomoInputsPtr)) goto error;
-    if (init_minmax_object (ScannedObjectPtr, TomoInputsPtr)) goto error;
+/*    if (init_minmax_object (ScannedObjectPtr, TomoInputsPtr)) goto error;*/
 
     check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Time taken to initialize object and compute error sinogram = %fmins\n", difftime(time(NULL),start)/60.0);
   
@@ -1082,7 +1082,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 	orig_cost = compute_original_cost(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
         check_info(TomoInputsPtr->node_rank == 0, TomoInputsPtr->debug_file_ptr, "HeadIter = %d: The original cost value is %f. The decrease in original cost is %f.\n", HeadIter, orig_cost, orig_cost_last - orig_cost);
     	if (TomoInputsPtr->node_rank == 0)
-	   Write2Bin (origcostfile, 1, 1, 1, 1, sizeof(Real_t), &orig_cost, TomoInputsPtr->debug_file_ptr);
+	   Append2Bin (origcostfile, 1, 1, 1, 1, sizeof(Real_t), &orig_cost, TomoInputsPtr->debug_file_ptr);
 	
 	if (orig_cost > orig_cost_last)
       		check_warn(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cost of original cost function increased!\n");

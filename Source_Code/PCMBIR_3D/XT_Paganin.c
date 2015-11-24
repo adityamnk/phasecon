@@ -53,7 +53,8 @@ void paganins_phase_retrieval (Real_arr_t** measurements, Real_arr_t** D_real, R
 		/*printf("i = %d, j = %d, thickness = %f, proj length = %f\n", i, j, thick, projlength[i]);*/
 /*		z_real[i][j] = LIGHT_WAVENUMBER*(ABSORP_COEF_2*thick + ABSORP_COEF_1*(projlength[i] - thick));
 		z_imag[i][j] = LIGHT_WAVENUMBER*(REF_IND_DEC_2*thick + REF_IND_DEC_1*(projlength[i] - thick));*/
-		z_real[i][j] = light_wavenumber*thick*light_wavelength/(4*M_PI);
+		/*z_real[i][j] = light_wavenumber*thick*light_wavelength/(4*M_PI);*/
+		z_real[i][j] = 0;
 /*		z_real[i][j] = light_wavenumber*(ATT_COEF_2 + ATT_COEF_1)*(projlength[i] - thick/(ATT_COEF_2 + ATT_COEF_1))/(2*light_wavenumber);*/
 		z_imag[i][j] = light_wavenumber*thick*pag_regparam;
 	}	

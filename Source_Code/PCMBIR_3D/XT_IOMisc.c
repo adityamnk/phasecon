@@ -252,9 +252,9 @@ int32_t write_ObjectProjOff2TiffBinPerIter (Sinogram* SinogramPtr, ScannedObject
 			for (j = 0; j < ScannedObjectPtr->N_z; j++)
 			{
 				sprintf (object_file, "%s_time_%d_z_%d", MAGOBJECT_FILENAME, i, TomoInputsPtr->node_rank*ScannedObjectPtr->N_z + j);
-				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->MagObject[i][j+1], 1, TomoInputsPtr->debug_file_ptr)) flag = -1;
+				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->MagObject[i][j+1], 0, TomoInputsPtr->debug_file_ptr)) flag = -1;
 				sprintf (object_file, "%s_time_%d_z_%d", PHASEOBJECT_FILENAME, i, TomoInputsPtr->node_rank*ScannedObjectPtr->N_z + j);
-				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->PhaseObject[i][j+1], 2, TomoInputsPtr->debug_file_ptr)) flag = -1;
+				if (Write2Tiff(object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, ScannedObjectPtr->PhaseObject[i][j+1], 0, TomoInputsPtr->debug_file_ptr)) flag = -1;
 /*				Write2Tiff(scaled_object_file, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, &(ScannedObjectPtr->Object[i][j+1][0][0]), 1, TomoInputsPtr->debug_file_ptr);*/
 			}
 		}

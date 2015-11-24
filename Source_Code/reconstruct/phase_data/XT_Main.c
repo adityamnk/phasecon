@@ -113,10 +113,19 @@ void read_data (float **measurements, float **brights, float **proj_angles, floa
 	*proj_times = (float*)calloc (proj_num, sizeof(float));
 	*recon_times = (float*)calloc (recon_num + 1, sizeof(float));
 	
-	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
+/*	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
 	read_BinFile (proj_times_filename, *proj_times, 0, proj_num, debug_file_ptr);
-	read_BinFile (recon_times_filename, *recon_times, 0, recon_num + 1, debug_file_ptr);
+	read_BinFile (recon_times_filename, *recon_times, 0, recon_num + 1, debug_file_ptr);*/
+
+	for (i = 0; i < proj_num; i++)
+	{
+		(*proj_angles)[i] = M_PI*((float)i)/proj_num;
+		(*proj_times)[i] = i;
+	}
 	
+	(*recon_times)[0] = 0;
+	(*recon_times)[1] = proj_num - 1;
+
 	*measurements = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 	*brights = (float*)calloc ((proj_rows*proj_cols)/num_nodes, sizeof(float));
 	if (recon_type == 0)

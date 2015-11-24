@@ -97,7 +97,7 @@ void estimate_complex_projection (Real_arr_t** measurements_real, Real_arr_t** m
 			thresh += (z_real[j][k][1] - zold_real[j][k])*(z_real[j][k][1] - zold_real[j][k]) + (z_imag[j][k][1] - zold_imag[j][k])*(z_imag[j][k][1] - zold_imag[j][k]);
 			sum += z_real[j][k][1]*z_real[j][k][1] + z_imag[j][k][1]*z_imag[j][k][1];
 		}
-		thresh = thresh*100/sum;
+		thresh = thresh*100/(sum + EPSILON_ERROR);
 
 		if (thresh < pret_thresh && iter > 1)
 			break;
