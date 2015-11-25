@@ -243,7 +243,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	if (mult_idx == 0)
 	{
 		if (recon_type == 2)
-			TomoInputsPtr->initICD = 1;
+			TomoInputsPtr->initICD = 0;
 			/*TomoInputsPtr->initICD = 0;*//*Initializing with zeros*/
 		else
 			TomoInputsPtr->initICD = 0;
@@ -328,8 +328,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		SinogramPtr->D_imag[i][j][k] = 0;		
 	}
 	
-	if (mult_idx != 0 || (mult_idx == 0 && recon_type == 2))
-/*	if (mult_idx != 0)*/
+/*	if (mult_idx != 0 || (mult_idx == 0 && recon_type == 2))*/
+	if (mult_idx != 0)
 	{
 		size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t*4;
 		printf("size = %d\n", size);

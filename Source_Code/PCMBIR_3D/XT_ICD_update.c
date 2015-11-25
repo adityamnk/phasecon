@@ -548,6 +548,9 @@ void do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObje
   		sprintf(object_file, "%s_n%d", PAG_PHASERET_FILENAME, TomoInputsPtr->node_rank);
   		WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 3, 1, 2, &(z_imag[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
 	}    
+	size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t;
+	write_SharedBinFile_At (PAG_MAGRET_FILENAME, &(z_real[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
+	write_SharedBinFile_At (PAG_PHASERET_FILENAME, &(z_imag[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
 	
 /*	Real_t real_min = z_real[0][0][0], imag_min = z_imag[0][0][0];
 	for (i = 0; i < SinogramPtr->N_p; i++)	
@@ -643,8 +646,6 @@ void do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	}
 
 	size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t;
-	write_SharedBinFile_At (PAG_MAGRET_FILENAME, &(z_real[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
-	write_SharedBinFile_At (PAG_PHASERET_FILENAME, &(z_imag[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
 	write_SharedBinFile_At (MAGTOMOAUX_FILENAME, &(SinogramPtr->MagTomoAux[0][0][0][0]), TomoInputsPtr->node_rank*size*4, size*4, TomoInputsPtr->debug_file_ptr);
 	write_SharedBinFile_At (PHASETOMOAUX_FILENAME, &(SinogramPtr->PhaseTomoAux[0][0][0][0]), TomoInputsPtr->node_rank*size*4, size*4, TomoInputsPtr->debug_file_ptr);
 	write_SharedBinFile_At (MAGPRETAUX_FILENAME, &(SinogramPtr->MagPRetAux[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
@@ -954,8 +955,8 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     
     if (TomoInputsPtr->recon_type == 1)
     {
-	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
-/*	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);*/
+/*	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);*/
+	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);
     }
     else if (TomoInputsPtr->recon_type == 2)
     {

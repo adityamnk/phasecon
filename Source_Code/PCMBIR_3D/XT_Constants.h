@@ -36,7 +36,7 @@
 #ifndef XT_CONSTANTS_H
 #define XT_CONSTANTS_H
 
-#define POSITIVITY_CONSTRAINT
+/*#define POSITIVITY_CONSTRAINT*/
 /*#define EXTRA_DEBUG_MESSAGES*/
 #include <float.h>
 

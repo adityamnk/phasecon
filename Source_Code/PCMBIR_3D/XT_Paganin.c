@@ -37,7 +37,7 @@ void paganins_phase_retrieval (Real_arr_t** measurements, Real_arr_t** D_real, R
 			v = j/(cols*delta_cols);
 	/*	u = i/(rows*delta_rows);
 		v = j/(cols*delta_cols);*/
-		tran = obj2det_dist*(pag_regparam)*(u*u + v*v) + 1;
+		tran = obj2det_dist*(pag_regparam)*(u*u + v*v)*4*M_PI*M_PI + 1;
 		tran = 1.0/(tran*N);
 		fftback_arr[i*cols + j][0] = fftforw_arr[i*cols + j][0]*tran;
 		fftback_arr[i*cols + j][1] = fftforw_arr[i*cols + j][1]*tran;
