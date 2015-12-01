@@ -66,6 +66,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	char phantom_file[1000];
 	int dimTiff[4];
 
+	Real_arr_t* tifarray = (Real_arr_t*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(Real_arr_t));
 	float*** magobject = (float***)multialloc(sizeof(float), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
 	float*** phaseobject = (float***)multialloc(sizeof(float), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
 	Real_arr_t*** realmagobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
@@ -232,7 +233,7 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 			
 			fftback_space[i][slice][j] = sqrt(measurements[idx]);
 			
-	/*		measurements[idx] = fabs(measurements[idx] + sqrt(fabs(measurements[idx]))*normal());*/
+		/*	measurements[idx] = fabs(measurements[idx] + sqrt(fabs(measurements[idx]))*normal());*/
 /*			measurements[idx] = sqrt(fabs(measurements[idx]));*/
 			/*weights[idx] = 1.0/measurements[idx];
 			
@@ -241,7 +242,6 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		}
 	}
 
-	Real_arr_t* tifarray = (Real_arr_t*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(Real_arr_t));
 	if (TomoInputsPtr->Write2Tiff == 1)
 	{
 		size = SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r;

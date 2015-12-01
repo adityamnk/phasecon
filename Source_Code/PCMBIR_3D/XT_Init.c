@@ -243,7 +243,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	if (mult_idx == 0)
 	{
 		if (recon_type == 2)
-			TomoInputsPtr->initICD = 0;
+			TomoInputsPtr->initICD = 1;
 			/*TomoInputsPtr->initICD = 0;*//*Initializing with zeros*/
 		else
 			TomoInputsPtr->initICD = 0;
@@ -328,8 +328,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		SinogramPtr->D_imag[i][j][k] = 0;		
 	}
 	
-/*	if (mult_idx != 0 || (mult_idx == 0 && recon_type == 2))*/
-	if (mult_idx != 0)
+	if (mult_idx != 0 || (mult_idx == 0 && recon_type == 2))
+	/*if (mult_idx != 0)*/
 	{
 		size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t*4;
 		printf("size = %d\n", size);
@@ -373,10 +373,9 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	ScannedObjectPtr->MagObject = Arr1DToArr4D (object, ScannedObjectPtr->N_time, ScannedObjectPtr->N_z + 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
 	object = (Real_arr_t*)get_spc(ScannedObjectPtr->N_time*(ScannedObjectPtr->N_z + 2)*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x, sizeof(Real_arr_t));
 	ScannedObjectPtr->PhaseObject = Arr1DToArr4D (object, ScannedObjectPtr->N_time, ScannedObjectPtr->N_z + 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
-	ScannedObjectPtr->MagObjMin = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
-	ScannedObjectPtr->MagObjMax = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
-	ScannedObjectPtr->PhaseObjMin = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
-	ScannedObjectPtr->PhaseObjMax = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
+	
+	ScannedObjectPtr->OldMagObject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
+	ScannedObjectPtr->OldPhaseObject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x); 
 	
 /*	ScannedObjectPtr->Object = (Real_arr_t****)get_spc(ScannedObjectPtr->N_time, sizeof(Real_arr_t***));
 	for (i = 0; i < ScannedObjectPtr->N_time; i++)
@@ -459,12 +458,12 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	TomoInputsPtr->NumIter = 100;
 	TomoInputsPtr->NMS_MaxIter = 100;
 	TomoInputsPtr->Head_MaxIter = 50;
-	TomoInputsPtr->PRet_MaxIter = 20;
+	TomoInputsPtr->PRet_MaxIter = 50;
 	TomoInputsPtr->SteepDes_MaxIter = 100;
 	
 	TomoInputsPtr->NMS_threshold = 0.1;
-	TomoInputsPtr->Head_threshold = 0.1;
-	TomoInputsPtr->PRet_threshold = 0.1;
+	TomoInputsPtr->Head_threshold = 0.001;
+	TomoInputsPtr->PRet_threshold = 0.001;
 	TomoInputsPtr->SteepDes_threshold = 0.1;
 
 	TomoInputsPtr->recon_type = recon_type;
@@ -496,10 +495,8 @@ void freeMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInpu
 	if (ScannedObjectPtr->Object) free(ScannedObjectPtr->Object);*/
 /*	multifree(ScannedObjectPtr->Object, 4);*/
 
-	if (ScannedObjectPtr->MagObjMin) multifree(ScannedObjectPtr->MagObjMin, 3);
-	if (ScannedObjectPtr->MagObjMax) multifree(ScannedObjectPtr->MagObjMax, 3);
-	if (ScannedObjectPtr->PhaseObjMin) multifree(ScannedObjectPtr->PhaseObjMin, 3);
-	if (ScannedObjectPtr->PhaseObjMax) multifree(ScannedObjectPtr->PhaseObjMax, 3);
+	if (ScannedObjectPtr->OldMagObject) multifree(ScannedObjectPtr->OldMagObject, 3);
+	if (ScannedObjectPtr->OldPhaseObject) multifree(ScannedObjectPtr->OldPhaseObject, 3);
 	
 	if (SinogramPtr->Measurements_real) multifree(SinogramPtr->Measurements_real,3);
 	if (SinogramPtr->Measurements_imag) multifree(SinogramPtr->Measurements_imag,3);

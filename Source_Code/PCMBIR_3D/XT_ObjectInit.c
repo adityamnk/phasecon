@@ -261,7 +261,7 @@ void gen_data_GroundTruth (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPt
 	Real_arr_t ***RealObj, ***ImagObj, ***RealSino, ***ImagSino;
 	Real_t pixel; FILE *fp;
 	int32_t N_z, N_y, N_x, dwnsmpl_z, dwnsmpl_y, dwnsmpl_x, sino_idx, i, j, k, l, p, slice;
-	long int stream_offset, size, result;
+	long int size, result;
 	char mag_phantom_filename[] = MAG_PHANTOM_FILEPATH;
 	char phase_phantom_filename[] = PHASE_PHANTOM_FILEPATH;
 	/*char phantom_filename[] = MAX_OBJ_FILEPATH;*/

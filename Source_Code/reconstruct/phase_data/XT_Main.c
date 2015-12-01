@@ -124,7 +124,7 @@ void read_data (float **measurements, float **brights, float **proj_angles, floa
 	}
 	
 	(*recon_times)[0] = 0;
-	(*recon_times)[1] = proj_num - 1;
+	(*recon_times)[1] = proj_num ;
 
 	*measurements = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 	*brights = (float*)calloc ((proj_rows*proj_cols)/num_nodes, sizeof(float));

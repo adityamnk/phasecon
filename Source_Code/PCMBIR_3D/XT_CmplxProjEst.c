@@ -43,7 +43,7 @@ void estimate_complex_projection (Real_arr_t** measurements_real, Real_arr_t** m
 {
 	int32_t j, k, iter, NMS_avgiter; 
 	Real_arr_t **buf_real, **buf_imag, b_real, b_imag, **zold_real, **zold_imag;
-	Real_t thresh, cost, cost_old, cost_last_iter, sum = 0;
+	Real_t thresh = 0, cost, cost_old, cost_last_iter, sum = 0;
 
 	buf_real = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, rows, cols);
 	buf_imag = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, rows, cols);
@@ -97,18 +97,19 @@ void estimate_complex_projection (Real_arr_t** measurements_real, Real_arr_t** m
 			thresh += (z_real[j][k][1] - zold_real[j][k])*(z_real[j][k][1] - zold_real[j][k]) + (z_imag[j][k][1] - zold_imag[j][k])*(z_imag[j][k][1] - zold_imag[j][k]);
 			sum += z_real[j][k][1]*z_real[j][k][1] + z_imag[j][k][1]*z_imag[j][k][1];
 		}
-		thresh = thresh*100/(sum + EPSILON_ERROR);
+		thresh = thresh/(sum + EPSILON_ERROR);
+		thresh = sqrt(thresh)*100;
 
 		if (thresh < pret_thresh && iter > 1)
 			break;
-		printf("PRet iter is %d. Percentage change in z is %f\n", iter, thresh);
 	}
 	
 	cost = compute_pretcost (measurements_real, measurements_imag, omega_real, omega_imag, D_real, D_imag, z_real, z_imag, Lambda, proj_real, proj_imag, rows, cols, mu, fftforw_arr, fftforw_plan);
 
-	printf("Iter = %d, Old cost = %f, New cost = %f.\n", iter, cost_old, cost);
+	printf("PRet total iters is %d. Percentage change in z is %e. ", iter, thresh);
+	printf("Old cost = %e, New cost = %e.\n", cost_old, cost);
 	if (cost > cost_old)
-		printf("WARNING: Cost increased after phase retrieval! Old cost = %f, New cost = %f.\n", cost_old, cost);
+		printf("WARNING: Cost increased after phase retrieval! Old cost = %e, New cost = %e.\n", cost_old, cost);
 
 	multifree(buf_real, 2);
 	multifree(buf_imag, 2);

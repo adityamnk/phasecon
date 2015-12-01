@@ -49,21 +49,27 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 /*#define EXPECTED_COUNT_MEASUREMENT 35000*/ 
 /*#define FAR_FIELD_DIFFRACTION*/
-#define REF_IND_DEC_2 1.3549e-6 /*Al*/ 
-#define REF_IND_DEC_1 1.2111e-6  /*Si*/
+/*#define REF_IND_DEC_1 6.0078e-7 *//*Al*/ 
+/*#define REF_IND_DEC_2 5.3682e-7 */ /*Si*/
 /*#define REF_IND_DEC_2 0.0 *//*Al*/ 
 /*#define REF_IND_DEC_1 0.0 *//*Al*/ 
-#define ABSORP_COEF_2 4.0397e-9 /*Al*/
+/*#define ABSORP_COEF_1 7.6069e-10*/ /*Al*/
 /*#define ABSORP_COEF_2 2.0397e-9*/ /*Al*/
-#define ABSORP_COEF_1 4.5924e-9 /*Si*/
+/*#define ABSORP_COEF_2 8.7435e-10*/ /*Si*/
 /*#define ABSORP_COEF_1 0.0*/ /*Si*/
 /*#define ABSORP_COEF_2 0.0*/ /*Al*/
-#define ABSORP_COEF_MIN ABSORP_COEF_2 - (ABSORP_COEF_1 - ABSORP_COEF_2)/4.0
+
+#define REF_IND_DEC_1 4.628e-07
+#define REF_IND_DEC_2 7.789e-07
+#define ABSORP_COEF_1 1.6937e-11
+#define ABSORP_COEF_2 4.9250e-11
+
+#define ABSORP_COEF_MIN ABSORP_COEF_2 - (ABSORP_COEF_1 - ABSORP_COEF_2)
 #define ABSORP_COEF_MAX ABSORP_COEF_1 + (ABSORP_COEF_1 - ABSORP_COEF_2)/4.0
 /*#define ABSORP_COEF_MIN ABSORP_COEF_1/2.0
 #define ABSORP_COEF_MAX 2.0*ABSORP_COEF_2*/
 
-#define REF_IND_DEC_MIN REF_IND_DEC_1 - (REF_IND_DEC_2 - REF_IND_DEC_1)/4.0
+#define REF_IND_DEC_MIN REF_IND_DEC_1 - (REF_IND_DEC_2 - REF_IND_DEC_1)
 #define REF_IND_DEC_MAX REF_IND_DEC_2 + (REF_IND_DEC_2 - REF_IND_DEC_1)/4.0
 /*#define REF_IND_DEC_MIN 0.0
 #define REF_IND_DEC_MAX 1.5e-6*/
@@ -81,6 +87,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define ZERO_SKIPPING
 #define MAG_PHANTOM_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Absorp_Spheres_Phantom.bin"
 #define PHASE_PHANTOM_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/RefIndex_Spheres_Phantom.bin"
+#define PHANTOM_SUPPORT_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom_Support.bin"
 #define MIN_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_min.bin"
 #define MAX_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_max.bin"
 #define PROJ_LENGTH_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/ProjLength.bin"

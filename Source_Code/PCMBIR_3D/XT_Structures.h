@@ -101,6 +101,8 @@
   {
     Real_arr_t ****MagObject; /*Stores the reconstructed object from magnitude part of the projection*/
     Real_arr_t ****PhaseObject; /*Stores the reconstructed object from the phase part of the projection*/
+    Real_arr_t ***OldMagObject; /*Stores the reconstructed object from magnitude part of the projection*/
+    Real_arr_t ***OldPhaseObject; /*Stores the reconstructed object from the phase part of the projection*/
     Real_arr_t ***MagObjMin; /*Min of MagObject*/
     Real_arr_t ***MagObjMax; /*Max of MagObject*/
     Real_arr_t ***PhaseObjMin; /*Min of PhaseObject*/

@@ -477,43 +477,37 @@ void randomly_select_x_y (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInput
 }
 
 
-void do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, uint8_t*** Mask)
+int do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, uint8_t*** Mask)
 {
-	Real_arr_t ***z_real, ***z_imag, *ProjLength;
-	float *Init; FILE *fp;
-	Real_t cost, cost_last_iter, cost_0_iter, percentage_change_in_cost; char object_file[100]; 
-	int32_t i, j, k, p, dimTiff[4], Iter, flag, size;
-/*	Real_t pixel; int32_t slice, pixel;
+	Real_arr_t ***z_real, ***z_imag, ***ProjLength; float ***Init; char object_file[100];
+	Real_t cost, cost_last_iter, cost_0_iter, percentage_change_in_cost; 
+	int32_t i, j, k, p, dimTiff[4], Iter, flag;
+	int64_t size, result;
+	Real_t pixel; int32_t slice, sino_idx; FILE *fp;
   	AMatrixCol* AMatrixPtr = (AMatrixCol*)get_spc(ScannedObjectPtr->N_time, sizeof(AMatrixCol));
-  	uint8_t AvgNumXElements = (uint8_t)ceil(3*ScannedObjectPtr->delta_xy/SinogramPtr->delta_r);*/
-	char proj_length_file[] = PROJ_LENGTH_FILEPATH;
+  	uint8_t AvgNumXElements = (uint8_t)ceil(3*ScannedObjectPtr->delta_xy/SinogramPtr->delta_r);
  
-/*	for (i = 0; i < ScannedObjectPtr->N_time; i++)
+	Init = (float***)multialloc(sizeof(float), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+  	ProjLength = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	z_real = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	z_imag = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
+	
+	for (i = 0; i < ScannedObjectPtr->N_time; i++)
 	{
     		AMatrixPtr[i].values = (Real_t*)get_spc(AvgNumXElements, sizeof(Real_t));
     		AMatrixPtr[i].index = (int32_t*)get_spc(AvgNumXElements, sizeof(int32_t));
-  	}*/
+  	}
 
-  	ProjLength = (Real_arr_t*)get_spc(SinogramPtr->N_r, sizeof(Real_arr_t));
-  	Init = (float*)get_spc(PHANTOM_XY_SIZE, sizeof(float));
-	z_real = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
-	z_imag = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_r, SinogramPtr->N_t);
-	memset(&(Init[0]), 0, PHANTOM_XY_SIZE*sizeof(float));
-	memset(&(ProjLength[0]), 0, SinogramPtr->N_r*sizeof(Real_arr_t));
-	
-	fp = fopen (proj_length_file, "rb");
-	fread (&(Init[0]), sizeof(float), PHANTOM_XY_SIZE, fp);
-	p = PHANTOM_XY_SIZE/SinogramPtr->N_r;
-	for (i = 0; i < SinogramPtr->N_r; i++)
-	{
-		for (j = 0; j < p; j++)
-			ProjLength[i] += Init[i*p + j]; 
-		ProjLength[i] /= (2*p);
-		ProjLength[i] *= SinogramPtr->delta_r;
-	}
+	fp = fopen(PHANTOM_SUPPORT_FILEPATH, "rb");
+	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", PHANTOM_SUPPORT_FILEPATH);		
+	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
+	result = fread(&(Init[0][0][0]), sizeof(float), size, fp);	
+  	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, size=%ld\n",PHANTOM_SUPPORT_FILEPATH,result,size);
 	fclose(fp);
-/*  	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_filename,result,stream_offset,size);*/
-/*  	#pragma omp parallel for private(j, k, p, sino_idx, slice, pixel)
+	
+	memset(&(ProjLength[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t*sizeof(Real_arr_t));
+	
+  	#pragma omp parallel for private(j, k, p, sino_idx, slice, pixel)
   	for (i=0; i<ScannedObjectPtr->N_time; i++)
   	{
   		for (j=0; j<ScannedObjectPtr->N_y; j++)
@@ -521,23 +515,25 @@ void do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObje
       			for (k=0; k<ScannedObjectPtr->N_x; k++){
         			for (p=0; p<ScannedObjectPtr->ProjNum[i]; p++){
       	    				sino_idx = ScannedObjectPtr->ProjIdxPtr[i][p];
-          				calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &(AMatrixPtr[i]), j, k, sino_idx);
+					/*printf("j = %d, k = %d, p = %d, sino_idx = %d\n",j, k, p, sino_idx);*/
+          				calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &(AMatrixPtr[i]), j, k, sino_idx, 1);
           				for (slice=0; slice<ScannedObjectPtr->N_z; slice++){
-            					pixel = ScannedObjectPtr->MagObjMax[slice][j][k];
-						if (pixel < 0)
-							pixel = 0;
+						if (Init[slice][j][k] > 0.5)
+	            					pixel = Init[slice][j][k]*ScannedObjectPtr->delta_xy;
 						else
-							pixel = 1.0/LIGHT_WAVENUMBER; 
+							pixel = 0;
+						/*	printf("pixel = %f, j = %d, k = %d, slice = %d\n", pixel, j, k, slice);*/
 	        	    			forward_project_voxel (SinogramPtr, pixel, ProjLength, &(AMatrixPtr[i]), sino_idx, slice);
           				}
         			}
       			}
     		}
   	}
-*/	
+	
 	for (i = 0; i < SinogramPtr->N_p; i++)	
 	{
-		paganins_phase_retrieval (SinogramPtr->Measurements_real[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], ProjLength, z_real[i], z_imag[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]), SinogramPtr->Light_Wavenumber, SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance, SinogramPtr->Pag_RegParam);
+		printf("projection index  i = %d\n", i);
+		paganins_2mat_phase_retrieval (SinogramPtr->Measurements_real[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], ProjLength[i], z_real[i], z_imag[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]), SinogramPtr->Light_Wavenumber, SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance, SinogramPtr->Pag_RegParam);
 	}
 
 	if (TomoInputsPtr->Write2Tiff == 1)
@@ -592,8 +588,11 @@ void do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 		}
 
 	for (i = 0; i < SinogramPtr->N_p; i++)
+	{
 		compute_phase_projection (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]), SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance);
     	
+	}
+
     	initObject(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
 	initErrorSinogam(SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
 #ifndef NO_COST_CALCULATE
@@ -661,7 +660,6 @@ void do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObje
         sprintf(object_file, "%s_time_%d", PHASEOBJECT_FILENAME,0);
 	write_SharedBinFile_At (object_file, &(ScannedObjectPtr->PhaseObject[0][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
   
-
 /*	for (i = 0; i < ScannedObjectPtr->N_time; i++)
   	{
   		free(AMatrixPtr[i].values);
@@ -669,10 +667,14 @@ void do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObje
   	}
   
 	free (AMatrixPtr);*/
-	free(ProjLength);	
-	free(Init);	
+	multifree(ProjLength, 3);	
+	multifree(Init, 3);	
 	multifree(z_real, 3);
 	multifree(z_imag, 3);
+
+	return(0);
+error:
+	return(-1);	
 }
 
 
@@ -867,8 +869,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     MPI_Allreduce(&total_pix, &tempTotPix, 1, MPI_REAL_DATATYPE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&total_vox_mag, &vox_mag, 1, MPI_REAL_DATATYPE, MPI_SUM, MPI_COMM_WORLD);
     AverageUpdate = tempUpdate/(tempTotPix);
-    AverageUpdate = convert2Hounsfield(AverageUpdate);
-    check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Average voxel update over all voxels is %f, total voxels is %f.\n", AverageUpdate, tempTotPix);
+    check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Average voxel update over all voxels is %e, total voxels is %e.\n", AverageUpdate, tempTotPix);
     check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Zero count is %ld.\n", total_zero_count);
     
     multifree(zero_count,2);
@@ -899,8 +900,8 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     Real_t cost, cost_0_iter, cost_last_iter, percentage_change_in_cost = 0;
     char costfile[100] = COST_FILENAME, origcostfile[100] = ORIG_COST_FILENAME;
     #endif
-    Real_t x, y, ar, ai, orig_cost, orig_cost_last;
-    int32_t j, flag = 0, Iter, i, k, HeadIter;
+    Real_t x, y, ar, ai, orig_cost, orig_cost_last, avg_head_update = 0, avg_val_sum = 0;
+    int32_t j, flag = 0, Iter, i, k, HeadIter = 0;
     int dimTiff[4];
     time_t start;
     char detect_file[100] = DETECTOR_RESPONSE_FILENAME;
@@ -955,8 +956,8 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     
     if (TomoInputsPtr->recon_type == 1)
     {
-/*	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);*/
-	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);
+	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
+/*	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);*/
     }
     else if (TomoInputsPtr->recon_type == 2)
     {
@@ -1035,6 +1036,15 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 	    if (TomoInputsPtr->node_rank == 0)
 	    	Write2Bin (costfile, 1, 1, 1, 1, sizeof(Real_t), &cost, TomoInputsPtr->debug_file_ptr);
 #endif /*Cost calculation endif*/
+		
+	for (i = 0; i < ScannedObjectPtr->N_z; i++)
+	for (j = 0; j < ScannedObjectPtr->N_y; j++)
+	for (k = 0; k < ScannedObjectPtr->N_x; k++)
+	{
+		ScannedObjectPtr->OldMagObject[i][j][k] = ScannedObjectPtr->MagObject[0][i+1][j][k];
+		ScannedObjectPtr->OldPhaseObject[i][j][k] = ScannedObjectPtr->PhaseObject[0][i+1][j][k];
+	}
+	
     	for (Iter = 1; Iter <= TomoInputsPtr->NumIter; Iter++)
     	{
       		flag = updateVoxelsTimeSlices (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Iter, Mask);
@@ -1088,8 +1098,27 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 	if (orig_cost > orig_cost_last)
       		check_warn(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cost of original cost function increased!\n");
 	orig_cost_last = orig_cost;
-    }   
+	
+	avg_head_update = 0; avg_val_sum = 0;
+	for (i = 0; i < ScannedObjectPtr->N_z; i++)
+	for (j = 0; j < ScannedObjectPtr->N_y; j++)
+	for (k = 0; k < ScannedObjectPtr->N_x; k++)
+	{
+		avg_head_update += pow(ScannedObjectPtr->MagObject[0][i+1][j][k] - ScannedObjectPtr->OldMagObject[i][j][k], 2) + pow(ScannedObjectPtr->PhaseObject[0][i+1][j][k] - ScannedObjectPtr->OldPhaseObject[i][j][k], 2);
+		avg_val_sum += ScannedObjectPtr->OldMagObject[i][j][k]*ScannedObjectPtr->OldMagObject[i][j][k] + ScannedObjectPtr->OldPhaseObject[i][j][k]*ScannedObjectPtr->OldPhaseObject[i][j][k];
+	}
+	avg_head_update /= (avg_val_sum+EPSILON_ERROR);	
+	avg_head_update = sqrt(avg_head_update)*100;
+
+    	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Head Iter = %d, percentage change in x at the Head level iteration = %e\n",HeadIter, avg_head_update);
+/*	if (avg_head_update < TomoInputsPtr->Head_threshold && HeadIter > 1)
+		break;*/
+    }  
+
     }
+
+    check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Final Head Iter = %d, average update of x by the final Head level iteration = %e\n",HeadIter, avg_head_update);
+    	
 
     for (i = 0; i < SinogramPtr->N_p; i++)
     { 
