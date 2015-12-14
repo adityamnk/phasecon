@@ -456,10 +456,10 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	
 /*	TomoInputsPtr->NumIter = MAX_NUM_ITERATIONS;*/
 	TomoInputsPtr->NumIter = 100;
-	TomoInputsPtr->NMS_MaxIter = 100;
-	TomoInputsPtr->Head_MaxIter = 50;
-	TomoInputsPtr->PRet_MaxIter = 50;
-	TomoInputsPtr->SteepDes_MaxIter = 100;
+	TomoInputsPtr->NMS_MaxIter = 50;
+	TomoInputsPtr->Head_MaxIter = 30;
+	TomoInputsPtr->PRet_MaxIter = 30;
+	TomoInputsPtr->SteepDes_MaxIter = 50;
 	
 	TomoInputsPtr->NMS_threshold = 0.1;
 	TomoInputsPtr->Head_threshold = 0.001;
@@ -471,16 +471,28 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	
 	check_error(SinogramPtr->N_t % (int32_t)ScannedObjectPtr->mult_z != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_z, SinogramPtr->N_t);
 	check_error(SinogramPtr->N_r % (int32_t)ScannedObjectPtr->mult_xy != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_xy = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_xy, SinogramPtr->N_r);
+	
+	SinogramPtr->Freq_Window = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_r, SinogramPtr->N_t);
+
 	return (flag);
 error:
 	return (-1);	
 }
 
+void create_FresnelTranWindow (Real_arr_t** Freq_Window, int32_t rows, int32_t cols)
+{
+	int32_t i, j;
+
+	for (i = 0; i < rows; i++)
+	for (j = 0; j < cols; j++)
+		SinogramPtr->Freq_Window[i][j] = exp();
+}
 
 /*Free memory of several arrays*/
 void freeMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr)
 {
 	int32_t i;
+	if (SinogramPtr->Freq_Window) multifree(SinogramPtr->Freq_Window,2);
 	for (i=0; i<ScannedObjectPtr->N_time; i++)
 		{if (ScannedObjectPtr->ProjIdxPtr[i]) free(ScannedObjectPtr->ProjIdxPtr[i]);}
 	

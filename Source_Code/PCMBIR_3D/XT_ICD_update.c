@@ -533,7 +533,8 @@ int do_PagPhaseRet_MBIRRecon (Sinogram* SinogramPtr, ScannedObject* ScannedObjec
 	for (i = 0; i < SinogramPtr->N_p; i++)	
 	{
 		printf("projection index  i = %d\n", i);
-		paganins_2mat_phase_retrieval (SinogramPtr->Measurements_real[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], ProjLength[i], z_real[i], z_imag[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]), SinogramPtr->Light_Wavenumber, SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance, SinogramPtr->Pag_RegParam);
+		/*paganins_2mat_phase_retrieval (SinogramPtr->Measurements_real[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], ProjLength[i], z_real[i], z_imag[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]), SinogramPtr->Light_Wavenumber, SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance, SinogramPtr->Pag_RegParam);*/
+		paganins_1mat_phase_retrieval (SinogramPtr->Measurements_real[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], z_real[i], z_imag[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]), SinogramPtr->Light_Wavenumber, SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance, SinogramPtr->Pag_RegParam);
 	}
 
 	if (TomoInputsPtr->Write2Tiff == 1)
@@ -956,8 +957,8 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     
     if (TomoInputsPtr->recon_type == 1)
     {
-	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
-/*	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);*/
+/*	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);*/
+	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);
     }
     else if (TomoInputsPtr->recon_type == 2)
     {

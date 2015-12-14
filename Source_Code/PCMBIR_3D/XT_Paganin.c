@@ -117,7 +117,7 @@ void paganins_1mat_phase_retrieval (Real_arr_t** measurements, Real_arr_t** D_re
 		if (thick < 0) thick = 0;
 /*		thick = -log(fabs(fftback_arr[i*cols + j][0]));*/
 #ifdef EXTRA_DEBUG_MESSAGES
-		printf("i = %d, j = %d, thickness = %f, proj length = %f, fftback real = %f, fftback imag = %f\n", i, j, thick, projlength[i][j], fftback_arr[i*cols + j][0], fftback_arr[i*cols + j][1]);
+		/*printf("i = %d, j = %d, thickness = %f, proj length = %f, fftback real = %f, fftback imag = %f\n", i, j, thick, projlength[i][j], fftback_arr[i*cols + j][0], fftback_arr[i*cols + j][1]);*/
 #endif
 /*		z_real[i][j] = light_wavenumber*(ABSORP_COEF_2*thick + ABSORP_COEF_1*(projlength[i][j] - thick));
 		z_imag[i][j] = light_wavenumber*(REF_IND_DEC_2*thick + REF_IND_DEC_1*(projlength[i][j] - thick));*/

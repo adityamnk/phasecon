@@ -76,16 +76,23 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	Real_arr_t*** projs_imag = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);
 	Real_arr_t*** fftforw_space = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);
 	Real_arr_t*** fftback_space = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);
-	/*Real_arr_t*** fftforw_freq = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);
+/*	Real_arr_t*** fftforw_freq = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);
 	Real_arr_t*** fftback_freq = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinogramPtr->N_p, SinogramPtr->N_t, SinogramPtr->N_r);*/
 
-	fftw_complex *fftforw_arr, *fftback_arr;
-	fftw_plan fftforw_plan, fftback_plan;
-
-	fftforw_arr = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*SinogramPtr->N_t*SinogramPtr->N_r);	
-	fftforw_plan = fftw_plan_dft_2d(SinogramPtr->N_t, SinogramPtr->N_r, fftforw_arr, fftforw_arr, FFTW_FORWARD, FFTW_ESTIMATE);
-	fftback_arr = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*SinogramPtr->N_t*SinogramPtr->N_r);	
-	fftback_plan = fftw_plan_dft_2d(SinogramPtr->N_t, SinogramPtr->N_r, fftback_arr, fftback_arr, FFTW_BACKWARD, FFTW_ESTIMATE);
+	fftw_complex **fftforw_arr, **fftback_arr;
+	fftw_plan *fftforw_plan, *fftback_plan;
+    	fftforw_arr = (fftw_complex**)get_spc(SinogramPtr->N_p, sizeof(fftw_complex*));
+    	fftback_arr = (fftw_complex**)get_spc(SinogramPtr->N_p, sizeof(fftw_complex*));
+    	fftforw_plan = (fftw_plan*)get_spc(SinogramPtr->N_p, sizeof(fftw_plan));
+    	fftback_plan = (fftw_plan*)get_spc(SinogramPtr->N_p, sizeof(fftw_plan));
+	
+	for (i = 0; i <  SinogramPtr->N_p; i++)
+	{
+		fftforw_arr[i] = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*SinogramPtr->N_t*SinogramPtr->N_r);
+		fftback_arr[i] = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*SinogramPtr->N_t*SinogramPtr->N_r);
+		fftforw_plan[i] = fftw_plan_dft_2d(SinogramPtr->N_r, SinogramPtr->N_t, fftforw_arr[i], fftforw_arr[i], FFTW_FORWARD, FFTW_ESTIMATE);
+		fftback_plan[i] = fftw_plan_dft_2d(SinogramPtr->N_r, SinogramPtr->N_t, fftback_arr[i], fftback_arr[i], FFTW_BACKWARD, FFTW_ESTIMATE);
+	}
 
 	memset(&(projs_real[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));	  
 	memset(&(projs_imag[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));	    
@@ -148,14 +155,14 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 					magpixel = 0;
 				else
 					magpixel = (ABSORP_COEF_2 - ABSORP_COEF_1)*magpixel + ABSORP_COEF_1;*/
-				realmagobject[slice][j][k] = magpixel;
+				realmagobject[slice][j][k] = (Real_arr_t)magpixel;
  
 			    	phasepixel = (Real_t)(phaseobject[slice][j][k]);
 /*				if (phasepixel < 0)
 					phasepixel = 0;
 				else
 					phasepixel = (REF_IND_DEC_2 - REF_IND_DEC_1)*phasepixel + REF_IND_DEC_1;*/
-				realphaseobject[slice][j][k] = phasepixel;
+				realphaseobject[slice][j][k] = (Real_arr_t)phasepixel;
 				
 			    	/*phasepixel = 0;*/
 				/*IMPORTANT: Always make sure phantom has no negative values.*/
@@ -184,19 +191,23 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		if (WriteMultiDimArray2Tiff ("mag_phantom", dimTiff, 0, 1, 2, 3, &(realmagobject[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
 		if (WriteMultiDimArray2Tiff ("phase_phantom", dimTiff, 0, 1, 2, 3, &(realphaseobject[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
 	}
-    
-	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;	
+	size = SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r;	
+	write_SharedBinFile_At ("SimMagProjs", &(projs_real[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
+	write_SharedBinFile_At ("SimPhaseProjs", &(projs_imag[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
+	
+	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
 	write_SharedBinFile_At ("mag_phantom", &(realmagobject[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
 	write_SharedBinFile_At ("phase_phantom", &(realphaseobject[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
 	
 	measurement_avg = 0;
-	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "The expected count is %d\n", EXPECTED_COUNT_MEASUREMENT);	
   	
 	for (slice=0; slice < SinogramPtr->N_t; slice++)
 	for (j=0; j < SinogramPtr->N_r; j++)
 		brights[slice*SinogramPtr->N_r + j] = EXPECTED_COUNT_MEASUREMENT; 
 		/*brights[slice*SinogramPtr->N_r + j] = EXPECTED_COUNT_MEASUREMENT*(1 + sin(2*M_PI*j/8.0)/8.0);*/ 
+	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "The expected count is %d\n", EXPECTED_COUNT_MEASUREMENT);	
 
+/*  	#pragma omp parallel for private(slice, j, expval, real, imag, idx) reduction(+:measurement_avg)*/
 	for (i=0; i < SinogramPtr->N_p; i++)
 	{
 		for (slice=0; slice < SinogramPtr->N_t; slice++)
@@ -206,8 +217,8 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 			/*fftarr[j*SinogramPtr->N_t + slice][0] = EXPECTED_COUNT_MEASUREMENT*expval*cos(-projs_imag[i][slice][j]);
 			fftarr[j*SinogramPtr->N_t + slice][1] = EXPECTED_COUNT_MEASUREMENT*expval*sin(-projs_imag[i][slice][j]);*/
 			cmplx_mult (&real, &imag, expval*cos(-projs_imag[i][slice][j]), expval*sin(-projs_imag[i][slice][j]), sqrt(brights[slice*SinogramPtr->N_r + j]), (Real_t)(0));
-			fftforw_arr[j*SinogramPtr->N_t + slice][0] = real;
-			fftforw_arr[j*SinogramPtr->N_t + slice][1] = imag;
+			fftforw_arr[i][j*SinogramPtr->N_t + slice][0] = real;
+			fftforw_arr[i][j*SinogramPtr->N_t + slice][1] = imag;
 			/*weights[2*idx] = (val + sqrt(fabs(val))*normal());*/
 			/*weights[2*idx+1] = (val + sqrt(fabs(val))*normal());*/
 			fftforw_space[i][slice][j] = sqrt(real*real + imag*imag);
@@ -216,20 +227,19 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 /*		fftw_execute(fftforw_plan);
 		for (slice=0; slice < SinogramPtr->N_t; slice++)
 		for (j=0; j < SinogramPtr->N_r; j++)
-			fftforw_freq[i][slice][j] = sqrt(fftforw_arr[j*SinogramPtr->N_t + slice][0]*fftforw_arr[j*SinogramPtr->N_t + slice][0] + fftforw_arr[j*SinogramPtr->N_t + slice][1]*fftforw_arr[j*SinogramPtr->N_t + slice][1]);
-*/
-		compute_FresnelTran (SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, fftforw_arr, &fftforw_plan, fftback_arr, &fftback_plan, SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance);
+			fftforw_freq[i][slice][j] = sqrt(fftforw_arr[j*SinogramPtr->N_t + slice][0]*fftforw_arr[j*SinogramPtr->N_t + slice][0] + fftforw_arr[j*SinogramPtr->N_t + slice][1]*fftforw_arr[j*SinogramPtr->N_t + slice][1]);*/
+		compute_FresnelTran (SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, fftforw_arr[i], &(fftforw_plan[i]), fftback_arr[i], &(fftback_plan[i]), SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance);
 /*		for (slice=0; slice < SinogramPtr->N_t; slice++)
 		for (j=0; j < SinogramPtr->N_r; j++)
-			fftback_freq[i][slice][j] = sqrt(fftback_arr[j*SinogramPtr->N_t + slice][0]*fftback_arr[j*SinogramPtr->N_t + slice][0] + fftback_arr[j*SinogramPtr->N_t + slice][1]*fftback_arr[j*SinogramPtr->N_t + slice][1]);
-		
+			fftback_freq[i][slice][j] = sqrt(fftback_arr[j*SinogramPtr->N_t
+ + slice][0]*fftback_arr[j*SinogramPtr->N_t + slice][0] + fftback_arr[j*SinogramPtr->N_t + slice][1]*fftback_arr[j*SinogramPtr->N_t + slice][1]);
 		fftw_execute(fftback_plan);*/
 
 		for (slice=0; slice < SinogramPtr->N_t; slice++)
 		for (j=0; j < SinogramPtr->N_r; j++)
 		{
 			idx = i*SinogramPtr->N_t*SinogramPtr->N_r + slice*SinogramPtr->N_r + j;
-			measurements[idx] = fftback_arr[j*SinogramPtr->N_t+ slice][0]*fftback_arr[j*SinogramPtr->N_t + slice][0] + fftback_arr[j*SinogramPtr->N_t + slice][1]*fftback_arr[j*SinogramPtr->N_t + slice][1];
+			measurements[idx] = fftback_arr[i][j*SinogramPtr->N_t+ slice][0]*fftback_arr[i][j*SinogramPtr->N_t + slice][0] + fftback_arr[i][j*SinogramPtr->N_t + slice][1]*fftback_arr[i][j*SinogramPtr->N_t + slice][1];
 			
 			fftback_space[i][slice][j] = sqrt(measurements[idx]);
 			
@@ -265,13 +275,13 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		
 		dimTiff[0] = 1; dimTiff[1] = SinogramPtr->N_p; dimTiff[2] = SinogramPtr->N_t; dimTiff[3] = SinogramPtr->N_r;
 		size = SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r;
-		if (WriteMultiDimArray2Tiff ("fftforw_space", dimTiff, 0, 2, 1, 3, &(fftforw_space[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff ("fftforw_space", dimTiff, 0, 1, 2, 3, &(fftforw_space[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
     		write_SharedBinFile_At ("fftforw_space", &(fftforw_space[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
-		if (WriteMultiDimArray2Tiff ("fftback_space", dimTiff, 0, 2, 1, 3, &(fftback_space[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff ("fftback_space", dimTiff, 0, 1, 2, 3, &(fftback_space[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
     		write_SharedBinFile_At ("fftback_space", &(fftback_space[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
-		/*if (WriteMultiDimArray2Tiff ("fftforw_freq", dimTiff, 0, 2, 1, 3, &(fftforw_freq[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		/*if (WriteMultiDimArray2Tiff ("fftforw_freq", dimTiff, 0, 1, 2, 3, &(fftforw_freq[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
     		write_SharedBinFile_At ("fftforw_freq", &(fftforw_freq[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
-		if (WriteMultiDimArray2Tiff ("fftback_freq", dimTiff, 0, 2, 1, 3, &(fftback_freq[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff ("fftback_freq", dimTiff, 0, 1, 2, 3, &(fftback_freq[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
     		write_SharedBinFile_At ("fftback_freq", &(fftback_freq[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);*/
 	}
 
@@ -289,15 +299,21 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	multifree(realphaseobject,3);
 	multifree(projs_real,3);
 	multifree(projs_imag,3);
-	fftw_destroy_plan(fftforw_plan);
-        fftw_free(fftforw_arr);
-	fftw_destroy_plan(fftback_plan);
-        fftw_free(fftback_arr);
 
 	multifree(fftforw_space, 3); 
 	multifree(fftback_space, 3);
 	free(tifarray); 
-	/*multifree(fftforw_freq, 3); 
+    	for (i = 0; i < SinogramPtr->N_p; i++)
+    	{ 
+		fftw_destroy_plan(fftforw_plan[i]);
+		fftw_destroy_plan(fftback_plan[i]);
+        	fftw_free(fftforw_arr[i]); 
+		fftw_free(fftback_arr[i]);
+    	}
+	free(fftforw_arr);
+    	free(fftback_arr);
+    
+/*	multifree(fftforw_freq, 3); 
 	multifree(fftback_freq, 3); */
 	return (0);
 error:
@@ -310,10 +326,6 @@ error:
 	multifree(phaseobject,3);
 	multifree(projs_real,3);
 	multifree(projs_imag,3);
-	fftw_destroy_plan(fftforw_plan);
-        fftw_free(fftforw_arr);
-	fftw_destroy_plan(fftback_plan);
-        fftw_free(fftback_arr);
 	free(tifarray);
 	return (-1);
 }

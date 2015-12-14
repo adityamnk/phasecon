@@ -46,6 +46,8 @@
    Real_arr_t ***Measurements_real; /*Stores the measurements (photon count measurements, intensity measurements, etc.)*/
    Real_arr_t ***Measurements_imag; /*Stores the measurements (photon count measurements, intensity measurements, etc.)*/
 
+   Real_arr_t **Freq_Window;
+
    Real_arr_t ***Omega_real;
    Real_arr_t ***Omega_imag;
    Real_arr_t ***D_real;
