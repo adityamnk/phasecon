@@ -37,6 +37,6 @@
 #include "XT_Structures.h"
 
 
-int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, float *projections, float *brights);
+int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, int32_t proj_rows, int32_t proj_cols, float *projections, float *brights);
 
 #endif /*#ifndef GEN_SINOGRAM_H*/

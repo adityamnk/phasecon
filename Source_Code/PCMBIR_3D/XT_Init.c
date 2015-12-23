@@ -205,6 +205,43 @@ void calculateSinCos(Sinogram* SinogramPtr, TomoInputs* TomoInputsPtr)
   check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "calculateSinCos: Calculated sines and cosines of angles of rotation\n");
 }
 
+void create_FresnelTranWindow (Real_arr_t** Freq_Window, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, Real_t sigma)
+{
+	int32_t i, j;
+	Real_t u, v;
+
+	for (i = 0; i < rows; i++)
+	for (j = 0; j < cols; j++)
+	{
+		if (i >= rows/2)
+			u = -(rows - i)/(rows*delta_rows);
+		else
+			u = i/(rows*delta_rows);
+		
+		if (j >= cols/2)
+			v = -(cols - j)/(cols*delta_cols);
+		else
+			v = j/(cols*delta_cols);
+	
+		Freq_Window[i][j] = exp(-(u*u + v*v)/(2*sigma*sigma));
+/*		printf("i = %d, j = %d, u = %f, v = %f, win = %f, rows = %d, delta_rows = %f, cols = %d, delta_cols = %f\n", i, j, u, v, Freq_Window[i][j], rows, delta_rows, cols, delta_cols);*/
+	}
+}
+
+void compute_DecorrObjTransform (Real_t DecorrTran[2][2], Real_t delta_over_beta, uint8_t recon_type)
+{
+	/*[1 1; 1 -1]*[1 0; 0 deloverbeta]*/
+	if (recon_type == 2)
+	{
+		DecorrTran[0][0] = 1; DecorrTran[0][1] = delta_over_beta;
+		DecorrTran[1][0] = 1; DecorrTran[1][1] = -delta_over_beta;
+	}
+	else
+	{
+		DecorrTran[0][0] = 1; DecorrTran[0][1] = 0;
+		DecorrTran[1][0] = 0; DecorrTran[1][1] = 1;
+	}
+}
 
 /*Initializes the variables in the three major structures used throughout the code -
 Sinogram, ScannedObject, TomoInputs. It also allocates memory for several variables.*/
@@ -214,7 +251,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 
 	/*Propagation physics parameters*/
 	SinogramPtr->Light_Energy = light_energy;
-	SinogramPtr->Pag_RegParam = pag_regparam;
+	SinogramPtr->Delta_Over_Beta = pag_regparam;
 	SinogramPtr->Light_Wavelength = PLANCKS_CONSTANT*LIGHT_SPEED/light_energy;
 	SinogramPtr->Light_Wavenumber = 2*M_PI/SinogramPtr->Light_Wavelength;
 	SinogramPtr->Obj2Det_Distance = obj2det_dist;
@@ -329,7 +366,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	}
 	
 	if (mult_idx != 0 || (mult_idx == 0 && recon_type == 2))
-	/*if (mult_idx != 0)*/
+/*	if (mult_idx != 0)*/
 	{
 		size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t*4;
 		printf("size = %d\n", size);
@@ -457,7 +494,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 /*	TomoInputsPtr->NumIter = MAX_NUM_ITERATIONS;*/
 	TomoInputsPtr->NumIter = 100;
 	TomoInputsPtr->NMS_MaxIter = 50;
-	TomoInputsPtr->Head_MaxIter = 30;
+	TomoInputsPtr->Head_MaxIter = 50;
 	TomoInputsPtr->PRet_MaxIter = 30;
 	TomoInputsPtr->SteepDes_MaxIter = 50;
 	
@@ -471,21 +508,17 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	
 	check_error(SinogramPtr->N_t % (int32_t)ScannedObjectPtr->mult_z != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_z, SinogramPtr->N_t);
 	check_error(SinogramPtr->N_r % (int32_t)ScannedObjectPtr->mult_xy != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_xy = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_xy, SinogramPtr->N_r);
+
+	SinogramPtr->GaussWinSigma = 1.0/(sqrt(SinogramPtr->Light_Wavelength*SinogramPtr->Obj2Det_Distance));	
+	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The variance of the Gaussian window for the Fresnel transform is %f. Sampling width should preferably be less than %f.\n", SinogramPtr->GaussWinSigma, 1.0/(4*SinogramPtr->GaussWinSigma));
 	
 	SinogramPtr->Freq_Window = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_r, SinogramPtr->N_t);
+	create_FresnelTranWindow (SinogramPtr->Freq_Window, SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->GaussWinSigma);
+	compute_DecorrObjTransform (ScannedObjectPtr->DecorrTran, SinogramPtr->Delta_Over_Beta, recon_type);
 
 	return (flag);
 error:
 	return (-1);	
-}
-
-void create_FresnelTranWindow (Real_arr_t** Freq_Window, int32_t rows, int32_t cols)
-{
-	int32_t i, j;
-
-	for (i = 0; i < rows; i++)
-	for (j = 0; j < cols; j++)
-		SinogramPtr->Freq_Window[i][j] = exp();
 }
 
 /*Free memory of several arrays*/
@@ -543,7 +576,7 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	int i;
 	
 	SinogramPtr->Light_Energy = light_energy;
-	SinogramPtr->Pag_RegParam = pag_regparam;
+	SinogramPtr->Delta_Over_Beta = pag_regparam;
 	SinogramPtr->Light_Wavelength = PLANCKS_CONSTANT*LIGHT_SPEED/light_energy;
 	SinogramPtr->Light_Wavenumber = 2*M_PI/SinogramPtr->Light_Wavelength;
 	SinogramPtr->Obj2Det_Distance = obj2det_dist;
@@ -553,12 +586,12 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	
 	SinogramPtr->Length_R = vox_wid*proj_cols;
 	SinogramPtr->Length_T = vox_wid*proj_rows;
-	TomoInputsPtr->RotCenter = rot_center;
+	TomoInputsPtr->RotCenter = rot_center*(PHANTOM_XY_SIZE/proj_cols);
 		
 	TomoInputsPtr->Write2Tiff = ENABLE_TIFF_WRITES;
 	SinogramPtr->N_p = proj_num;	
-	SinogramPtr->N_r = proj_cols;
-	SinogramPtr->total_t_slices = proj_rows;
+	SinogramPtr->N_r = PHANTOM_XY_SIZE;
+	SinogramPtr->total_t_slices = PHANTOM_Z_SIZE;
 
 	SinogramPtr->Length_T = SinogramPtr->Length_T/TomoInputsPtr->node_num;
 	SinogramPtr->N_t = SinogramPtr->total_t_slices/TomoInputsPtr->node_num;
@@ -575,15 +608,11 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
     	ScannedObjectPtr->Length_Y = SinogramPtr->Length_R;
 	ScannedObjectPtr->Length_Z = SinogramPtr->Length_T;
 	
-	check_error (PHANTOM_XY_SIZE % SinogramPtr->N_r != 0 || PHANTOM_Z_SIZE % SinogramPtr->total_t_slices != 0, TomoInputsPtr->node_rank == 0, TomoInputsPtr->debug_file_ptr, "proj_cols = %d does not divide PHANTOM_XY_SIZE = %d or proj_rows = %d does not divide PHANTOM_Z_SIZE = %d\n", SinogramPtr->N_r, PHANTOM_XY_SIZE, SinogramPtr->N_t, PHANTOM_Z_SIZE);
-	
-	int32_t phantom_mult_xy = PHANTOM_XY_SIZE/SinogramPtr->N_r;
-	int32_t phantom_mult_z = PHANTOM_Z_SIZE/SinogramPtr->total_t_slices;
     	ScannedObjectPtr->N_x = (int32_t)(PHANTOM_XY_SIZE);
 	ScannedObjectPtr->N_y = (int32_t)(PHANTOM_XY_SIZE);
 	ScannedObjectPtr->N_z = (int32_t)(PHANTOM_Z_SIZE);	
-	ScannedObjectPtr->delta_xy = SinogramPtr->delta_r/phantom_mult_xy;
-	ScannedObjectPtr->delta_z = SinogramPtr->delta_t/phantom_mult_z;
+	ScannedObjectPtr->delta_xy = SinogramPtr->delta_r;
+	ScannedObjectPtr->delta_z = SinogramPtr->delta_t;
 
 	if (ScannedObjectPtr->delta_xy != ScannedObjectPtr->delta_z)
 		check_warn (TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Voxel width in x-y plane is not equal to that along z-axis. The spatial invariance of prior does not hold.\n");
@@ -608,9 +637,13 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	calculateSinCos (SinogramPtr, TomoInputsPtr);
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
 	
+	SinogramPtr->GaussWinSigma = 1.0/(sqrt(SinogramPtr->Light_Wavelength*SinogramPtr->Obj2Det_Distance));	
+	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The variance of the Gaussian window for the Fresnel transform is %f. Sampling width should preferably be less than %f.\n", SinogramPtr->GaussWinSigma, 1.0/(4*SinogramPtr->GaussWinSigma));
+	
+	SinogramPtr->Freq_Window = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_r, SinogramPtr->N_t);
+	create_FresnelTranWindow (SinogramPtr->Freq_Window, SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->GaussWinSigma);
+	
 	return (0);
-error:
-	return (-1);
 }
 
 /*Free memory of several arrays*/
@@ -644,5 +677,6 @@ void freePhantomMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, T
 	if (SinogramPtr->ViewPtr) free(SinogramPtr->ViewPtr);
 	if (SinogramPtr->cosine) free(SinogramPtr->cosine);
 	if (SinogramPtr->sine) free(SinogramPtr->sine);
+	if (SinogramPtr->Freq_Window) multifree(SinogramPtr->Freq_Window,2);
 }
 

@@ -92,11 +92,11 @@
     int32_t off_constraint_num;
 
 	Real_t Obj2Det_Distance;
-	Real_t Pag_RegParam;
+	Real_t Delta_Over_Beta;
 	Real_t Light_Energy;
 	Real_t Light_Wavelength;
 	Real_t Light_Wavenumber;
-
+	Real_t GaussWinSigma;
   } Sinogram;
 
   typedef struct
@@ -145,7 +145,8 @@
 
    int32_t NHICD_Iterations; /*percentage of voxel lines selected in NHICD*/
    Real_arr_t *recon_times; /*Time gap between time slices in reconstruction*/
-   Real_t delta_recon; 
+   Real_t delta_recon;
+   Real_t DecorrTran[2][2]; 
  } ScannedObject;
 
   /*Structure to store a single column(A_i) of the A-matrix*/

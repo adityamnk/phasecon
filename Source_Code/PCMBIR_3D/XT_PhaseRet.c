@@ -7,7 +7,7 @@
 #include "XT_CmplxArith.h"
 #include "XT_FresnelTran.h"
 
-void compute_phase_projection (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** w_real, Real_arr_t** w_imag, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex* fftforw_arr, fftw_plan* fftforw_plan, fftw_complex* fftback_arr, fftw_plan* fftback_plan, Real_t light_wavelength, Real_t obj2det_distance) 
+void compute_phase_projection (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** w_real, Real_arr_t** w_imag, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex* fftforw_arr, fftw_plan* fftforw_plan, fftw_complex* fftback_arr, fftw_plan* fftback_plan, Real_t light_wavelength, Real_t obj2det_distance, Real_arr_t** FresnelFreqWin) 
 {
 	int32_t i, j;
 	Real_t real, imag, mag;
@@ -20,7 +20,7 @@ void compute_phase_projection (Real_arr_t** y_real, Real_arr_t** y_imag, Real_ar
 			fftforw_arr[i*cols + j][1] = imag; 
 		}
 
-	compute_FresnelTran (rows, cols, delta_rows, delta_cols, fftforw_arr, fftforw_plan, fftback_arr, fftback_plan, light_wavelength, obj2det_distance);
+	compute_FresnelTran (rows, cols, delta_rows, delta_cols, fftforw_arr, fftforw_plan, fftback_arr, fftback_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 
 	for (i = 0; i < rows; i++)
 		for (j = 0; j < cols; j++)
@@ -32,7 +32,7 @@ void compute_phase_projection (Real_arr_t** y_real, Real_arr_t** y_imag, Real_ar
 		}
 }
 
-void mult_Herm_OmegaHD (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex* fftforw_arr, fftw_plan* fftforw_plan, fftw_complex* fftback_arr, fftw_plan* fftback_plan, Real_t light_wavelength, Real_t obj2det_distance)
+void mult_Herm_OmegaHD (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex* fftforw_arr, fftw_plan* fftforw_plan, fftw_complex* fftback_arr, fftw_plan* fftback_plan, Real_t light_wavelength, Real_t obj2det_distance, Real_arr_t** FresnelFreqWin)
 {
 	int32_t i, j;
 	Real_t real, imag;
@@ -45,7 +45,7 @@ void mult_Herm_OmegaHD (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** O
 		fftforw_arr[i*cols + j][1] = imag;
 	}
 
-	compute_HermFresnelTran (rows, cols, delta_rows, delta_cols, fftforw_arr, fftforw_plan, fftback_arr, fftback_plan, light_wavelength, obj2det_distance);
+	compute_HermFresnelTran (rows, cols, delta_rows, delta_cols, fftforw_arr, fftforw_plan, fftback_arr, fftback_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 
 	for (i = 0; i < rows; i++)
 	for (j = 0; j < cols; j++)
@@ -53,7 +53,7 @@ void mult_Herm_OmegaHD (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** O
 }		
 
 
-void mult_OmegaHD (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforw_arr, fftw_plan *fftforw_plan, fftw_complex *fftback_arr, fftw_plan *fftback_plan, Real_t light_wavelength, Real_t obj2det_distance)
+void mult_OmegaHD (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforw_arr, fftw_plan *fftforw_plan, fftw_complex *fftback_arr, fftw_plan *fftback_plan, Real_t light_wavelength, Real_t obj2det_distance, Real_arr_t** FresnelFreqWin)
 {
 	int32_t i, j;
 	Real_t real, imag;
@@ -66,14 +66,14 @@ void mult_OmegaHD (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_
 		fftforw_arr[i*cols + j][1] = imag;
 	}
 
-	compute_FresnelTran (rows, cols, delta_rows, delta_cols, fftforw_arr, fftforw_plan, fftback_arr, fftback_plan, light_wavelength, obj2det_distance);
+	compute_FresnelTran (rows, cols, delta_rows, delta_cols, fftforw_arr, fftforw_plan, fftback_arr, fftback_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 
 	for (i = 0; i < rows; i++)
 	for (j = 0; j < cols; j++)
 		cmplx_mult (&(y_real[i][j]), &(y_imag[i][j]), fftback_arr[i*cols + j][0], fftback_arr[i*cols + j][1], Omega_real[i][j], Omega_imag[i][j]);
 }		
 
-void compute_gradient (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** w_real, Real_arr_t** w_imag, Real_arr_t** Lambda, Real_arr_t** v_real, Real_arr_t** v_imag, Real_t nu, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforward_arr, fftw_plan *fftforward_plan, fftw_complex *fftbackward_arr, fftw_plan *fftbackward_plan, Real_t light_wavelength, Real_t obj2det_distance)
+void compute_gradient (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** w_real, Real_arr_t** w_imag, Real_arr_t** Lambda, Real_arr_t** v_real, Real_arr_t** v_imag, Real_t nu, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforward_arr, fftw_plan *fftforward_plan, fftw_complex *fftbackward_arr, fftw_plan *fftbackward_plan, Real_t light_wavelength, Real_t obj2det_distance, Real_arr_t** FresnelFreqWin)
 {
 	int32_t i, j;
 	Real_arr_t **buf1_real, **buf1_imag, **buf2_real, **buf2_imag;
@@ -90,7 +90,7 @@ void compute_gradient (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** y_
 		buf1_imag[i][j] = w_imag[i][j];
 	}
 	
-	mult_OmegaHD (buf1_real, buf1_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
+	mult_OmegaHD (buf1_real, buf1_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 	
 	for (i = 0; i < rows; i++)
 	for (j = 0; j < cols; j++)
@@ -99,7 +99,7 @@ void compute_gradient (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** y_
 		buf1_imag[i][j] *= Lambda[i][j];
 	}		
 
-	mult_Herm_OmegaHD (buf1_real, buf1_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
+	mult_Herm_OmegaHD (buf1_real, buf1_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 
 	for (i = 0; i < rows; i++)
 	for (j = 0; j < cols; j++)
@@ -108,7 +108,7 @@ void compute_gradient (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** y_
 		buf2_imag[i][j] = Lambda[i][j]*y_imag[i][j];
 	}		
 
-	mult_Herm_OmegaHD (buf2_real, buf2_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
+	mult_Herm_OmegaHD (buf2_real, buf2_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 		
 	for (i = 0; i < rows; i++)
 	for (j = 0; j < cols; j++)
@@ -123,7 +123,7 @@ void compute_gradient (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** y_
 	multifree(buf2_imag, 2);
 }
 
-Real_t compute_stepsize (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** Lambda, Real_t nu, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforward_arr, fftw_plan *fftforward_plan, fftw_complex *fftbackward_arr, fftw_plan *fftbackward_plan, Real_t light_wavelength, Real_t obj2det_distance)
+Real_t compute_stepsize (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** Lambda, Real_t nu, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforward_arr, fftw_plan *fftforward_plan, fftw_complex *fftbackward_arr, fftw_plan *fftbackward_plan, Real_t light_wavelength, Real_t obj2det_distance, Real_arr_t **FresnelFreqWin)
 {
 	int32_t i, j;
 	Real_t alpha, acc_num = 0, acc_den = 0, **buf_real, **buf_imag;
@@ -139,7 +139,7 @@ Real_t compute_stepsize (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** 
 		buf_imag[i][j] = g_imag[i][j];
 	}
 
-	mult_OmegaHD (buf_real, buf_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
+	mult_OmegaHD (buf_real, buf_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 	
 	for (i = 0; i < rows; i++)
 	for (j = 0; j < cols; j++)
@@ -148,7 +148,7 @@ Real_t compute_stepsize (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** 
                 buf_imag[i][j] *= Lambda[i][j];	
 	}
 
-	mult_Herm_OmegaHD (buf_real, buf_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
+	mult_Herm_OmegaHD (buf_real, buf_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 	
 	for (i = 0; i < rows; i++)
 	for (j = 0; j < cols; j++)
@@ -164,7 +164,7 @@ Real_t compute_stepsize (Real_arr_t** g_real, Real_arr_t** g_imag, Real_arr_t** 
 	return (alpha);
 }
 
-Real_t compute_cost (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** w_real, Real_arr_t** w_imag, Real_arr_t** Lambda, Real_arr_t** v_real, Real_arr_t** v_imag, Real_t nu, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforw_arr, fftw_plan *fftforw_plan, fftw_complex *fftback_arr, fftw_plan *fftback_plan, Real_t light_wavelength, Real_t obj2det_distance)
+Real_t compute_cost (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** w_real, Real_arr_t** w_imag, Real_arr_t** Lambda, Real_arr_t** v_real, Real_arr_t** v_imag, Real_t nu, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforw_arr, fftw_plan *fftforw_plan, fftw_complex *fftback_arr, fftw_plan *fftback_plan, Real_t light_wavelength, Real_t obj2det_distance, Real_arr_t** FresnelFreqWin)
 {
 	int32_t i, j;
 	Real_t cost1 = 0, cost2 = 0, real, imag;
@@ -180,7 +180,7 @@ Real_t compute_cost (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omeg
 		buf_imag[i][j] = w_imag[i][j];
 	}
 	
-	mult_OmegaHD (buf_real, buf_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforw_arr, fftforw_plan, fftback_arr, fftback_plan, light_wavelength, obj2det_distance);	
+	mult_OmegaHD (buf_real, buf_imag, Omega_real, Omega_imag, D_real, D_imag, rows, cols, delta_rows, delta_cols, fftforw_arr, fftforw_plan, fftback_arr, fftback_plan, light_wavelength, obj2det_distance, FresnelFreqWin);	
 
 	for (i = 0; i < rows; i++)
 	for (j = 0; j < cols; j++)
@@ -202,7 +202,7 @@ Real_t compute_cost (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omeg
 	return (cost1/2 + nu*cost2/2);
 }
 
-Real_t steepest_descent_iter (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** w_real, Real_arr_t** w_imag, Real_arr_t** Lambda, Real_arr_t** v_real, Real_arr_t** v_imag, Real_t nu, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforward_arr, fftw_plan *fftforward_plan, fftw_complex *fftbackward_arr, fftw_plan *fftbackward_plan, Real_t light_wavelength, Real_t obj2det_distance)
+Real_t steepest_descent_iter (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr_t** Omega_real, Real_arr_t** Omega_imag, Real_arr_t** D_real, Real_arr_t** D_imag, Real_arr_t** w_real, Real_arr_t** w_imag, Real_arr_t** Lambda, Real_arr_t** v_real, Real_arr_t** v_imag, Real_t nu, int32_t rows, int32_t cols, Real_t delta_rows, Real_t delta_cols, fftw_complex *fftforward_arr, fftw_plan *fftforward_plan, fftw_complex *fftbackward_arr, fftw_plan *fftbackward_plan, Real_t light_wavelength, Real_t obj2det_distance, Real_arr_t **FresnelFreqWin)
 {
 	int32_t i, j;
 	Real_arr_t **g_real, **g_imag, alpha, gavg_real = 0, gavg_imag = 0, wavg_real = 0, wavg_imag = 0;
@@ -211,9 +211,9 @@ Real_t steepest_descent_iter (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr
 	g_real = (Real_arr_t**) multialloc(sizeof(Real_arr_t), 2, rows, cols); 
 	g_imag = (Real_arr_t**) multialloc(sizeof(Real_arr_t), 2, rows, cols); 
 
-	cost_old = compute_cost (y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
-	compute_gradient (g_real, g_imag, y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
-	alpha = compute_stepsize (g_real, g_imag, Omega_real, Omega_imag, D_real, D_imag, Lambda, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
+	cost_old = compute_cost (y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
+	compute_gradient (g_real, g_imag, y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
+	alpha = compute_stepsize (g_real, g_imag, Omega_real, Omega_imag, D_real, D_imag, Lambda, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 
 #ifdef EXTRA_DEBUG_MESSAGES
 	printf("Stepsize alpha = %f\n", alpha);
@@ -245,7 +245,7 @@ Real_t steepest_descent_iter (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr
 
 
 #ifdef EXTRA_DEBUG_MESSAGES
-	cost_new = compute_cost (y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
+	cost_new = compute_cost (y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 	if (cost_new > cost_old)
 	{
 		printf("cost_old = %f, cost_new = %f\n", cost_old, cost_new);
@@ -254,9 +254,9 @@ Real_t steepest_descent_iter (Real_arr_t** y_real, Real_arr_t** y_imag, Real_arr
 #endif
 	cost_old = cost_new;
 	
-	compute_phase_projection (y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance); 
+	compute_phase_projection (y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin); 
 #ifdef EXTRA_DEBUG_MESSAGES
-	cost_new = compute_cost (y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance);
+	cost_new = compute_cost (y_real, y_imag, Omega_real, Omega_imag, D_real, D_imag, w_real, w_imag, Lambda, v_real, v_imag, nu, rows, cols, delta_rows, delta_cols, fftforward_arr, fftforward_plan, fftbackward_arr, fftbackward_plan, light_wavelength, obj2det_distance, FresnelFreqWin);
 	if (cost_new > cost_old)
 	{
 		printf("cost_old = %f, cost_new = %f\n", cost_old, cost_new);

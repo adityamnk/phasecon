@@ -362,7 +362,7 @@ void gen_data_GroundTruth (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPt
 	}
 	
 	for (i = 0; i < SinogramPtr->N_p; i++)
-		compute_phase_projection (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]), SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance);
+		compute_phase_projection (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]), SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance, SinogramPtr->Freq_Window);
 	
 	for (i = 0; i < ScannedObjectPtr->N_time; i++)	
 	for (j = 0; j < ScannedObjectPtr->N_z; j++)	

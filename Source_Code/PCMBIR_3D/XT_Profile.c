@@ -112,6 +112,7 @@ void initializeBeamProfile(ScannedObject* ScannedObjectPtr, TomoInputs* TomoInpu
   for (i=0; i < BEAM_RESOLUTION ;i++)
   {
     BeamProfile[i] = 0.54 - 0.46*cos((2*M_PI/BEAM_RESOLUTION)*i);
+/*    BeamProfile[i] = 1;*/
     sum=sum+BeamProfile[i];
   }
 

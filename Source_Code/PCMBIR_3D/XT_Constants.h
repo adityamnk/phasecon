@@ -37,7 +37,7 @@
 #define XT_CONSTANTS_H
 
 /*#define POSITIVITY_CONSTRAINT*/
-#define EXTRA_DEBUG_MESSAGES
+/*#define EXTRA_DEBUG_MESSAGES*/
 #include <float.h>
 
 typedef double Real_t;
@@ -85,9 +85,9 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 #define EXPECTED_COUNT_MEASUREMENT 10000
 #define ZERO_SKIPPING
-#define MAG_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Absorp_Cylinders_Phantom.bin"
-#define PHASE_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/RefIndex_Cylinders_Phantom.bin"
-#define PHANTOM_SUPPORT_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Cylinders_Phantom_Support.bin"
+#define MAG_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Absorp_Latex_Phantom.bin"
+#define PHASE_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/RefIndex_Latex_Phantom.bin"
+#define PHANTOM_SUPPORT_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Support_AlSi_Phantom.bin"
 #define MIN_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_min.bin"
 #define MAX_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_max.bin"
 #define PROJ_LENGTH_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/ProjLength.bin"
@@ -147,7 +147,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #endif
 
 #define PROFILE_RESOLUTION 1536
-#define BEAM_RESOLUTION 512
+#define BEAM_RESOLUTION 256
 #define DETECTOR_RESPONSE_BINS 256
 
 #define NHOOD_Z_MAXDIM 3
@@ -189,7 +189,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #endif
 
 #define PHANTOM_XY_SIZE 1024
-#define PHANTOM_Z_SIZE 128
+#define PHANTOM_Z_SIZE 256
 
 #define MAGTOMOAUX_FILENAME "mag_tomo_aux"
 #define PHASETOMOAUX_FILENAME "phase_tomo_aux"

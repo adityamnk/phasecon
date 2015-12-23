@@ -23,8 +23,7 @@ int32_t find_max(int32_t* array_in, int32_t num)
 void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** MagErrorSino, Real_arr_t*** PhaseErrorSino, AMatrixCol* AMatrixPtr, /*AMatrixCol* VoxelLineResponse,*/ Real_t Mag3D_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], Real_t Phase3D_Nhood[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], Real_t MagTime_Nhood[], Real_t PhaseTime_Nhood[], bool BDFlag_3D[NHOOD_Y_MAXDIM][NHOOD_X_MAXDIM][NHOOD_Z_MAXDIM], bool BDFlag_Time[], int32_t i_new, int32_t slice, int32_t j_new, int32_t k_new)
 {
   	int32_t p, q, r, sino_view, z_overlap_num;
-	Real_t VMag,VPhase,THETA1Mag,THETA1Phase,THETA2;
-	Real_t UpdatedVoxelValue, ProjectionEntry;
+	Real_t VMag,VPhase,THETA1Mag,THETA1Phase,THETA2, ProjectionEntry;
   	int32_t i_r, i_t;
         VMag = ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new]; /*Store the present value of the voxel*/
         VPhase = ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new]; /*Store the present value of the voxel*/
@@ -55,23 +54,10 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
             /*Solve the 1-D optimization problem
             TODO : What if theta1 = 0 ? Then this will give error*/
 
-        UpdatedVoxelValue = Mag_FunctionalSubstitution(VMag, THETA1Mag, THETA2, ScannedObjectPtr, TomoInputsPtr, Mag3D_Nhood, MagTime_Nhood, BDFlag_3D, BDFlag_Time);
-/*	if (UpdatedVoxelValue < ScannedObjectPtr->MagObjMin[slice][j_new][k_new])
-		ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = ScannedObjectPtr->MagObjMin[slice][j_new][k_new];
-	else if (UpdatedVoxelValue > ScannedObjectPtr->MagObjMax[slice][j_new][k_new])
-		ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = ScannedObjectPtr->MagObjMax[slice][j_new][k_new];
-	else */
-        	ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
-		
+/*	ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] = Mag_FunctionalSubstitution(ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new], THETA1Mag, THETA2, ScannedObjectPtr, TomoInputsPtr, Mag3D_Nhood, MagTime_Nhood, BDFlag_3D, BDFlag_Time);
+        ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = Phase_FunctionalSubstitution(ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new], THETA1Phase, THETA2, ScannedObjectPtr, TomoInputsPtr, Phase3D_Nhood, PhaseTime_Nhood, BDFlag_3D, BDFlag_Time);*/
 
-        UpdatedVoxelValue = Phase_FunctionalSubstitution(VPhase, THETA1Phase, THETA2, ScannedObjectPtr, TomoInputsPtr, Phase3D_Nhood, PhaseTime_Nhood, BDFlag_3D, BDFlag_Time);
-/*	if (UpdatedVoxelValue < ScannedObjectPtr->PhaseObjMin[slice][j_new][k_new])
-		ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = ScannedObjectPtr->PhaseObjMin[slice][j_new][k_new];
-	else if (UpdatedVoxelValue > ScannedObjectPtr->PhaseObjMax[slice][j_new][k_new])
-		ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = ScannedObjectPtr->PhaseObjMax[slice][j_new][k_new];
-	else*/ 
-        	ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = UpdatedVoxelValue;
-        /*ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = 0;*/
+	FunctionalSubstitution(&(ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new]), &(ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new]), THETA1Phase, THETA1Mag, THETA2, THETA2, ScannedObjectPtr, TomoInputsPtr, Phase3D_Nhood, PhaseTime_Nhood, Mag3D_Nhood, MagTime_Nhood, BDFlag_3D, BDFlag_Time, ScannedObjectPtr->DecorrTran);
 	
 	for (p = 0; p < ScannedObjectPtr->ProjNum[i_new]; p++){
 		sino_view = ScannedObjectPtr->ProjIdxPtr[i_new][p];
@@ -86,8 +72,8 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 				/*i_t = VoxelLineResponse[slice].index[r];
 	        		ErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*VoxelLineResponse[slice].values[r]*(ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new] - V));*/
 				i_t = slice*z_overlap_num + r;
-	        		MagErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*(ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] - VMag));
 	        		PhaseErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*(ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] - VPhase));
+	        		MagErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*(ScannedObjectPtr->MagObject[i_new][slice+1][j_new][k_new] - VMag));
 	   		}
 		}
 	}
