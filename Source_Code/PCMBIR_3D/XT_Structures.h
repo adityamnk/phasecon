@@ -57,6 +57,8 @@
    fftw_plan *fftforw_plan;
    fftw_plan *fftback_plan;
 
+   Real_arr_t ***MagProj;
+   Real_arr_t ***PhaseProj;
    Real_arr_t ***MagErrorSino; /*Error sinogram of the magnitude component*/
    Real_arr_t ***PhaseErrorSino; /*Error sinogram of the phase component*/
    Real_arr_t ****MagTomoAux; /*ADMM auxiliary vector for the tomography split*/
@@ -103,8 +105,6 @@
   {
     Real_arr_t ****MagObject; /*Stores the reconstructed object from magnitude part of the projection*/
     Real_arr_t ****PhaseObject; /*Stores the reconstructed object from the phase part of the projection*/
-    Real_arr_t ***OldMagObject; /*Stores the reconstructed object from magnitude part of the projection*/
-    Real_arr_t ***OldPhaseObject; /*Stores the reconstructed object from the phase part of the projection*/
     Real_arr_t ***MagObjMin; /*Min of MagObject*/
     Real_arr_t ***MagObjMax; /*Max of MagObject*/
     Real_arr_t ***PhaseObjMin; /*Min of PhaseObject*/
@@ -211,6 +211,7 @@ typedef struct
 
     int32_t num_threads;
     Real_t ADMM_mu;
+    Real_t ADMM_nu;
     Real_t NMS_rho;
     Real_t NMS_chi;
     Real_t NMS_gamma;

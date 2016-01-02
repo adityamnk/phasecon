@@ -347,22 +347,13 @@ void gen_data_GroundTruth (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPt
 	for (j = 0; j < SinogramPtr->N_r; j++)	
 	for (k = 0; k < SinogramPtr->N_t; k++)
 	{
-		SinogramPtr->MagTomoAux[i][j][k][1] = RealSino[i][j][k];	
-		SinogramPtr->MagTomoAux[i][j][k][2] += RealSino[i][j][k];	
-		SinogramPtr->MagTomoAux[i][j][k][3] += 2*RealSino[i][j][k];
-		SinogramPtr->MagTomoAux[i][j][k][0] = (SinogramPtr->MagTomoAux[i][j][k][1] + SinogramPtr->MagTomoAux[i][j][k][2])/2.0;
-		
-		SinogramPtr->PhaseTomoAux[i][j][k][1] = ImagSino[i][j][k];	
-		SinogramPtr->PhaseTomoAux[i][j][k][2] += ImagSino[i][j][k];	
-		SinogramPtr->PhaseTomoAux[i][j][k][3] += 2*ImagSino[i][j][k];
-		SinogramPtr->PhaseTomoAux[i][j][k][0] = (SinogramPtr->PhaseTomoAux[i][j][k][1] + SinogramPtr->PhaseTomoAux[i][j][k][2])/2.0;
-
-		SinogramPtr->MagPRetAux[i][j][k] = exp(-SinogramPtr->MagTomoAux[i][j][k][1])*cos(-SinogramPtr->PhaseTomoAux[i][j][k][1]);
-		SinogramPtr->PhasePRetAux[i][j][k] = exp(-SinogramPtr->MagTomoAux[i][j][k][1])*sin(-SinogramPtr->PhaseTomoAux[i][j][k][1]);
+		SinogramPtr->Omega_real[i][j][k] = RealSino[i][j][k];
+		SinogramPtr->Omega_imag[i][j][k] = ImagSino[i][j][k];
 	}
 	
-	for (i = 0; i < SinogramPtr->N_p; i++)
-		compute_phase_projection (SinogramPtr->Measurements_real[i], SinogramPtr->Measurements_imag[i], SinogramPtr->Omega_real[i], SinogramPtr->Omega_imag[i], SinogramPtr->D_real[i], SinogramPtr->D_imag[i], SinogramPtr->MagPRetAux[i], SinogramPtr->PhasePRetAux[i], SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->fftforw_arr[i], &(SinogramPtr->fftforw_plan[i]), SinogramPtr->fftback_arr[i], &(SinogramPtr->fftback_plan[i]), SinogramPtr->Light_Wavelength, SinogramPtr->Obj2Det_Distance, SinogramPtr->Freq_Window);
+	size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t;
+	write_SharedBinFile_At (PAG_MAGRET_FILENAME, &(SinogramPtr->Omega_real[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
+	write_SharedBinFile_At (PAG_PHASERET_FILENAME, &(SinogramPtr->Omega_imag[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
 	
 	for (i = 0; i < ScannedObjectPtr->N_time; i++)	
 	for (j = 0; j < ScannedObjectPtr->N_z; j++)	
@@ -444,18 +435,28 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   else if (TomoInputsPtr->initICD == 1)
   {
 	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
-      	for (i = 0; i < ScannedObjectPtr->N_time; i++)
-      	{
-        	sprintf(object_file, "%s_time_%d", MAGOBJECT_FILENAME,i);
-		if (read_SharedBinFile_At (object_file, &(ScannedObjectPtr->MagObject[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
-        	sprintf(object_file, "%s_time_%d", PHASEOBJECT_FILENAME,i);
-		if (read_SharedBinFile_At (object_file, &(ScannedObjectPtr->PhaseObject[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
+	/*if (TomoInputsPtr->recon_type == 2)
+	{
+		printf("Reading pag mag object file = %s\n", PAG_MAGOBJECT_FILENAME);
+		if (read_SharedBinFile_At (PAG_MAGOBJECT_FILENAME, &(ScannedObjectPtr->MagObject[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
+		printf("Reading pag phase object\n");
+		if (read_SharedBinFile_At (PAG_PHASEOBJECT_FILENAME, &(ScannedObjectPtr->PhaseObject[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
+      	}
+	else
+	{*/
+		for (i = 0; i < ScannedObjectPtr->N_time; i++)
+      		{
+        		sprintf(object_file, "%s_time_%d", MAGOBJECT_FILENAME,i);
+			if (read_SharedBinFile_At (object_file, &(ScannedObjectPtr->MagObject[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
+        		sprintf(object_file, "%s_time_%d", PHASEOBJECT_FILENAME,i);
+			if (read_SharedBinFile_At (object_file, &(ScannedObjectPtr->PhaseObject[i][1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
 /*		for (j = 0; j < ScannedObjectPtr->N_z; j++)
 		for (k = 0; k < ScannedObjectPtr->N_y; k++)
 		for (l = 0; l < ScannedObjectPtr->N_x; l++)
 			if (ScannedObjectPtr->PhaseObject[i][j][k][l] > REF_IND_DEC_1/2.0)
 				ScannedObjectPtr->MagObject[i][j][k][l] = (ABSORP_COEF_1 + ABSORP_COEF_2)/2.0;*/ 
-      	}
+      		}
+	/*}*/
 	if (TomoInputsPtr->initMagUpMap == 1)
       	{
 		size = ScannedObjectPtr->N_time*TomoInputsPtr->num_z_blocks*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;

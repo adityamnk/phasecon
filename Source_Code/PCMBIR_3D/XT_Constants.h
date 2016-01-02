@@ -74,8 +74,8 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 /*#define REF_IND_DEC_MIN 0.0
 #define REF_IND_DEC_MAX 1.5e-6*/
 
-#define MAGOBJECT_INIT_VAL 0
-#define PHASEOBJECT_INIT_VAL 0
+#define MAGOBJECT_INIT_VAL 5.0311e-08
+#define PHASEOBJECT_INIT_VAL 4.5330e-06
 
 #define ATT_COEF_1 (4*M_PI*ABSORP_COEF_1/LIGHT_WAVELENGTH)
 #define ATT_COEF_2 (4*M_PI*ABSORP_COEF_2/LIGHT_WAVELENGTH)
@@ -83,10 +83,12 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define PLANCKS_CONSTANT 4.135668e-19 /*Units of keV*s*/
 #define LIGHT_SPEED 299792458e+6 /*Units of um/s*/
 
-#define EXPECTED_COUNT_MEASUREMENT 10000
+#define FORWPROJ_ADD_FRACTION 0.01
+
+#define EXPECTED_COUNT_MEASUREMENT 1000
 #define ZERO_SKIPPING
-#define MAG_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Absorp_Latex_Phantom.bin"
-#define PHASE_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/RefIndex_Latex_Phantom.bin"
+#define MAG_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Absorp_MgAl_Spheres_Phantom.bin"
+#define PHASE_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/RefIndex_MgAl_Spheres_Phantom.bin"
 #define PHANTOM_SUPPORT_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Support_AlSi_Phantom.bin"
 #define MIN_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_min.bin"
 #define MAX_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_max.bin"
@@ -130,6 +132,13 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define PROJ_SELECT_FILENAME "proj_select"
 #define COST_FILENAME "cost"
 #define ORIG_COST_FILENAME "orig_cost"
+
+#define PHASERET_PRIMAL_RESIDUAL_FILENAME "pret_primal"
+#define PHASERET_DUAL_RESIDUAL_FILENAME "pret_dual"
+#define MAG_RECON_PRIMAL_RESIDUAL_FILENAME "mag_recon_primal"
+#define MAG_RECON_DUAL_RESIDUAL_FILENAME "mag_recon_dual"
+#define PHASE_RECON_PRIMAL_RESIDUAL_FILENAME "phase_recon_primal"
+#define PHASE_RECON_DUAL_RESIDUAL_FILENAME "phase_recon_dual"
 
 #define MRF_P 1.2
 #define MRF_Q 2.0
@@ -188,7 +197,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 	#define HOUNSFIELD_MIN 10000
 #endif
 
-#define PHANTOM_XY_SIZE 1024
+#define PHANTOM_XY_SIZE 256
 #define PHANTOM_Z_SIZE 256
 
 #define MAGTOMOAUX_FILENAME "mag_tomo_aux"
