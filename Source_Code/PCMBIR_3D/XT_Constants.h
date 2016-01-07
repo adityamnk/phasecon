@@ -87,8 +87,8 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 #define EXPECTED_COUNT_MEASUREMENT 1000
 #define ZERO_SKIPPING
-#define MAG_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Absorp_MgAl_Spheres_Phantom.bin"
-#define PHASE_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/RefIndex_MgAl_Spheres_Phantom.bin"
+#define MAG_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Absorp_Latex_Phantom.bin"
+#define PHASE_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/RefIndex_Latex_Phantom.bin"
 #define PHANTOM_SUPPORT_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Support_AlSi_Phantom.bin"
 #define MIN_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_min.bin"
 #define MAX_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_max.bin"
@@ -197,8 +197,8 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 	#define HOUNSFIELD_MIN 10000
 #endif
 
-#define PHANTOM_XY_SIZE 256
-#define PHANTOM_Z_SIZE 256
+#define PHANTOM_XY_SIZE 512
+#define PHANTOM_Z_SIZE 128
 
 #define MAGTOMOAUX_FILENAME "mag_tomo_aux"
 #define PHASETOMOAUX_FILENAME "phase_tomo_aux"

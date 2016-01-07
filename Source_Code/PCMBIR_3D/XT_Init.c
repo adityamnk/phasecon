@@ -356,7 +356,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		idx = i*SinogramPtr->N_t*SinogramPtr->N_r + k*SinogramPtr->N_r + j;
 		SinogramPtr->Measurements_real[i][j][k] = sqrt(measurements[idx]);
 		SinogramPtr->Measurements_imag[i][j][k] = 0;		
-		TomoInputsPtr->Weight[i][j][k] = 1.0/SinogramPtr->Measurements_real[i][j][k];
+		TomoInputsPtr->Weight[i][j][k] = 1.0;
 
 		SinogramPtr->MagPRetAux[i][j][k] = 0;		
 		SinogramPtr->MagPRetDual[i][j][k] = 0;		
@@ -484,8 +484,19 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	initFilter (ScannedObjectPtr, TomoInputsPtr);
 	
 	calculateSinCos (SinogramPtr, TomoInputsPtr);
-	TomoInputsPtr->ADMM_mu = 1000;	
-	TomoInputsPtr->ADMM_nu = 1000;	
+	if (recon_type == 2)
+	{
+		TomoInputsPtr->ADMM_mu = 0.5;	
+		TomoInputsPtr->ADMM_nu = 0.5;
+	}
+	else
+	{
+		TomoInputsPtr->ADMM_mu = 1;	
+		TomoInputsPtr->ADMM_nu = 1;
+	}
+
+	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The ADMM mu is %f and nu is %f.\n", TomoInputsPtr->ADMM_mu, TomoInputsPtr->ADMM_nu);
+		
 	TomoInputsPtr->NMS_rho = 1;	
 	TomoInputsPtr->NMS_chi = 2;	
 	TomoInputsPtr->NMS_gamma = 0.5;	
@@ -495,12 +506,12 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	TomoInputsPtr->NumIter = 100;
 	TomoInputsPtr->NMS_MaxIter = 50;
 	TomoInputsPtr->Head_MaxIter = 50;
-	TomoInputsPtr->PRet_MaxIter = 30;
+	TomoInputsPtr->PRet_MaxIter = 100;
 	TomoInputsPtr->SteepDes_MaxIter = 50;
 	
 	TomoInputsPtr->NMS_threshold = 0.05;
 	TomoInputsPtr->Head_threshold = 0.001;
-	TomoInputsPtr->PRet_threshold = 0.000005;
+	TomoInputsPtr->PRet_threshold = 0.00001;
 	TomoInputsPtr->SteepDes_threshold = 0.05;
 
 	TomoInputsPtr->recon_type = recon_type;
@@ -509,7 +520,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	check_error(SinogramPtr->N_t % (int32_t)ScannedObjectPtr->mult_z != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_z, SinogramPtr->N_t);
 	check_error(SinogramPtr->N_r % (int32_t)ScannedObjectPtr->mult_xy != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_xy = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_xy, SinogramPtr->N_r);
 
-	SinogramPtr->GaussWinSigma = 1.0/(sqrt(SinogramPtr->Light_Wavelength*SinogramPtr->Obj2Det_Distance));	
+	SinogramPtr->GaussWinSigma = 1.0/(sqrt(0.5*SinogramPtr->Light_Wavelength*SinogramPtr->Obj2Det_Distance));	
 	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The variance of the Gaussian window for the Fresnel transform is %f. Sampling width should preferably be less than %f.\n", SinogramPtr->GaussWinSigma, 1.0/(4*SinogramPtr->GaussWinSigma));
 	
 	SinogramPtr->Freq_Window = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_r, SinogramPtr->N_t);
@@ -647,7 +658,7 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	calculateSinCos (SinogramPtr, TomoInputsPtr);
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
 	
-	SinogramPtr->GaussWinSigma = 1.0/(sqrt(SinogramPtr->Light_Wavelength*SinogramPtr->Obj2Det_Distance));	
+	SinogramPtr->GaussWinSigma = 1.0/(sqrt(0.5*SinogramPtr->Light_Wavelength*SinogramPtr->Obj2Det_Distance));	
 	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The variance of the Gaussian window for the Fresnel transform is %f. Sampling width should preferably be less than %f.\n", SinogramPtr->GaussWinSigma, 1.0/(4*SinogramPtr->GaussWinSigma));
 	
 	SinogramPtr->Freq_Window = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_r, SinogramPtr->N_t);

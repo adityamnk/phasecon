@@ -1043,8 +1043,8 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     
     if (TomoInputsPtr->recon_type == 1)
     {
-/*	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);*/
-	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);
+	    gen_data_GroundTruth (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
+/*	    do_PagPhaseRet_MBIRRecon (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, Mask);*/
     }
     else if (TomoInputsPtr->recon_type == 2)
     {
