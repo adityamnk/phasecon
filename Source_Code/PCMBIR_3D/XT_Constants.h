@@ -74,8 +74,8 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 /*#define REF_IND_DEC_MIN 0.0
 #define REF_IND_DEC_MAX 1.5e-6*/
 
-#define MAGOBJECT_INIT_VAL 5.0311e-08
-#define PHASEOBJECT_INIT_VAL 4.5330e-06
+#define MAGOBJECT_INIT_VAL 1e-15
+#define PHASEOBJECT_INIT_VAL 1e-15
 
 #define ATT_COEF_1 (4*M_PI*ABSORP_COEF_1/LIGHT_WAVELENGTH)
 #define ATT_COEF_2 (4*M_PI*ABSORP_COEF_2/LIGHT_WAVELENGTH)

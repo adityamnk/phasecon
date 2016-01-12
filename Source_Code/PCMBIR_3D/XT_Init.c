@@ -282,7 +282,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	if (mult_idx == 0)
 	{
 		if (recon_type == 2)
-			TomoInputsPtr->initICD = 1;
+			TomoInputsPtr->initICD = 0;
 			/*TomoInputsPtr->initICD = 0;*//*Initializing with zeros*/
 		else
 			TomoInputsPtr->initICD = 0;
@@ -354,7 +354,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	for (k = 0; k < SinogramPtr->N_t; k++)
 	{
 		idx = i*SinogramPtr->N_t*SinogramPtr->N_r + k*SinogramPtr->N_r + j;
-		SinogramPtr->Measurements_real[i][j][k] = sqrt(measurements[idx]);
+		SinogramPtr->Measurements_real[i][j][k] = sqrt(measurements[idx])/sqrt(brights[k*SinogramPtr->N_r + j]);
 		SinogramPtr->Measurements_imag[i][j][k] = 0;		
 		TomoInputsPtr->Weight[i][j][k] = 1.0;
 
@@ -377,7 +377,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 
 		SinogramPtr->Omega_real[i][j][k] = 3/sqrt(13);		
 		SinogramPtr->Omega_imag[i][j][k] = -2/sqrt(13);*/		
-		SinogramPtr->D_real[i][j][k] = sqrt(brights[k*SinogramPtr->N_r + j]);	
+		SinogramPtr->D_real[i][j][k] = 1;	
 		SinogramPtr->D_imag[i][j][k] = 0;		
 	}
 	
