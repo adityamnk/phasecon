@@ -103,12 +103,7 @@
 
   typedef struct
   {
-    Real_arr_t ****MagObject; /*Stores the reconstructed object from magnitude part of the projection*/
-    Real_arr_t ****PhaseObject; /*Stores the reconstructed object from the phase part of the projection*/
-    Real_arr_t ***MagObjMin; /*Min of MagObject*/
-    Real_arr_t ***MagObjMax; /*Max of MagObject*/
-    Real_arr_t ***PhaseObjMin; /*Min of PhaseObject*/
-    Real_arr_t ***PhaseObjMax; /*Max of PhaseObject*/
+    Real_arr_t *****Object; /*Stores the reconstructed object from magnitude part of the projection*/
     Real_arr_t ****UpdateMap; /*Stores the reconstructed object*/
     Real_t Length_X;/*maximum possible length of the object along x*/
     Real_t Length_Y;/*max length of object along y*/
