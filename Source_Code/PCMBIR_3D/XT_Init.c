@@ -282,7 +282,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	if (mult_idx == 0)
 	{
 		if (recon_type == 2)
-			TomoInputsPtr->initICD = 0;
+			TomoInputsPtr->initICD = 1;
 			/*TomoInputsPtr->initICD = 0;*//*Initializing with zeros*/
 		else
 			TomoInputsPtr->initICD = 0;
@@ -486,8 +486,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	calculateSinCos (SinogramPtr, TomoInputsPtr);
 	if (recon_type == 2)
 	{
-		TomoInputsPtr->ADMM_mu = 0.5;	
-		TomoInputsPtr->ADMM_nu = 0.5;
+		TomoInputsPtr->ADMM_mu = 2;	
+		TomoInputsPtr->ADMM_nu = 2;
 	}
 	else
 	{
@@ -504,14 +504,14 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	
 /*	TomoInputsPtr->NumIter = MAX_NUM_ITERATIONS;*/
 	TomoInputsPtr->NumIter = 100;
-	TomoInputsPtr->NMS_MaxIter = 50;
-	TomoInputsPtr->Head_MaxIter = 50;
+	TomoInputsPtr->NMS_MaxIter = 100;
+	TomoInputsPtr->Head_MaxIter = 100;
 	TomoInputsPtr->PRet_MaxIter = 100;
-	TomoInputsPtr->SteepDes_MaxIter = 50;
+	TomoInputsPtr->SteepDes_MaxIter = 100;
 	
 	TomoInputsPtr->NMS_threshold = 0.05;
 	TomoInputsPtr->Head_threshold = 0.001;
-	TomoInputsPtr->PRet_threshold = 0.00001;
+	TomoInputsPtr->PRet_threshold = 0.000001;
 	TomoInputsPtr->SteepDes_threshold = 0.05;
 
 	TomoInputsPtr->recon_type = recon_type;

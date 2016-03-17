@@ -36,7 +36,7 @@
 #ifndef XT_CONSTANTS_H
 #define XT_CONSTANTS_H
 
-/*#define POSITIVITY_CONSTRAINT*/
+#define POSITIVITY_CONSTRAINT
 /*#define EXTRA_DEBUG_MESSAGES*/
 #include <float.h>
 
@@ -85,7 +85,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 #define FORWPROJ_ADD_FRACTION 0.01
 
-#define EXPECTED_COUNT_MEASUREMENT 1000
+#define EXPECTED_COUNT_MEASUREMENT 2500
 #define ZERO_SKIPPING
 #define MAG_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Absorp_Latex_Phantom.bin"
 #define PHASE_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/RefIndex_Latex_Phantom.bin"
