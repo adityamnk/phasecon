@@ -75,6 +75,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define REF_IND_DEC_MIN REF_IND_DEC_1 - (REF_IND_DEC_2 - REF_IND_DEC_1)
 #define REF_IND_DEC_MAX REF_IND_DEC_2 + (REF_IND_DEC_2 - REF_IND_DEC_1)/4.0
 
+#define VFET_TWO_AXES
 #define MAGOBJECT_INIT_VAL 0
 #define ELECOBJECT_INIT_VAL 0
 
@@ -92,6 +93,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define ERRORSINO_FLIP_Y_FILENAME "errorsino_flip_y"
 
 #define WEIGHTS_FILENAME "weights"
+
 
 #define MAGOBJECT_FILENAME "mag_object"
 #define ELECOBJECT_FILENAME "elec_object"

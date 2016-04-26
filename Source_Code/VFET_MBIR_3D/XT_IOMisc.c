@@ -226,12 +226,12 @@ int32_t write_ObjectProjOff2TiffBinPerIter (Sinogram* SinogramPtr, ScannedObject
 
 		size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
 
-		if (write_SharedBinFile_At (MAGOBJECT_FILENAME, &(ScannedObjectPtr->MagPotentials[1][0][0][0]), TomoInputsPtr->node_rank*size*2, size*2, TomoInputsPtr->debug_file_ptr)) flag = -1;
+		if (write_SharedBinFile_At (MAGOBJECT_FILENAME, &(ScannedObjectPtr->MagPotentials[1][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
 		if (write_SharedBinFile_At (ELECOBJECT_FILENAME, &(ScannedObjectPtr->ElecPotentials[1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
 
 		if (TomoInputsPtr->Write2Tiff == 1)
 		{
-				dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x; dimTiff[3] = 2;		
+				dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x; dimTiff[3] = 3;		
 				sprintf (object_file, "%s_n%d", MAGOBJECT_FILENAME, TomoInputsPtr->node_rank);
 				if(WriteMultiDimArray2Tiff (object_file, dimTiff, 1, 3, 0, 2, &(ScannedObjectPtr->MagPotentials[1][0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) flag = -1;
 				dimTiff[0] = 1; dimTiff[1] = ScannedObjectPtr->N_z; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;		

@@ -246,17 +246,9 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
     	ScannedObjectPtr->y0 = -ScannedObjectPtr->Length_Y/2.0;
     	ScannedObjectPtr->BeamWidth = SinogramPtr->delta_r; /*Weighting of the projections at different points of the detector*/
 
-
-	ScannedObjectPtr->MagPotentials = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z + 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 2);
+	ScannedObjectPtr->MagPotentials = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z + 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 3);
 	ScannedObjectPtr->ElecPotentials = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z + 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
 
-#ifdef VFET_TWO_AXES	
-	ScannedObjectPtr->MagPotentialsAux = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z + 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 2);
-	ScannedObjectPtr->ElecPotentialsAux = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z + 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
-	ScannedObjectPtr->MagPotentialsDual = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 2);
-	ScannedObjectPtr->ElecPotentialsDual = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
-#endif
-	
 	/*OffsetR is stepsize of the distance between center of voxel of the object and the detector pixel, at which projections are computed*/
 	SinogramPtr->OffsetR = (ScannedObjectPtr->delta_xy/sqrt(2.0)+SinogramPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
 	SinogramPtr->OffsetT = ((ScannedObjectPtr->delta_z/2) + SinogramPtr->delta_t/2)/DETECTOR_RESPONSE_BINS;
@@ -351,12 +343,6 @@ void freeMemory(Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInpu
 #endif
 	multifree(ScannedObjectPtr->MagPotentials,4);
 	multifree(ScannedObjectPtr->ElecPotentials,3);
-#ifdef VFET_TWO_AXES
-	multifree(ScannedObjectPtr->MagPotentialsAux,4);
-	multifree(ScannedObjectPtr->ElecPotentialsAux,3);
-	multifree(ScannedObjectPtr->MagPotentialsDual,4);
-	multifree(ScannedObjectPtr->ElecPotentialsDual,3);
-#endif	
 	if (SinogramPtr->ViewPtr) free(SinogramPtr->ViewPtr);
 
 	if (SinogramPtr->Data_Unflip_x) multifree(SinogramPtr->Data_Unflip_x,3);

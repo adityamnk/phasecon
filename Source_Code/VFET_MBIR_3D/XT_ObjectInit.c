@@ -54,7 +54,7 @@ void upsample_object_bilinear_2D (Real_arr_t**** MagPotentials, Real_arr_t*** El
   Real_arr_t **buffer;
   
   buffer = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, N_y, 2*N_x);
-  for (i = 0; i < 2; i++)
+  for (i = 0; i < 3; i++)
   {
   	for (slice=0; slice < N_z; slice++){
     	for (j=0; j < N_y; j++){
@@ -172,7 +172,7 @@ void upsample_object_bilinear_3D (Real_arr_t**** MagPotentials, Real_arr_t*** El
   buffer2D = (Real_t***)multialloc(sizeof(Real_t), 3, N_z, N_y, 2*N_x);
   buffer3D = (Real_t***)multialloc(sizeof(Real_t), 3, N_z, 2*N_y, 2*N_x);
  
-  for (i = 0; i < 2; i++)
+  for (i = 0; i < 3; i++)
   { 
   	for (slice=0; slice < N_z; slice++){
     		for (j=0; j < N_y; j++){
@@ -306,6 +306,7 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   {
   	ScannedObjectPtr->MagPotentials[j+1][k][l][0] = MAGOBJECT_INIT_VAL;
   	ScannedObjectPtr->MagPotentials[j+1][k][l][1] = MAGOBJECT_INIT_VAL;
+  	ScannedObjectPtr->MagPotentials[j+1][k][l][2] = MAGOBJECT_INIT_VAL;
   	ScannedObjectPtr->ElecPotentials[j+1][k][l] = ELECOBJECT_INIT_VAL;
   }
 
@@ -322,7 +323,7 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   else if (TomoInputsPtr->initICD == 1)
   {
 	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
-	if (read_SharedBinFile_At (MAGOBJECT_FILENAME, &(ScannedObjectPtr->MagPotentials[1][0][0][0]), TomoInputsPtr->node_rank*size*2, size*2, TomoInputsPtr->debug_file_ptr)) flag = -1;
+	if (read_SharedBinFile_At (MAGOBJECT_FILENAME, &(ScannedObjectPtr->MagPotentials[1][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
 	if (read_SharedBinFile_At (ELECOBJECT_FILENAME, &(ScannedObjectPtr->ElecPotentials[1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
 	if (TomoInputsPtr->initMagUpMap == 1)
       	{
@@ -334,13 +335,13 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   {
       	if (TomoInputsPtr->initICD == 3)
       	{
-        	MagInit = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 2);
+        	MagInit = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 3);
         	ElecInit = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2);
 	        check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Interpolating object using 3D bilinear interpolation.\n");
 			
 		size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x/8;
 		printf("Reading mag bin files\n");
-		if (read_SharedBinFile_At (MAGOBJECT_FILENAME, &(MagInit[0][0][0][0]), TomoInputsPtr->node_rank*size*2, size*2, TomoInputsPtr->debug_file_ptr)) flag = -1;
+		if (read_SharedBinFile_At (MAGOBJECT_FILENAME, &(MagInit[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
 		printf("Reading elec bin files\n");
 		if (read_SharedBinFile_At (ELECOBJECT_FILENAME, &(ElecInit[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
 		printf("Interpolating .... \n");
@@ -352,11 +353,11 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
       	}
 	else
       	{
-        	MagInit = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 2);
+        	MagInit = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 3);
         	ElecInit = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2);
 	        check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Interpolating object using 2D bilinear interpolation.\n");
 	  	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x/4;
-	  	if (read_SharedBinFile_At (MAGOBJECT_FILENAME, &(MagInit[0][0][0][0]), TomoInputsPtr->node_rank*size*2, size*2, TomoInputsPtr->debug_file_ptr)) flag = -1;
+	  	if (read_SharedBinFile_At (MAGOBJECT_FILENAME, &(MagInit[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
 	  	if (read_SharedBinFile_At (ELECOBJECT_FILENAME, &(ElecInit[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
           	upsample_object_bilinear_2D (ScannedObjectPtr->MagPotentials, ScannedObjectPtr->ElecPotentials, MagInit, ElecInit, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2);
         	multifree(MagInit,4);
@@ -403,7 +404,7 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   
     	if (TomoInputsPtr->Write2Tiff == 1)
 	{	    	
-		dimTiff[3] = 2; dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x;
+		dimTiff[3] = 3; dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x;
 		sprintf (object_file, "%s_n%d", INIT_MAGOBJECT_FILENAME, TomoInputsPtr->node_rank);
     		if (WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 3, 1, 2, &(ScannedObjectPtr->MagPotentials[1][0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr))flag = -1;
 	    		

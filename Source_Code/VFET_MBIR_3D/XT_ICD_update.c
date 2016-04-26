@@ -87,6 +87,10 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
     cost += temp*temp*TomoInputsPtr->Weight;
     temp = SinogramPtr->ErrorSino_Flip_x[i][j][k];
     cost += temp*temp*TomoInputsPtr->Weight;
+    temp = SinogramPtr->ErrorSino_Unflip_y[i][j][k];
+    cost += temp*temp*TomoInputsPtr->Weight;
+    temp = SinogramPtr->ErrorSino_Flip_y[i][j][k];
+    cost += temp*temp*TomoInputsPtr->Weight;
   }
   cost /= 2.0;
   /*When computing the cost of the prior term it is important to make sure that you don't include the cost of any pair of neighbors more than once. In this code, a certain sense of causality is used to compute the cost. We also assume that the weghting kernel given by 'Filter' is symmetric. Let i, j and k correspond to the three dimensions. If we go forward to i+1, then all neighbors at j-1, j, j+1, k+1, k, k-1 are to be considered. However, if for the same i, if we go forward to j+1, then all k-1, k, and k+1 should be considered. For same i and j, only the neighbor at k+1 is considred.*/
@@ -108,7 +112,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
       k_plus = (k + 1 < ScannedObjectPtr->N_x)? true : false;
       
       if(k_plus == true) {
-	for (cidx = 0; cidx < 2; cidx++){
+	for (cidx = 0; cidx < 3; cidx++){
         	Diff = (ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p][j][k + 1][cidx]);
         	temp += TomoInputsPtr->Spatial_Filter[1][1][2] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	}
@@ -117,14 +121,14 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
       }
       if(j_plus == true) {
         if(k_minus == true) {
-	  for (cidx = 0; cidx < 2; cidx++){
+	  for (cidx = 0; cidx < 3; cidx++){
           	Diff = (ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p][j + 1][k - 1][cidx]);
           	temp += TomoInputsPtr->Spatial_Filter[1][2][0] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
           }
 	  Diff = (ScannedObjectPtr->ElecPotentials[p][j][k] - ScannedObjectPtr->ElecPotentials[p][j + 1][k - 1]);
           temp += TomoInputsPtr->Spatial_Filter[1][2][0] * QGGMRF_Value(Diff,TomoInputsPtr->Elec_Sigma_Q, TomoInputsPtr->Elec_Sigma_Q_P, ScannedObjectPtr->Elec_C);
         }
-	for (cidx = 0; cidx < 2; cidx++){
+	for (cidx = 0; cidx < 3; cidx++){
         	Diff = (ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p][j + 1][k][cidx]);
         	temp += TomoInputsPtr->Spatial_Filter[1][2][1] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	}
@@ -132,7 +136,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
         temp += TomoInputsPtr->Spatial_Filter[1][2][1] * QGGMRF_Value(Diff,TomoInputsPtr->Elec_Sigma_Q, TomoInputsPtr->Elec_Sigma_Q_P, ScannedObjectPtr->Elec_C);
 
         if(k_plus == true) {
-	  for (cidx = 0; cidx < 2; cidx++){
+	  for (cidx = 0; cidx < 3; cidx++){
           	Diff = (ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p][j + 1][k + 1][cidx]);
           	temp += TomoInputsPtr->Spatial_Filter[1][2][2] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
           }
@@ -144,7 +148,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
       {
         if(j_minus == true)
         {
-	  for (cidx = 0; cidx < 2; cidx++){
+	  for (cidx = 0; cidx < 3; cidx++){
           	Diff = ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p + 1][j - 1][k][cidx];
           	temp += TomoInputsPtr->Spatial_Filter[2][0][1] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	  }
@@ -152,7 +156,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
           temp += TomoInputsPtr->Spatial_Filter[2][0][1] * QGGMRF_Value(Diff,TomoInputsPtr->Elec_Sigma_Q, TomoInputsPtr->Elec_Sigma_Q_P, ScannedObjectPtr->Elec_C);
         }
         
-	for (cidx = 0; cidx < 2; cidx++){
+	for (cidx = 0; cidx < 3; cidx++){
         	Diff = ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p+1][j][k][cidx];
         	temp += TomoInputsPtr->Spatial_Filter[2][1][1] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	}
@@ -160,7 +164,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
         temp += TomoInputsPtr->Spatial_Filter[2][1][1] * QGGMRF_Value(Diff,TomoInputsPtr->Elec_Sigma_Q, TomoInputsPtr->Elec_Sigma_Q_P, ScannedObjectPtr->Elec_C);
         if(j_plus == true)
         {
-	  for (cidx = 0; cidx < 2; cidx++){
+	  for (cidx = 0; cidx < 3; cidx++){
           	Diff = ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p+1][j + 1][k][cidx];
           	temp += TomoInputsPtr->Spatial_Filter[2][2][1] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	  }
@@ -171,7 +175,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
         {
           if(k_minus == true)
           {
-	    for (cidx = 0; cidx < 2; cidx++){
+	    for (cidx = 0; cidx < 3; cidx++){
             	Diff = ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p + 1][j - 1][k - 1][cidx];
             	temp += TomoInputsPtr->Spatial_Filter[2][0][0] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	    }
@@ -180,7 +184,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
           }
           if(k_plus == true)
           {
-	    for (cidx = 0; cidx < 2; cidx++){
+	    for (cidx = 0; cidx < 3; cidx++){
             	Diff = ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p + 1][j - 1][k + 1][cidx];
             	temp += TomoInputsPtr->Spatial_Filter[2][0][2] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	    }
@@ -190,7 +194,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
         }
         if(k_minus == true)
         {
-	  for (cidx = 0; cidx < 2; cidx++){
+	  for (cidx = 0; cidx < 3; cidx++){
           	Diff = ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p + 1][j][k - 1][cidx];
           	temp += TomoInputsPtr->Spatial_Filter[2][1][0] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	  }
@@ -201,7 +205,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
         {
           if(k_minus == true)
           {
-	    for (cidx = 0; cidx < 2; cidx++){
+	    for (cidx = 0; cidx < 3; cidx++){
             	Diff = ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p + 1][j + 1][k - 1][cidx];
             	temp += TomoInputsPtr->Spatial_Filter[2][2][0] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	    }
@@ -210,7 +214,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
           }
           if(k_plus == true)
           {
-	    for (cidx = 0; cidx < 2; cidx++){
+	    for (cidx = 0; cidx < 3; cidx++){
             	Diff = ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p + 1][j + 1][k + 1][cidx];
             	temp += TomoInputsPtr->Spatial_Filter[2][2][2] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	    }
@@ -220,7 +224,7 @@ Real_t computeCost(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoI
         }
         if(k_plus == true)
         {
-	  for (cidx = 0; cidx < 2; cidx++){
+	  for (cidx = 0; cidx < 3; cidx++){
           	Diff = ScannedObjectPtr->MagPotentials[p][j][k][cidx] - ScannedObjectPtr->MagPotentials[p + 1][j][k + 1][cidx];
           	temp += TomoInputsPtr->Spatial_Filter[2][1][2] * QGGMRF_Value(Diff,TomoInputsPtr->Mag_Sigma_Q[cidx], TomoInputsPtr->Mag_Sigma_Q_P[cidx], ScannedObjectPtr->Mag_C[cidx]);
 	  }
@@ -292,26 +296,36 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
 {
   Real_arr_t*** ErrorSino_Unflip_x = SinogramPtr->ErrorSino_Unflip_x;
   Real_arr_t*** ErrorSino_Flip_x = SinogramPtr->ErrorSino_Flip_x;
+  Real_arr_t*** ErrorSino_Unflip_y = SinogramPtr->ErrorSino_Unflip_y;
+  Real_arr_t*** ErrorSino_Flip_y = SinogramPtr->ErrorSino_Flip_y;
+  
   Real_t unflipavg = 0, flipavg = 0;
   int32_t i, j, k, sino_idx, slice, flag = 0;
-  AMatrixCol AMatrixPtr;
+  AMatrixCol AMatrixPtr_X, AMatrixPtr_Y;
   uint8_t AvgNumXElements = (uint8_t)ceil(3*ScannedObjectPtr->delta_xy/SinogramPtr->delta_r);
  /* char error_file[100];*/
 
-  AMatrixPtr.values = (Real_t*)get_spc(AvgNumXElements, sizeof(Real_t));
-  AMatrixPtr.index = (int32_t*)get_spc(AvgNumXElements, sizeof(int32_t));
+  AMatrixPtr_X.values = (Real_t*)get_spc(AvgNumXElements, sizeof(Real_t));
+  AMatrixPtr_X.index = (int32_t*)get_spc(AvgNumXElements, sizeof(int32_t));
+  AMatrixPtr_Y.values = (Real_t*)get_spc(AvgNumXElements, sizeof(Real_t));
+  AMatrixPtr_Y.index = (int32_t*)get_spc(AvgNumXElements, sizeof(int32_t));
   
   memset(&(ErrorSino_Unflip_x[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));
   memset(&(ErrorSino_Flip_x[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));
-  #pragma omp parallel for private(j, k, sino_idx, slice)
+  memset(&(ErrorSino_Unflip_y[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrorSino_Flip_y[0][0][0]), 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(Real_arr_t));
+
+/*  #pragma omp parallel for private(j, k, sino_idx, slice)*/
     for (j=0; j<ScannedObjectPtr->N_y; j++)
     {
       for (k=0; k<ScannedObjectPtr->N_x; k++){
         for (sino_idx=0; sino_idx < SinogramPtr->N_p; sino_idx++){
-          calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &(AMatrixPtr), j, k, sino_idx);
+          calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &(AMatrixPtr_X), j, k, sino_idx);
           for (slice=0; slice<ScannedObjectPtr->N_z; slice++){
+          	calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &(AMatrixPtr_Y), j, slice, sino_idx);
             /*	printf("count = %d, idx = %d, val = %f\n", VoxelLineResponse[slice].count, VoxelLineResponse[slice].index[0], VoxelLineResponse[slice].values[0]);*/
-		forward_project_voxel (SinogramPtr, ScannedObjectPtr->MagPotentials[slice+1][j][k], ScannedObjectPtr->ElecPotentials[slice+1][j][k], ErrorSino_Unflip_x, ErrorSino_Flip_x, &(AMatrixPtr), sino_idx, slice);
+		forward_project_voxel (SinogramPtr, ScannedObjectPtr->MagPotentials[slice+1][j][k], ScannedObjectPtr->ElecPotentials[slice+1][j][k], ErrorSino_Unflip_x, ErrorSino_Flip_x, &(AMatrixPtr_X), sino_idx, slice);
+		forward_project_voxel (SinogramPtr, ScannedObjectPtr->MagPotentials[slice+1][j][k], ScannedObjectPtr->ElecPotentials[slice+1][j][k], ErrorSino_Unflip_y, ErrorSino_Flip_y, &(AMatrixPtr_Y), sino_idx, k);
           }
         }
       }
@@ -325,6 +339,8 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
   {
     	unflipavg += ErrorSino_Unflip_x[i][j][k];
     	flipavg += ErrorSino_Flip_x[i][j][k];
+    	unflipavg += ErrorSino_Unflip_y[i][j][k];
+    	flipavg += ErrorSino_Flip_y[i][j][k];
   }
   unflipavg = unflipavg/(SinogramPtr->N_r*SinogramPtr->N_t*SinogramPtr->N_p);
   flipavg = flipavg/(SinogramPtr->N_r*SinogramPtr->N_t*SinogramPtr->N_p);
@@ -337,10 +353,14 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
   {
 	ErrorSino_Unflip_x[i][j][k] = SinogramPtr->Data_Unflip_x[i][j][k] - ErrorSino_Unflip_x[i][j][k];
 	ErrorSino_Flip_x[i][j][k] = SinogramPtr->Data_Flip_x[i][j][k] - ErrorSino_Flip_x[i][j][k];
+	ErrorSino_Unflip_y[i][j][k] = SinogramPtr->Data_Unflip_y[i][j][k] - ErrorSino_Unflip_y[i][j][k];
+	ErrorSino_Flip_y[i][j][k] = SinogramPtr->Data_Flip_y[i][j][k] - ErrorSino_Flip_y[i][j][k];
   }
 			
-  free(AMatrixPtr.values);
-  free(AMatrixPtr.index);
+  free(AMatrixPtr_X.values);
+  free(AMatrixPtr_X.index);
+  free(AMatrixPtr_Y.values);
+  free(AMatrixPtr_Y.index);
   return (flag);
 }
 
@@ -377,7 +397,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
     {
       total_vox_mag = 0.0;
       
-      #pragma omp parallel for private(block, idx, xy_start, xy_end) reduction(+:total_vox_mag)
+      /*#pragma omp parallel for private(block, idx, xy_start, xy_end) reduction(+:total_vox_mag)*/
       for (block = 0; block < TomoInputsPtr->num_z_blocks; block = block + 2)
       {
         idx = block;
@@ -388,7 +408,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
         xy_end = (j + 1)*floor(TomoInputsPtr->UpdateSelectNum[idx]/K) - 1;
         xy_end = (j == K - 1) ? TomoInputsPtr->UpdateSelectNum[idx] - 1: xy_end;
         /*	printf ("Loop 1 Start - j = %d, i = %d, idx = %d, z_start = %d, z_stop = %d, xy_start = %d, xy_end = %d\n", j, i, idx, z_start[i][idx], z_stop[i][idx], xy_start, xy_end);*/
-        total_vox_mag += updateVoxels (z_start[idx], z_stop[idx], xy_start, xy_end, TomoInputsPtr->x_rand_select[idx], TomoInputsPtr->y_rand_select[idx], SinogramPtr, ScannedObjectPtr, TomoInputsPtr, SinogramPtr->ErrorSino_Unflip_x, SinogramPtr->ErrorSino_Flip_x, SinogramPtr->DetectorResponse, /*VoxelLineResponse,*/ Iter, &(zero_count[idx]), ScannedObjectPtr->UpdateMap[idx], Mask);
+        total_vox_mag += updateVoxels (z_start[idx], z_stop[idx], xy_start, xy_end, TomoInputsPtr->x_rand_select[idx], TomoInputsPtr->y_rand_select[idx], SinogramPtr, ScannedObjectPtr, TomoInputsPtr, SinogramPtr->ErrorSino_Unflip_x, SinogramPtr->ErrorSino_Flip_x, SinogramPtr->ErrorSino_Unflip_y, SinogramPtr->ErrorSino_Flip_y, SinogramPtr->DetectorResponse, /*VoxelLineResponse,*/ Iter, &(zero_count[idx]), ScannedObjectPtr->UpdateMap[idx], Mask);
         thread_num[idx] = omp_get_thread_num();
       }
       
@@ -396,7 +416,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
       MPI_Send_Recv_Z_Slices (ScannedObjectPtr, TomoInputsPtr, &mag_send_reqs, &elec_send_reqs, &mag_recv_reqs, &elec_recv_reqs, 0);
       /*	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "update_Sinogram_Offset: Will compute projection offset error\n");*/
       MPI_Wait_Z_Slices (ScannedObjectPtr, TomoInputsPtr, &mag_send_reqs, &elec_send_reqs, &mag_recv_reqs, &elec_recv_reqs, 0);
-      #pragma omp parallel for private(block, idx, xy_start, xy_end) reduction(+:total_vox_mag)
+ /*     #pragma omp parallel for private(block, idx, xy_start, xy_end) reduction(+:total_vox_mag)*/
       for (block = 0; block < TomoInputsPtr->num_z_blocks; block = block + 2)
       {
         idx = block + 1;
@@ -406,7 +426,7 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
         xy_start = j*floor(TomoInputsPtr->UpdateSelectNum[idx]/K);
         xy_end = (j + 1)*floor(TomoInputsPtr->UpdateSelectNum[idx]/K) - 1;
         xy_end = (j == K - 1) ? TomoInputsPtr->UpdateSelectNum[idx] - 1: xy_end;
-        total_vox_mag += updateVoxels (z_start[idx], z_stop[idx], xy_start, xy_end, TomoInputsPtr->x_rand_select[idx], TomoInputsPtr->y_rand_select[idx], SinogramPtr, ScannedObjectPtr, TomoInputsPtr, SinogramPtr->ErrorSino_Unflip_x, SinogramPtr->ErrorSino_Flip_x, SinogramPtr->DetectorResponse, /*VoxelLineResponse,*/ Iter, &(zero_count[idx]), ScannedObjectPtr->UpdateMap[idx], Mask);
+        total_vox_mag += updateVoxels (z_start[idx], z_stop[idx], xy_start, xy_end, TomoInputsPtr->x_rand_select[idx], TomoInputsPtr->y_rand_select[idx], SinogramPtr, ScannedObjectPtr, TomoInputsPtr, SinogramPtr->ErrorSino_Unflip_x, SinogramPtr->ErrorSino_Flip_x, SinogramPtr->ErrorSino_Unflip_y, SinogramPtr->ErrorSino_Flip_y, SinogramPtr->DetectorResponse, /*VoxelLineResponse,*/ Iter, &(zero_count[idx]), ScannedObjectPtr->UpdateMap[idx], Mask);
         thread_num[idx] = omp_get_thread_num();
         /*	printf ("Loop 2 - i = %d, idx = %d, z_start = %d, z_stop = %d, xy_start = %d, xy_end = %d\n", i, idx, z_start[i][idx], z_stop[i][idx], xy_start, xy_end);*/
       }
@@ -417,14 +437,14 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
       /*	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Number of NHICD voxel lines to be updated in iteration %d is %d\n", j, num_voxel_lines);*/
       if (Iter > 1 && TomoInputsPtr->no_NHICD == 0)
       {
-        #pragma omp parallel for private(block, idx)
+ /*       #pragma omp parallel for private(block, idx)*/
         for (block = 0; block < TomoInputsPtr->num_z_blocks; block = block + 2)
         {
           idx = block;
           z_start[idx] = idx*floor(ScannedObjectPtr->N_z/TomoInputsPtr->num_z_blocks);
           z_stop[idx] = (idx + 1)*floor(ScannedObjectPtr->N_z/TomoInputsPtr->num_z_blocks) - 1;
           z_stop[idx] = (idx >= TomoInputsPtr->num_z_blocks - 1) ? ScannedObjectPtr->N_z - 1: z_stop[idx];
-          updateVoxels (z_start[idx], z_stop[idx], 0, TomoInputsPtr->NHICDSelectNum[idx]-1, TomoInputsPtr->x_NHICD_select[idx], TomoInputsPtr->y_NHICD_select[idx], SinogramPtr, ScannedObjectPtr, TomoInputsPtr, SinogramPtr->ErrorSino_Unflip_x, SinogramPtr->ErrorSino_Flip_x, SinogramPtr->DetectorResponse, /*VoxelLineResponse,*/ Iter, &(zero_count[idx]), ScannedObjectPtr->UpdateMap[idx], Mask);
+          updateVoxels (z_start[idx], z_stop[idx], 0, TomoInputsPtr->NHICDSelectNum[idx]-1, TomoInputsPtr->x_NHICD_select[idx], TomoInputsPtr->y_NHICD_select[idx], SinogramPtr, ScannedObjectPtr, TomoInputsPtr, SinogramPtr->ErrorSino_Unflip_x, SinogramPtr->ErrorSino_Flip_x, SinogramPtr->ErrorSino_Unflip_y, SinogramPtr->ErrorSino_Flip_y, SinogramPtr->DetectorResponse, /*VoxelLineResponse,*/ Iter, &(zero_count[idx]), ScannedObjectPtr->UpdateMap[idx], Mask);
           thread_num[idx] = omp_get_thread_num();
           /*	printf ("Loop 1 NHICD - i = %d, idx = %d, z_start = %d, z_stop = %d\n", i, idx, z_start[i][idx], z_stop[i][idx]);*/
         }
@@ -432,14 +452,14 @@ int32_t initErrorSinogam (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr
         MPI_Send_Recv_Z_Slices (ScannedObjectPtr, TomoInputsPtr, &mag_send_reqs, &elec_send_reqs, &mag_recv_reqs, &elec_recv_reqs, 0);
         MPI_Wait_Z_Slices (ScannedObjectPtr, TomoInputsPtr, &mag_send_reqs, &elec_send_reqs, &mag_recv_reqs, &elec_recv_reqs, 0);
         
-        #pragma omp parallel for private(block, idx)
+/*        #pragma omp parallel for private(block, idx)*/
         for (block = 0; block < TomoInputsPtr->num_z_blocks; block = block + 2)
         {
           idx = block + 1;
           z_start[idx] = idx*floor(ScannedObjectPtr->N_z/TomoInputsPtr->num_z_blocks);
           z_stop[idx] = (idx + 1)*floor(ScannedObjectPtr->N_z/TomoInputsPtr->num_z_blocks) - 1;
           z_stop[idx] = (idx >= TomoInputsPtr->num_z_blocks - 1) ? ScannedObjectPtr->N_z - 1: z_stop[idx];
-          updateVoxels (z_start[idx], z_stop[idx], 0, TomoInputsPtr->NHICDSelectNum[idx]-1, TomoInputsPtr->x_NHICD_select[idx], TomoInputsPtr->y_NHICD_select[idx], SinogramPtr, ScannedObjectPtr, TomoInputsPtr, SinogramPtr->ErrorSino_Unflip_x, SinogramPtr->ErrorSino_Flip_x, SinogramPtr->DetectorResponse, /*VoxelLineResponse,*/ Iter, &(zero_count[idx]), ScannedObjectPtr->UpdateMap[idx], Mask);
+          updateVoxels (z_start[idx], z_stop[idx], 0, TomoInputsPtr->NHICDSelectNum[idx]-1, TomoInputsPtr->x_NHICD_select[idx], TomoInputsPtr->y_NHICD_select[idx], SinogramPtr, ScannedObjectPtr, TomoInputsPtr, SinogramPtr->ErrorSino_Unflip_x, SinogramPtr->ErrorSino_Flip_x, SinogramPtr->ErrorSino_Unflip_y, SinogramPtr->ErrorSino_Flip_y, SinogramPtr->DetectorResponse, /*VoxelLineResponse,*/ Iter, &(zero_count[idx]), ScannedObjectPtr->UpdateMap[idx], Mask);
           thread_num[idx] = omp_get_thread_num();
           /*	printf ("Loop 2 NHICD - i = %d, idx = %d, z_start = %d, z_stop = %d\n", i, idx, z_start[i][idx], z_stop[i][idx]);*/
         }
