@@ -115,7 +115,7 @@ int32_t Write2Tiff(char* filename, int height, int width, Real_arr_t** img, int 
 	avgpix/=(height*width);
 	check_debug(1, debug_file_ptr, "file=%s,maxpix=%e,minpix=%e,avgpix=%e,height=%d,width=%d.\n",filename,maxpix,minpix,avgpix,height,width);
 
-	if (scale_flag == 1){
+/*	if (scale_flag == 1){
 		maxpix = ABSORP_COEF_MAX;
 		minpix = ABSORP_COEF_MIN;
 	}
@@ -123,7 +123,7 @@ int32_t Write2Tiff(char* filename, int height, int width, Real_arr_t** img, int 
 	{
 		maxpix = REF_IND_DEC_MAX;
 		minpix = REF_IND_DEC_MIN;
-	}
+	}*/
 
 	scale=255/(maxpix-minpix);
 	 for ( i = 0; i < height; i++ )

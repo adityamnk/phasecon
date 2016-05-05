@@ -114,16 +114,16 @@ void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_
 	*data_unflip_y = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 	*data_flip_y = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 
-/*	idx = 0;	
+	idx = 0;	
 	for (i = -(proj_num-1); i <= (proj_num-1); i=i+2)
 	{
 		(*proj_angles)[idx] = M_PI*((float)(i))/180;
 		idx++;
 	}
 	
-	vfettomo_forward_project (data_unflip_x, data_flip_x, data_unflip_y, data_flip_y, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);*/
+	vfettomo_forward_project (data_unflip_x, data_flip_x, data_unflip_y, data_flip_y, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);
 	
-	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
+/*	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
 	size = proj_rows*proj_cols/num_nodes;
 	for (i = 0; i < proj_num; i++)
 	{
@@ -132,7 +132,7 @@ void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_
 		read_BinFile (data_flip_x_filename, *data_flip_x + i*size, offset, size, debug_file_ptr);
 		read_BinFile (data_unflip_y_filename, *data_unflip_y + i*size, offset, size, debug_file_ptr);
 		read_BinFile (data_flip_y_filename, *data_flip_y + i*size, offset, size, debug_file_ptr);
-	}
+	}*/
 }
 
 void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, float *vox_wid, float *rot_center, float *mag_sigma, float *mag_c, float *elec_sigma, float *elec_c, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr)

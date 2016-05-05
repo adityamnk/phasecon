@@ -82,13 +82,11 @@
     Real_arr_t ****MagPotentials;
     Real_arr_t ***ElecPotentials;
     
-    Real_arr_t ****MagPotentialsAux;
-    Real_arr_t ***ElecPotentialsAux;
-   
-    Real_arr_t ****MagPotentialsDual; /*ADMM dual vector corresponding to the tomography split*/
-    Real_arr_t ***ElecPotentialsDual; /*ADMM dual vector corresponding to the tomography split*/
+    Real_arr_t ****Magnetization;
+    Real_arr_t ***ChargeDensity;
     
-    Real_arr_t ***UpdateMap; /*Stores the reconstructed object*/
+/*    Real_arr_t ***MagPotUpdateMap; *//*Stores the reconstructed object*/
+/*    Real_arr_t ***ElecPotUpdateMap; *//*Stores the reconstructed object*/
 
     Real_t Length_X;/*maximum possible length of the object along x*/
     Real_t Length_Y;/*max length of object along y*/
@@ -143,6 +141,9 @@ typedef struct
     Real_t Weight;    
     
     Real_t Spatial_Filter[3][3][3]; /*Filter is the weighting kernel used in the prior model*/
+
+    Real_t MagPhaseMultiple; /*Scaling multiple for the phase from magnetic potential*/ 
+    Real_t ElecPhaseMultiple; /*Scaling multiple for the phase from electrostatic potential*/
     
     Real_t alpha; /*Value of over-relaxation*/
     Real_t cost_thresh; /*Convergence threshold on cost*/

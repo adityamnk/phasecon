@@ -64,7 +64,10 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
   	uint8_t AvgNumXElements, AvgNumZElements;
 	char phantom_file[1000];
 	int dimTiff[4];
-	Real_t val; Real_arr_t *objptr; 
+	Real_t val, MagPhaseMultiple, ElecPhaseMultiple; Real_arr_t *objptr;
+
+	MagPhaseMultiple = TomoInputsPtr->MagPhaseMultiple; 
+	ElecPhaseMultiple = TomoInputsPtr->ElecPhaseMultiple; 
 
 	Real_arr_t**** magobject = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 3);
 	Real_arr_t*** elecobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
@@ -138,13 +141,13 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 					{
 						data_idx = i*SinogramPtr->N_t*SinogramPtr->N_r + idx*SinogramPtr->N_t + VoxelLineResponse[slice].index[n];
 
-                                    		data_unflip_x[data_idx] += val*VoxelLineResponse[slice].values[n]*magobject[j][k][slice][1]*(-SinogramPtr->sine[i]);
-                                    		data_unflip_x[data_idx] += val*VoxelLineResponse[slice].values[n]*magobject[j][k][slice][2]*SinogramPtr->cosine[i];
-                                    		data_unflip_x[data_idx] += val*VoxelLineResponse[slice].values[n]*elecobject[j][k][slice];
+                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magobject[j][k][slice][0]*SinogramPtr->cosine[i];
+                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magobject[j][k][slice][1]*(-SinogramPtr->sine[i]);
+                                    		data_unflip_x[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecobject[j][k][slice];
                                     		
-						data_flip_x[data_idx] += val*VoxelLineResponse[slice].values[n]*(-magobject[j][k][slice][1])*(-SinogramPtr->sine[i]);
-                                    		data_flip_x[data_idx] += val*VoxelLineResponse[slice].values[n]*(-magobject[j][k][slice][2])*SinogramPtr->cosine[i];
-                                    		data_flip_x[data_idx] += val*VoxelLineResponse[slice].values[n]*elecobject[j][k][slice];
+                                    		data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magobject[j][k][slice][0])*SinogramPtr->cosine[i];
+						data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magobject[j][k][slice][1])*(-SinogramPtr->sine[i]);
+                                    		data_flip_x[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecobject[j][k][slice];
 	     				}
 				}
 			}
@@ -161,13 +164,13 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 					{
 						data_idx = i*SinogramPtr->N_t*SinogramPtr->N_r + VoxelLineResponse[slice].index[n]*SinogramPtr->N_r + idx;
                                     	
-						data_unflip_y[data_idx] += val*VoxelLineResponse[slice].values[n]*magobject[j][slice][k][0]*(-SinogramPtr->sine[i]);
-                                    		data_unflip_y[data_idx] += val*VoxelLineResponse[slice].values[n]*magobject[j][slice][k][2]*SinogramPtr->cosine[i];
-                                    		data_unflip_y[data_idx] += val*VoxelLineResponse[slice].values[n]*elecobject[j][slice][k];
+                                    		data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magobject[j][slice][k][0]*SinogramPtr->cosine[i];
+						data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magobject[j][slice][k][2]*(-SinogramPtr->sine[i]);
+                                    		data_unflip_y[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecobject[j][slice][k];
                                     		
-						data_flip_y[data_idx] += val*VoxelLineResponse[slice].values[n]*(-magobject[j][slice][k][0])*(-SinogramPtr->sine[i]);
-                                    		data_flip_y[data_idx] += val*VoxelLineResponse[slice].values[n]*(-magobject[j][slice][k][2])*SinogramPtr->cosine[i];
-                                    		data_flip_y[data_idx] += val*VoxelLineResponse[slice].values[n]*elecobject[j][slice][k];
+                                    		data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magobject[j][slice][k][0])*SinogramPtr->cosine[i];
+						data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magobject[j][slice][k][2])*(-SinogramPtr->sine[i]);
+                                    		data_flip_y[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecobject[j][slice][k];
 	     				}
 				}
 			}

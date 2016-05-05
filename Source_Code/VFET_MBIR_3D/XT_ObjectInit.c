@@ -298,7 +298,7 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   char object_file[100];
   int dimTiff[4];
   int32_t j, k, l, size, flag = 0;
-  Real_arr_t ****MagInit, ***ElecInit, ***UpMapInit;
+  Real_arr_t ****MagInit, ***ElecInit /*, ***UpMapInit*/;
   
   for (j = 0; j < ScannedObjectPtr->N_z; j++)
   for (k = 0; k < ScannedObjectPtr->N_y; k++)
@@ -325,11 +325,11 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
 	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
 	if (read_SharedBinFile_At (MAGOBJECT_FILENAME, &(ScannedObjectPtr->MagPotentials[1][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
 	if (read_SharedBinFile_At (ELECOBJECT_FILENAME, &(ScannedObjectPtr->ElecPotentials[1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
-	if (TomoInputsPtr->initMagUpMap == 1)
+/*	if (TomoInputsPtr->initMagUpMap == 1)
       	{
 		size = TomoInputsPtr->num_z_blocks*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
 		if (read_SharedBinFile_At (UPDATE_MAP_FILENAME, &(ScannedObjectPtr->UpdateMap[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
-      	}
+      	}*/
   }
   else if (TomoInputsPtr->initICD == 2 || TomoInputsPtr->initICD == 3)
   {
@@ -340,11 +340,8 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
 	        check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Interpolating object using 3D bilinear interpolation.\n");
 			
 		size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x/8;
-		printf("Reading mag bin files\n");
 		if (read_SharedBinFile_At (MAGOBJECT_FILENAME, &(MagInit[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
-		printf("Reading elec bin files\n");
 		if (read_SharedBinFile_At (ELECOBJECT_FILENAME, &(ElecInit[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
-		printf("Interpolating .... \n");
           	upsample_object_bilinear_3D (ScannedObjectPtr->MagPotentials, ScannedObjectPtr->ElecPotentials, MagInit, ElecInit, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2);
          		 
 		multifree(MagInit, 4);
@@ -364,7 +361,7 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
         	multifree(ElecInit,3);
         	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Done with interpolating object using 2D bilinear interpolation.\n");
       	}
-        if (TomoInputsPtr->initMagUpMap == 1)
+/*        if (TomoInputsPtr->initMagUpMap == 1)
         {
           	if (TomoInputsPtr->prevnum_z_blocks == TomoInputsPtr->num_z_blocks)
           	{	
@@ -389,18 +386,18 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
 			check_warn(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Number of axial blocks is incompatible with previous stage of multi-resolution.\n");
 			check_warn(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initializing the multi-resolution map to zeros.\n");
 	  	}	
-          }
+          }*/
       }
   
 #ifdef INIT_GROUND_TRUTH_PHANTOM
 	if (TomoInputsPtr->initICD == 0)
 	dwnsmpl_init_phantom (ScannedObjectPtr->MagPotentials, ScannedObjectPtr->ElecPotentials, ScannedObjectPtr->MagPotGndTruth, ScannedObjectPtr->ElecPotGndTruth, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, PHANTOM_Z_SIZE/ScannedObjectPtr->N_z, PHANTOM_XY_SIZE/ScannedObjectPtr->N_y, PHANTOM_XY_SIZE/ScannedObjectPtr->N_x);
 #endif
-  	dimTiff[0] = 1; dimTiff[1] = TomoInputsPtr->num_z_blocks; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;
+  /*	dimTiff[0] = 1; dimTiff[1] = TomoInputsPtr->num_z_blocks; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;
   	sprintf(object_file, "%s_n%d", UPDATE_MAP_FILENAME, TomoInputsPtr->node_rank);
   	if (TomoInputsPtr->Write2Tiff == 1)
   		if (WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->UpdateMap[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr))
-			flag = -1;
+			flag = -1;*/
   
     	if (TomoInputsPtr->Write2Tiff == 1)
 	{	    	

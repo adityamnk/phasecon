@@ -47,39 +47,16 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define EPSILON_ERROR DBL_MIN
 #define INFINITE_COST DBL_MAX
 
-/*#define EXPECTED_COUNT_MEASUREMENT 35000*/ 
-/*#define FAR_FIELD_DIFFRACTION*/
-/*#define REF_IND_DEC_1 6.0078e-7 *//*Al*/ 
-/*#define REF_IND_DEC_2 5.3682e-7 */ /*Si*/
-/*#define REF_IND_DEC_2 0.0 *//*Al*/ 
-/*#define REF_IND_DEC_1 0.0 *//*Al*/ 
-/*#define ABSORP_COEF_1 7.6069e-10*/ /*Al*/
-/*#define ABSORP_COEF_2 2.0397e-9*/ /*Al*/
-/*#define ABSORP_COEF_2 8.7435e-10*/ /*Si*/
-/*#define ABSORP_COEF_1 0.0*/ /*Si*/
-/*#define ABSORP_COEF_2 0.0*/ /*Al*/
-
 /*#define INIT_GROUND_TRUTH_PHANTOM*/
 
 #define PHANTOM_Z_SIZE 256
 #define PHANTOM_XY_SIZE 256
 
-#define REF_IND_DEC_1 4.628e-07
-#define REF_IND_DEC_2 7.789e-07
-#define ABSORP_COEF_1 1.6937e-11
-#define ABSORP_COEF_2 4.9250e-11
-
-#define ABSORP_COEF_MIN ABSORP_COEF_2 - (ABSORP_COEF_1 - ABSORP_COEF_2)
-#define ABSORP_COEF_MAX ABSORP_COEF_1 + (ABSORP_COEF_1 - ABSORP_COEF_2)/4.0
-
-#define REF_IND_DEC_MIN REF_IND_DEC_1 - (REF_IND_DEC_2 - REF_IND_DEC_1)
-#define REF_IND_DEC_MAX REF_IND_DEC_2 + (REF_IND_DEC_2 - REF_IND_DEC_1)/4.0
-
 #define VFET_TWO_AXES
+
 #define MAGOBJECT_INIT_VAL 0
 #define ELECOBJECT_INIT_VAL 0
 
-#define EXPECTED_COUNT_MEASUREMENT 2500
 #define ZERO_SKIPPING
 
 #define DATA_UNFLIP_X_FILENAME "data_unflip_x"
@@ -102,7 +79,9 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define INIT_MAGOBJECT_FILENAME "init_mag_object"
 #define INIT_ELECOBJECT_FILENAME "init_elec_object"
 
-#define UPDATE_MAP_FILENAME "update_map"
+/*#define MAGPOT_UPDATE_MAP_FILENAME "magpot_update_map"
+#define ELECPOT_UPDATE_MAP_FILENAME "elecpot_update_map"*/
+
 #define RUN_STATUS_FILENAME "status"
 #define DETECTOR_RESPONSE_FILENAME "detector_response"
 #define COST_FILENAME "cost"
@@ -134,7 +113,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define NO_NHICD 0
 #define WRITE_EVERY_ITER 0
 #define MIN_XY_RECON_RES 16
-#define MAX_MULTRES_NUM 4
+#define MAX_MULTRES_NUM 6
 #define MIN_ROWS_PER_NODE 2
 #define MIN_PROJECTION_ROWS 4
 

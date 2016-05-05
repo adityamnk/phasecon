@@ -329,6 +329,11 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	check_error(SinogramPtr->N_t % (int32_t)ScannedObjectPtr->mult_z != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_z, SinogramPtr->N_t);
 	check_error(SinogramPtr->N_r % (int32_t)ScannedObjectPtr->mult_xy != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_xy = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_xy, SinogramPtr->N_r);
 
+	/*TomoInputsPtr->MagPhaseMultiple = -0.001517;
+	TomoInputsPtr->ElecPhaseMultiple = 0.007288;*/
+	TomoInputsPtr->MagPhaseMultiple = 1;
+	TomoInputsPtr->ElecPhaseMultiple = 1;
+
 	return (flag);
 error:
 	return (-1);	
@@ -427,6 +432,12 @@ int32_t initPhantomStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObje
 	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "\n");
 
 	calculateSinCos (SinogramPtr, TomoInputsPtr);
+	
+	/*TomoInputsPtr->MagPhaseMultiple = -0.001517;
+	TomoInputsPtr->ElecPhaseMultiple = 0.007288;*/
+	TomoInputsPtr->MagPhaseMultiple = 1;
+	TomoInputsPtr->ElecPhaseMultiple = 1;
+	
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
 	
 	return (0);

@@ -52,17 +52,17 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 			{ 
 				/*i_t = VoxelLineResponse[slice].index[r];*/
 				i_t = slice*z_overlap_num + r;
-				THETA2Mag[0][1] += -2*ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight;
+				THETA2Mag[0][1] += -2*ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight*TomoInputsPtr->MagPhaseMultiple*TomoInputsPtr->MagPhaseMultiple;
 					
-				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p];
+				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        	   	THETA2Mag[0][0] += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
                			THETA1Mag[0] += -((ErrorSino_Unflip_x[p][i_r][i_t]-ErrorSino_Flip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
 				
-				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p];
+				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
 				THETA2Mag[1][1] += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
                			THETA1Mag[1] += -((ErrorSino_Unflip_x[p][i_r][i_t]-ErrorSino_Flip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
 				
-				ProjEntryComp = ProjectionEntry;
+				ProjEntryComp = ProjectionEntry*TomoInputsPtr->ElecPhaseMultiple;
 	        	   	THETA2Elec += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
                			THETA1Elec += -((ErrorSino_Unflip_x[p][i_r][i_t]+ErrorSino_Flip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
             		}
@@ -81,17 +81,17 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 			{ 
 				/*i_t = VoxelLineResponse[slice].index[r];*/
 				i_t = k_new*z_overlap_num + r;
-				THETA2Mag[0][2] += -2*ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight;
+				THETA2Mag[0][2] += -2*ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight*TomoInputsPtr->MagPhaseMultiple*TomoInputsPtr->MagPhaseMultiple;
 					
-				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p];
+				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        	   	THETA2Mag[0][0] += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
                			THETA1Mag[0] += -((ErrorSino_Unflip_y[p][i_r][i_t]-ErrorSino_Flip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
 				
-				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p];
+				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
 				THETA2Mag[2][2] += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
                			THETA1Mag[2] += -((ErrorSino_Unflip_y[p][i_r][i_t]-ErrorSino_Flip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
 				
-				ProjEntryComp = ProjectionEntry;
+				ProjEntryComp = ProjectionEntry*TomoInputsPtr->ElecPhaseMultiple;
 	        	   	THETA2Elec += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
                			THETA1Elec += -((ErrorSino_Unflip_y[p][i_r][i_t]+ErrorSino_Flip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
             		}
@@ -118,13 +118,15 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 				/*i_t = VoxelLineResponse[slice].index[r];
 	        		ErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*VoxelLineResponse[slice].values[r]*(ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new] - V));*/
 				i_t = slice*z_overlap_num + r;
-				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p];
+				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Unflip_x[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][0] - VMag[0]));
 	        		ErrorSino_Flip_x[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][0] - VMag[0]));
-				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p];
+
+				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Unflip_x[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][1] - VMag[1]));
 	        		ErrorSino_Flip_x[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][1] - VMag[1]));
-				ProjEntryComp = ProjectionEntry;
+				
+				ProjEntryComp = ProjectionEntry*TomoInputsPtr->ElecPhaseMultiple;
 	        		ErrorSino_Unflip_x[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->ElecPotentials[slice+1][j_new][k_new] - VElec));
 	        		ErrorSino_Flip_x[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->ElecPotentials[slice+1][j_new][k_new] - VElec));
 	   		}
@@ -143,13 +145,13 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 				/*i_t = VoxelLineResponse[slice].index[r];
 	        		ErrorSino[sino_view][i_r][i_t] -= (ProjectionEntry*VoxelLineResponse[slice].values[r]*(ScannedObjectPtr->Object[i_new][slice+1][j_new][k_new] - V));*/
 				i_t = k_new*z_overlap_num + r;
-				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p];
+				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Unflip_y[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][0] - VMag[0]));
 	        		ErrorSino_Flip_y[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][0] - VMag[0]));
-				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p];
+				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Unflip_y[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][2] - VMag[2]));
 	        		ErrorSino_Flip_y[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][2] - VMag[2]));
-				ProjEntryComp = ProjectionEntry;
+				ProjEntryComp = ProjectionEntry*TomoInputsPtr->ElecPhaseMultiple;
 	        		ErrorSino_Unflip_y[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->ElecPotentials[slice+1][j_new][k_new] - VElec));
 	        		ErrorSino_Flip_y[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->ElecPotentials[slice+1][j_new][k_new] - VElec));
 	   		}
@@ -157,7 +159,7 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 	}
 }
 
-Real_t updateVoxels_Atten (int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino_Unflip_x, Real_arr_t*** ErrorSino_Flip_x, Real_arr_t*** ErrorSino_Unflip_y, Real_arr_t*** ErrorSino_Flip_y, Real_arr_t** DetectorResponse_XY, /*AMatrixCol* VoxelLineResponse,*/ int32_t Iter, long int *zero_count, Real_arr_t** MagUpdateMap, uint8_t** Mask)
+Real_t updateVoxels_Atten (int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino_Unflip_x, Real_arr_t*** ErrorSino_Flip_x, Real_arr_t*** ErrorSino_Unflip_y, Real_arr_t*** ErrorSino_Flip_y, Real_arr_t** DetectorResponse_XY, /*AMatrixCol* VoxelLineResponse,*/ int32_t Iter, long int *zero_count, Real_t *MagUpdate, Real_t *ElecUpdate, Real_t *MagSum, Real_t *ElecSum, uint8_t** Mask)
 {
   int32_t p,q,r,slice,j_new,k_new,idxr,idxq,idxp,index_xy;
   Real_t VMag[3], VElec;
@@ -194,7 +196,7 @@ Real_t updateVoxels_Atten (int32_t slice_begin, int32_t slice_end, int32_t xy_be
     /*    printf ("Entering index\n");*/ 
 	k_new = x_rand_select[index_xy];
         j_new = y_rand_select[index_xy];
-    	MagUpdateMap[j_new][k_new] = 0;  
+    	/*MagUpdateMap[j_new][k_new] = 0; */ 
            /*printf ("Entering mask\n"); */
 	  for (p = 0; p < SinogramPtr->N_p; p++)
     	  {
@@ -298,8 +300,10 @@ Real_t updateVoxels_Atten (int32_t slice_begin, int32_t slice_end, int32_t xy_be
 	if(ZSFlag == false)
 	{
 		compute_voxel_update_Atten (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, ErrorSino_Unflip_x, ErrorSino_Flip_x, ErrorSino_Unflip_y, ErrorSino_Flip_y, AMatrixPtr_X, AMatrixPtr_Y, /*VoxelLineResponse,*/ Mag3D_Nhood, Elec3D_Nhood, BDFlag_3D, slice, j_new, k_new);
-	    	MagUpdateMap[j_new][k_new] += sqrt(pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][0] - VMag[0],2) + pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][1] - VMag[1],2) + pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][2] - VMag[2],2) + pow(ScannedObjectPtr->ElecPotentials[slice+1][j_new][k_new] - VElec,2));
-	    	total_vox_mag += sqrt(pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][0],2) + pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][1],2) + pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][2],2) + pow(ScannedObjectPtr->ElecPotentials[slice+1][j_new][k_new],2));
+		(*MagUpdate) += sqrt(pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][0] - VMag[0],2) + pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][1] - VMag[1],2) + pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][2] - VMag[2],2)); 
+		(*ElecUpdate) += fabs(ScannedObjectPtr->ElecPotentials[slice+1][j_new][k_new] - VElec); 
+		(*MagSum) += sqrt(pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][0],2) + pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][1],2) + pow(ScannedObjectPtr->MagPotentials[slice+1][j_new][k_new][2],2)); 
+		(*ElecSum) += fabs(ScannedObjectPtr->ElecPotentials[slice+1][j_new][k_new]);
  	}
 		else
 		    (*zero_count)++;
@@ -321,9 +325,9 @@ Real_t updateVoxels_Atten (int32_t slice_begin, int32_t slice_end, int32_t xy_be
 }
 
 
-Real_t updateVoxels (int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino_Unflip_x, Real_arr_t*** ErrorSino_Flip_x, Real_arr_t*** ErrorSino_Unflip_y, Real_arr_t*** ErrorSino_Flip_y, Real_arr_t** DetectorResponse_XY, int32_t Iter, long int *zero_count, Real_arr_t** MagUpdateMap, uint8_t** Mask)
+Real_t updateVoxels (int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino_Unflip_x, Real_arr_t*** ErrorSino_Flip_x, Real_arr_t*** ErrorSino_Unflip_y, Real_arr_t*** ErrorSino_Flip_y, Real_arr_t** DetectorResponse_XY, int32_t Iter, long int *zero_count, Real_t *MagUpdate, Real_t *ElecUpdate, Real_t *MagSum, Real_t *ElecSum, uint8_t** Mask)
 {
 	Real_t total_vox_mag;
-	total_vox_mag = updateVoxels_Atten(slice_begin, slice_end, xy_begin, xy_end, x_rand_select, y_rand_select, SinogramPtr, ScannedObjectPtr, TomoInputsPtr, ErrorSino_Unflip_x, ErrorSino_Flip_x, ErrorSino_Unflip_y, ErrorSino_Flip_y, DetectorResponse_XY, Iter, zero_count, MagUpdateMap, Mask);
+	total_vox_mag = updateVoxels_Atten(slice_begin, slice_end, xy_begin, xy_end, x_rand_select, y_rand_select, SinogramPtr, ScannedObjectPtr, TomoInputsPtr, ErrorSino_Unflip_x, ErrorSino_Flip_x, ErrorSino_Unflip_y, ErrorSino_Flip_y, DetectorResponse_XY, Iter, zero_count, MagUpdate, ElecUpdate, MagSum, ElecSum, Mask);
 	return (total_vox_mag);
 }
