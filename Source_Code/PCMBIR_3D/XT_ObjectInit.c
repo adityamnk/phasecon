@@ -410,7 +410,7 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
 {
   char object_file[100];
   int dimTiff[4];
-  int32_t i, j, k, l, size, flag = 0;
+  int32_t i, j, k, l, flag = 0, size;
   Real_arr_t ***Init, ****UpMapInit;
   
   for (i = 0; i < ScannedObjectPtr->N_time; i++)
@@ -421,6 +421,15 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   	ScannedObjectPtr->MagObject[i][j+1][k][l] = MAGOBJECT_INIT_VAL;
   	ScannedObjectPtr->PhaseObject[i][j+1][k][l] = PHASEOBJECT_INIT_VAL;
   }
+
+#ifndef ENABLE_TOMO_RECONS
+  size = SinogramPtr->N_p*SinogramPtr->N_r*SinogramPtr->N_t;
+  if(TomoInputsPtr->initICD == 1)
+  {
+  	read_SharedBinFile_At (PAG_MAGRET_FILENAME, &(SinogramPtr->MagProj[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
+  	read_SharedBinFile_At (PAG_PHASERET_FILENAME, &(SinogramPtr->PhaseProj[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
+  }
+#else
 
   /*Init = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, PHANTOM_Z_SIZE, PHANTOM_XY_SIZE, PHANTOM_XY_SIZE);
   for (i = 0; i < ScannedObjectPtr->N_time; i++)
@@ -545,7 +554,7 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
 		    	sprintf (object_file, "%s_time_%d", object_file, i);
     			if (WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->PhaseObject[i][1][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr))flag = -1;
 	  	}
-	
+#endif	
 	return (flag);
 error:
 	return (-1);

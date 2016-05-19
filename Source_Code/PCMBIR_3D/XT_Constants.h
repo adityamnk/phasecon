@@ -36,12 +36,13 @@
 #ifndef XT_CONSTANTS_H
 #define XT_CONSTANTS_H
 
-#define POSITIVITY_CONSTRAINT
+/*#define POSITIVITY_CONSTRAINT*/
 /*#define EXTRA_DEBUG_MESSAGES*/
 #include <float.h>
 
 typedef double Real_t;
 typedef double Real_arr_t; /*Don't change to 'double' without first changing the floats to doubles in XT_Engine.c*/
+
 #define MPI_REAL_DATATYPE MPI_DOUBLE
 #define MPI_REAL_ARR_DATATYPE MPI_DOUBLE
 #define EPSILON_ERROR DBL_MIN
@@ -87,9 +88,9 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 #define EXPECTED_COUNT_MEASUREMENT 2500
 #define ZERO_SKIPPING
-#define MAG_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Absorp_Latex_Phantom.bin"
-#define PHASE_PHANTOM_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/RefIndex_Latex_Phantom.bin"
-#define PHANTOM_SUPPORT_FILEPATH "/scratch/conte/m/mohank/Sim_Datasets/Support_AlSi_Phantom.bin"
+#define MAG_PHANTOM_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Absorp_Latex_Phantom.bin"
+#define PHASE_PHANTOM_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/RefIndex_Latex_Phantom.bin"
+#define PHANTOM_SUPPORT_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Support_AlSi_Phantom.bin"
 #define MIN_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_min.bin"
 #define MAX_OBJ_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/Phantom3D_max.bin"
 #define PROJ_LENGTH_FILEPATH "/scratch/rice/m/mohank/Sim_Datasets/ProjLength.bin"
@@ -135,6 +136,8 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 #define PHASERET_PRIMAL_RESIDUAL_FILENAME "pret_primal"
 #define PHASERET_DUAL_RESIDUAL_FILENAME "pret_dual"
+#define PHASERET_COST_FILENAME "pret_cost"
+
 #define MAG_RECON_PRIMAL_RESIDUAL_FILENAME "mag_recon_primal"
 #define MAG_RECON_DUAL_RESIDUAL_FILENAME "mag_recon_dual"
 #define PHASE_RECON_PRIMAL_RESIDUAL_FILENAME "phase_recon_primal"

@@ -145,11 +145,12 @@ Real_t distance2node(uint8_t i, uint8_t j, uint8_t k, uint8_t l)
 void initFilter (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
 {
 	uint8_t i,j,k;
-	Real_t temp1,sum=0,prior_const=0;
+	Real_t temp1,sum=0,prior_const=1;
 /*	prior_const = ScannedObjectPtr->delta_xy*ScannedObjectPtr->delta_xy*ScannedObjectPtr->delta_xy*ScannedObjectPtr->delta_Rtime;*/
-	prior_const = ScannedObjectPtr->mult_xy*ScannedObjectPtr->mult_xy*ScannedObjectPtr->mult_xy*ScannedObjectPtr->delta_recon;
+/*	prior_const = ScannedObjectPtr->mult_xy*ScannedObjectPtr->mult_xy*ScannedObjectPtr->mult_xy*ScannedObjectPtr->delta_recon;*/
 /*Filter coefficients of neighboring pixels are inversely proportional to the distance from the center pixel*/
-	TomoInputsPtr->Time_Filter[0] = 1.0/distance2node(0,1,1,1);
+/*	TomoInputsPtr->Time_Filter[0] = 1.0/distance2node(0,1,1,1);*/
+	TomoInputsPtr->Time_Filter[0] = 0;
 	sum += 2.0*TomoInputsPtr->Time_Filter[0];
 	
 	for (i=0; i<NHOOD_Y_MAXDIM; i++)
@@ -173,6 +174,7 @@ void initFilter (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
 
 	TomoInputsPtr->Time_Filter[0] = prior_const*TomoInputsPtr->Time_Filter[0]/sum;
 
+	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "initFilter: delta_xy*delta_xy*delta_z*delta_tau = %f\n",prior_const);	
 #ifdef EXTRA_DEBUG_MESSAGES
 	sum=0;
 	for (i=0; i<NHOOD_Y_MAXDIM; i++)
@@ -184,7 +186,6 @@ void initFilter (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
 			}
 			check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "initFilter: Filter i=0 is %f\n", TomoInputsPtr->Time_Filter[0]/prior_const);
 			check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "initFilter: Sum of filter coefficients is %f\n",(sum+2.0*TomoInputsPtr->Time_Filter[0])/prior_const);	
-			check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "initFilter: delta_xy*delta_xy*delta_z*delta_tau = %f\n",prior_const);	
 #endif /*#ifdef DEBUG_EN*/
 
 
@@ -249,7 +250,7 @@ void compute_DecorrObjTransform (Real_t DecorrTran[2][2], Real_t delta_over_beta
 Sinogram, ScannedObject, TomoInputs. It also allocates memory for several variables.*/
 int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, int32_t mult_idx, int32_t mult_xy[], int32_t mult_z[], float *measurements, float *brights, float *proj_angles, float *proj_times, float *recon_times, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t recon_num, Real_t vox_wid, Real_t rot_center, Real_t mag_sig_s, Real_t mag_sig_t, Real_t mag_c_s, Real_t mag_c_t, Real_t phase_sig_s, Real_t phase_sig_t, Real_t phase_c_s, Real_t phase_c_t, Real_t convg_thresh, float obj2det_dist, float light_energy, float pag_regparam, uint8_t recon_type)
 {
-	int flag = 0, i;
+	int flag = 0, i; Real_t brights_avg = 0;
 
 	/*Propagation physics parameters*/
 	SinogramPtr->Light_Energy = light_energy;
@@ -349,12 +350,18 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 		SinogramPtr->fftback_plan[i] = fftw_plan_dft_2d(SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->fftback_arr[i], SinogramPtr->fftback_arr[i], FFTW_BACKWARD, FFTW_ESTIMATE);
 	 }
  
+	for (k = 0; k < SinogramPtr->N_t; k++)
+	for (j = 0; j < SinogramPtr->N_r; j++)
+		brights_avg += brights[k*SinogramPtr->N_r + j];	
+	brights_avg /= (SinogramPtr->N_t*SinogramPtr->N_r);	
+	brights_avg = sqrt(brights_avg);
+
 	for (i = 0; i < SinogramPtr->N_p; i++)
 	for (j = 0; j < SinogramPtr->N_r; j++)
 	for (k = 0; k < SinogramPtr->N_t; k++)
 	{
 		idx = i*SinogramPtr->N_t*SinogramPtr->N_r + k*SinogramPtr->N_r + j;
-		SinogramPtr->Measurements_real[i][j][k] = sqrt(measurements[idx])/sqrt(brights[k*SinogramPtr->N_r + j]);
+		SinogramPtr->Measurements_real[i][j][k] = sqrt(measurements[idx])/brights_avg;
 		SinogramPtr->Measurements_imag[i][j][k] = 0;		
 		TomoInputsPtr->Weight[i][j][k] = 1.0;
 
@@ -377,7 +384,7 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 
 		SinogramPtr->Omega_real[i][j][k] = 3/sqrt(13);		
 		SinogramPtr->Omega_imag[i][j][k] = -2/sqrt(13);*/		
-		SinogramPtr->D_real[i][j][k] = 1;	
+		SinogramPtr->D_real[i][j][k] = sqrt(brights[k*SinogramPtr->N_r + j])/brights_avg;	
 		SinogramPtr->D_imag[i][j][k] = 0;		
 	}
 	
@@ -486,8 +493,8 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	calculateSinCos (SinogramPtr, TomoInputsPtr);
 	if (recon_type == 2)
 	{
-		TomoInputsPtr->ADMM_mu = 2;	
-		TomoInputsPtr->ADMM_nu = 2;
+		TomoInputsPtr->ADMM_mu = 0.5;	
+		TomoInputsPtr->ADMM_nu = 0.5;
 	}
 	else
 	{
@@ -503,16 +510,16 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	TomoInputsPtr->NMS_sigma = 0.5;	
 	
 /*	TomoInputsPtr->NumIter = MAX_NUM_ITERATIONS;*/
-	TomoInputsPtr->NumIter = 100;
-	TomoInputsPtr->NMS_MaxIter = 100;
-	TomoInputsPtr->Head_MaxIter = 100;
+	TomoInputsPtr->NumIter = 50;
+	TomoInputsPtr->NMS_MaxIter = 50;
+	TomoInputsPtr->Head_MaxIter = 1;
 	TomoInputsPtr->PRet_MaxIter = 100;
 	TomoInputsPtr->SteepDes_MaxIter = 100;
 	
-	TomoInputsPtr->NMS_threshold = 0.05;
+	TomoInputsPtr->NMS_threshold = 0.005;
 	TomoInputsPtr->Head_threshold = 0.001;
-	TomoInputsPtr->PRet_threshold = 0.000001;
-	TomoInputsPtr->SteepDes_threshold = 0.05;
+	TomoInputsPtr->PRet_threshold = 0.0000001;
+	TomoInputsPtr->SteepDes_threshold = 0.0005;
 
 	TomoInputsPtr->recon_type = recon_type;
 	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
@@ -520,12 +527,21 @@ int32_t initStructures (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	check_error(SinogramPtr->N_t % (int32_t)ScannedObjectPtr->mult_z != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_z, SinogramPtr->N_t);
 	check_error(SinogramPtr->N_r % (int32_t)ScannedObjectPtr->mult_xy != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Cannot do reconstruction since mult_xy = %d does not divide %d\n", (int32_t)ScannedObjectPtr->mult_xy, SinogramPtr->N_r);
 
-	SinogramPtr->GaussWinSigma = 1.0/(sqrt(0.5*SinogramPtr->Light_Wavelength*SinogramPtr->Obj2Det_Distance));	
+	SinogramPtr->GaussWinSigma = 2.0/(sqrt(SinogramPtr->Light_Wavelength*SinogramPtr->Obj2Det_Distance));	
 	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The variance of the Gaussian window for the Fresnel transform is %f. Sampling width should preferably be less than %f.\n", SinogramPtr->GaussWinSigma, 1.0/(4*SinogramPtr->GaussWinSigma));
 	
 	SinogramPtr->Freq_Window = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_r, SinogramPtr->N_t);
 	create_FresnelTranWindow (SinogramPtr->Freq_Window, SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->GaussWinSigma);
 	compute_DecorrObjTransform (ScannedObjectPtr->DecorrTran, SinogramPtr->Delta_Over_Beta, recon_type);
+
+	char measures_filename[100];
+	int dimTiff[4];	
+	if (TomoInputsPtr->Write2Tiff == 1)
+	{
+  		dimTiff[0] = 1; dimTiff[1] = SinogramPtr->N_p; dimTiff[2] = SinogramPtr->N_r; dimTiff[3] = SinogramPtr->N_t;
+  		sprintf(measures_filename, "%s_n%d", MEASUREMENTS_FILENAME, TomoInputsPtr->node_rank);
+  		WriteMultiDimArray2Tiff (measures_filename, dimTiff, 0, 1, 2, 3, &(SinogramPtr->Measurements_real[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
+	}
 
 	return (flag);
 error:

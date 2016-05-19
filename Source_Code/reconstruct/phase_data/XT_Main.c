@@ -119,7 +119,8 @@ void read_data (float **measurements, float **brights, float **proj_angles, floa
 
 	for (i = 0; i < proj_num; i++)
 	{
-		(*proj_angles)[i] = M_PI*((float)i)/proj_num;
+/*		(*proj_angles)[i] = M_PI*((float)i)/proj_num;*/
+/*HACK HACK*/		(*proj_angles)[i] = M_PI/2; /*HACK HACK*/
 		(*proj_times)[i] = i;
 	}
 	
