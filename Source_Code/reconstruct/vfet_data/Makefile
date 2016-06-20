@@ -1,5 +1,6 @@
-CC = mpicc
+CC = icc
 CFLAGS = -Wall -fopenmp -O3 -ansi
+#CFLAGS = -Wall -fopenmp -g -ansi
 EXEC = XT_Main
 OBJS = XT_Main.o
 SRCS = XT_Main.c

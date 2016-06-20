@@ -38,5 +38,5 @@
 
 
 
-int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, float *data_unflip_x, float* data_flip_x, float* data_unflip_y, float* data_flip_y);
+int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, FFTStruct* fftptr, float *data_unflip_x, float* data_flip_x, float* data_unflip_y, float* data_flip_y);
 #endif /*#ifndef GEN_SINOGRAM_H*/

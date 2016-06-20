@@ -51,11 +51,16 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 #define PHANTOM_Z_SIZE 256
 #define PHANTOM_XY_SIZE 256
+#define CROSSPROD_IMP_WIDTH 64
 
 #define VFET_TWO_AXES
+#define VFET_DENSITY_RECON
 
 #define MAGOBJECT_INIT_VAL 0
 #define ELECOBJECT_INIT_VAL 0
+
+#define MAG_CROSSPROD_WIDTH 5
+#define ELEC_PROD_WIDTH 9
 
 #define ZERO_SKIPPING
 
@@ -71,11 +76,16 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 #define WEIGHTS_FILENAME "weights"
 
+#define MAGNETIZATION_FILENAME "magnetization"
+#define ELECCHARGEDENSITY_FILENAME "elecchargedens"
+#define MAGVECPOT_FILENAME "magvecpot"
+#define ELECPOT_FILENAME "elecpot"
 
-#define MAGOBJECT_FILENAME "mag_object"
-#define ELECOBJECT_FILENAME "elec_object"
-#define PHANTOM_MAGOBJECT_FILENAME "MagVecPotPhantom"
-#define PHANTOM_ELECOBJECT_FILENAME "ElecVecPotPhantom"
+#define PHANTOM_MAGDENSITY_FILENAME "MagDensPhantom"
+#define PHANTOM_ELECDENSITY_FILENAME "ElecDensPhantom"
+#define PHANTOM_MAGVECPOT_FILENAME "MagVecPotPhantom"
+#define PHANTOM_ELECPOT_FILENAME "ElecPotPhantom"
+
 #define INIT_MAGOBJECT_FILENAME "init_mag_object"
 #define INIT_ELECOBJECT_FILENAME "init_elec_object"
 
@@ -113,7 +123,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define NO_NHICD 0
 #define WRITE_EVERY_ITER 0
 #define MIN_XY_RECON_RES 16
-#define MAX_MULTRES_NUM 6
+#define MAX_MULTRES_NUM 4
 #define MIN_ROWS_PER_NODE 2
 #define MIN_PROJECTION_ROWS 4
 

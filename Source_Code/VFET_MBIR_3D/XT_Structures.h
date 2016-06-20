@@ -82,9 +82,18 @@
     Real_arr_t ****MagPotentials;
     Real_arr_t ***ElecPotentials;
     
+    Real_arr_t ****MagPotDual;
+    Real_arr_t ***ElecPotDual;
+    
     Real_arr_t ****Magnetization;
     Real_arr_t ***ChargeDensity;
-    
+   
+   Real_arr_t ****ErrorPotMag;
+   Real_arr_t ***ErrorPotElec;
+
+    Real_t ****MagFilt;
+    Real_t ****ElecFilt;
+ 
 /*    Real_arr_t ***MagPotUpdateMap; *//*Stores the reconstructed object*/
 /*    Real_arr_t ***ElecPotUpdateMap; *//*Stores the reconstructed object*/
 
@@ -113,7 +122,6 @@
     Real_t Elec_Sigma; /*regularization parameter over space (over x-y slice). Its a parameter of qGGMRF prior model*/ 
     Real_t Elec_C; /*parameter c of qGGMRF prior model*/
 
-
    int32_t NHICD_Iterations; /*percentage of voxel lines selected in NHICD*/
  } ScannedObject;
 
@@ -124,6 +132,22 @@
       uint8_t count; /*The number of non zero values present in the column*/
       int32_t *index; /*This maps each value to its location in the column.*/
   } AMatrixCol;
+
+  typedef struct
+  {
+   	fftw_complex **fftforw_magarr;
+   	fftw_complex **fftback_magarr;
+   	fftw_plan *fftforw_magplan;
+   	fftw_plan *fftback_magplan;
+
+   	fftw_complex *fftforw_elecarr;
+   	fftw_complex *fftback_elecarr;
+   	fftw_plan fftforw_elecplan;
+   	fftw_plan fftback_elecplan;
+
+	int32_t x_num, y_num, z_num;
+	int32_t x0, y0, z0;
+  } FFTStruct;
 
 typedef struct
   {
@@ -179,7 +203,9 @@ typedef struct
     Real_t ADMM_mu;
 
     int32_t Head_MaxIter; 
-    
+    int32_t DensUpdate_MaxIter;
+   
+    Real_t DensUpdate_thresh; 
     Real_t Head_threshold; 
   } TomoInputs;
 

@@ -219,24 +219,39 @@ error:
 
 int32_t write_ObjectProjOff2TiffBinPerIter (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr)
 {
-	int32_t size, flag = 0;
+	int32_t flag = 0;
 	int dimTiff[4];
 	
 	char object_file[100];
 
-		size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
-
-		if (write_SharedBinFile_At (MAGOBJECT_FILENAME, &(ScannedObjectPtr->MagPotentials[1][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
-		if (write_SharedBinFile_At (ELECOBJECT_FILENAME, &(ScannedObjectPtr->ElecPotentials[1][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;
-
+	/*	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;*/
+#ifdef VFET_DENSITY_RECON 
+		Write2Bin (MAGNETIZATION_FILENAME, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 3, sizeof(Real_arr_t), &(ScannedObjectPtr->Magnetization[0][0][0][0]), TomoInputsPtr->debug_file_ptr);
+		Write2Bin (ELECCHARGEDENSITY_FILENAME, 1, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, sizeof(Real_arr_t), &(ScannedObjectPtr->ChargeDensity[0][0][0]), TomoInputsPtr->debug_file_ptr);
+/*		if (write_SharedBinFile_At (MAGNETIZATION_FILENAME, &(ScannedObjectPtr->Magnetization[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
+		if (write_SharedBinFile_At (ELECCHARGEDENSITY_FILENAME, &(ScannedObjectPtr->ChargeDensity[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;*/
+#endif
+		Write2Bin (MAGVECPOT_FILENAME, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 3, sizeof(Real_arr_t), &(ScannedObjectPtr->MagPotentials[0][0][0][0]), TomoInputsPtr->debug_file_ptr);
+		Write2Bin (ELECPOT_FILENAME, 1, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, sizeof(Real_arr_t), &(ScannedObjectPtr->ElecPotentials[0][0][0]), TomoInputsPtr->debug_file_ptr);
+/*		if (write_SharedBinFile_At (MAGVECPOT_FILENAME, &(ScannedObjectPtr->MagPotentials[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
+		if (write_SharedBinFile_At (ELECPOT_FILENAME, &(ScannedObjectPtr->ElecPotentials[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;*/
 		if (TomoInputsPtr->Write2Tiff == 1)
 		{
+#ifdef VFET_DENSITY_RECON
 				dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x; dimTiff[3] = 3;		
-				sprintf (object_file, "%s_n%d", MAGOBJECT_FILENAME, TomoInputsPtr->node_rank);
-				if(WriteMultiDimArray2Tiff (object_file, dimTiff, 1, 3, 0, 2, &(ScannedObjectPtr->MagPotentials[1][0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) flag = -1;
+				sprintf (object_file, "%s_n%d", MAGNETIZATION_FILENAME, TomoInputsPtr->node_rank);
+				if(WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 3, 1, 2, &(ScannedObjectPtr->Magnetization[0][0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) flag = -1;
 				dimTiff[0] = 1; dimTiff[1] = ScannedObjectPtr->N_z; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;		
-				sprintf (object_file, "%s_n%d", ELECOBJECT_FILENAME, TomoInputsPtr->node_rank);
-				if(WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 2, 1, 3, &(ScannedObjectPtr->ElecPotentials[1][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) flag = -1;
+				sprintf (object_file, "%s_n%d", ELECCHARGEDENSITY_FILENAME, TomoInputsPtr->node_rank);
+				if(WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->ChargeDensity[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) flag = -1;
+#endif
+				dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x; dimTiff[3] = 3;		
+				sprintf (object_file, "%s_n%d", MAGVECPOT_FILENAME, TomoInputsPtr->node_rank);
+				if(WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 3, 1, 2, &(ScannedObjectPtr->MagPotentials[0][0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) flag = -1;
+				dimTiff[0] = 1; dimTiff[1] = ScannedObjectPtr->N_z; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;		
+				sprintf (object_file, "%s_n%d", ELECPOT_FILENAME, TomoInputsPtr->node_rank);
+				if(WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->ElecPotentials[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr)) flag = -1;
+
 		}
 			/*Changed above line so that output image is scaled from min to max*/
 

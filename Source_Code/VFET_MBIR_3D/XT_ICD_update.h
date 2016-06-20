@@ -37,7 +37,7 @@
 
 #include "XT_Structures.h"
 
-int ICD_BackProject(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr);
+int ICD_BackProject(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, FFTStruct* fftptr);
 int32_t find_max(int32_t* array_in, int32_t num);
 
 #endif /*#ifndef XT_ICD_UPDATE_H*/

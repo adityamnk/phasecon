@@ -54,9 +54,10 @@
 #include "XT_CmplxArith.h"
 #include "XT_FresnelTran.h"
 #include "XT_MPIIO.h"
+#include "XT_DensityUpdate.h"
 
 /*generates projection data from phantom*/
-int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, float *data_unflip_x, float* data_flip_x, float* data_unflip_y, float* data_flip_y)
+int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, float *data_unflip_x, float* data_flip_x, float* data_unflip_y, float* data_flip_y)
 {
 	FILE *fp;
 	long int stream_offset, size, result;
@@ -66,171 +67,224 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	int dimTiff[4];
 	Real_t val, MagPhaseMultiple, ElecPhaseMultiple; Real_arr_t *objptr;
 
-	MagPhaseMultiple = TomoInputsPtr->MagPhaseMultiple; 
-	ElecPhaseMultiple = TomoInputsPtr->ElecPhaseMultiple; 
+	MagPhaseMultiple = InpPtr->MagPhaseMultiple; 
+	ElecPhaseMultiple = InpPtr->ElecPhaseMultiple; 
 
-	Real_arr_t**** magobject = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 3);
-	Real_arr_t*** elecobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+#ifdef VFET_DENSITY_RECON 
+	Real_arr_t**** magobject = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
+	Real_arr_t*** elecobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
+#endif
+	Real_arr_t**** magpot = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
+	Real_arr_t*** elecpot = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
 
-  	memset(data_unflip_x, 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));
-  	memset(data_flip_x, 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));
-  	memset(data_unflip_y, 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));
-  	memset(data_flip_y, 0, SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r*sizeof(float));
-/*	Real_arr_t*** realmagobject = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 3);
-	Real_arr_t*** realelecobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+  	memset(data_unflip_x, 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(float));
+  	memset(data_flip_x, 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(float));
+  	memset(data_unflip_y, 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(float));
+  	memset(data_flip_y, 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(float));
+/*	Real_arr_t*** realmagobject = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
+	Real_arr_t*** realelecobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
 */
 	
 	/*AvgNumXElements over estimates the total number of entries in a single column of A matrix when indexed by both voxel and angle*/
-  	AvgNumXElements = (uint8_t)ceil(3*ScannedObjectPtr->delta_xy/(SinogramPtr->delta_r));
-	SinogramPtr->DetectorResponse = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinogramPtr->N_p, DETECTOR_RESPONSE_BINS+1);
-	SinogramPtr->ZLineResponse = (Real_arr_t *)get_spc(DETECTOR_RESPONSE_BINS + 1, sizeof(Real_arr_t));
-	DetectorResponseProfile (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
-	ZLineResponseProfile (SinogramPtr, ScannedObjectPtr, TomoInputsPtr);
+  	AvgNumXElements = (uint8_t)ceil(3*ObjPtr->delta_xy/(SinoPtr->delta_r) + 2);
+	SinoPtr->DetectorResponse = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinoPtr->N_p, DETECTOR_RESPONSE_BINS+1);
+	SinoPtr->ZLineResponse = (Real_arr_t *)get_spc(DETECTOR_RESPONSE_BINS + 1, sizeof(Real_arr_t));
+	DetectorResponseProfile (SinoPtr, ObjPtr, InpPtr);
+	ZLineResponseProfile (SinoPtr, ObjPtr, InpPtr);
 	
-  	AvgNumZElements = (uint8_t)((ScannedObjectPtr->delta_z/SinogramPtr->delta_t) + 2);
+  	AvgNumZElements = (uint8_t)((ObjPtr->delta_z/SinoPtr->delta_t) + 2);
 	
-	AMatrixCol* VoxelLineResponse = (AMatrixCol*)get_spc(ScannedObjectPtr->N_z,sizeof(AMatrixCol));
-	for (t = 0; t < ScannedObjectPtr->N_z; t++){
+	AMatrixCol* VoxelLineResponse = (AMatrixCol*)get_spc(ObjPtr->N_z,sizeof(AMatrixCol));
+	for (t = 0; t < ObjPtr->N_z; t++){
     		VoxelLineResponse[t].values = (Real_t*)get_spc(AvgNumZElements, sizeof(Real_t));
     		VoxelLineResponse[t].index = (int32_t*)get_spc(AvgNumZElements, sizeof(int32_t));
 	}
-	storeVoxelLineResponse(VoxelLineResponse, ScannedObjectPtr, SinogramPtr);
+	storeVoxelLineResponse(VoxelLineResponse, ObjPtr, SinoPtr);
 
-	r_subsmpl = ScannedObjectPtr->N_x/SinogramPtr->N_r;
-	t_subsmpl = ScannedObjectPtr->N_z/SinogramPtr->N_t;
+	r_subsmpl = ObjPtr->N_x/SinoPtr->N_r;
+	t_subsmpl = ObjPtr->N_z/SinoPtr->N_t;
 
-	sprintf(phantom_file, "%s.bin", PHANTOM_MAGOBJECT_FILENAME);
+#ifdef VFET_DENSITY_RECON
+	sprintf(phantom_file, "%s.bin", PHANTOM_MAGDENSITY_FILENAME);
+#else 
+	sprintf(phantom_file, "%s.bin", PHANTOM_MAGVECPOT_FILENAME);
+#endif
 	fp = fopen (phantom_file, "rb");
-	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
-	size = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*3;
-	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "Forward projecting mag phantom ...\n");	
-/*	stream_offset = (long int)PHANTOM_OFFSET*(long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_num;  */
-	stream_offset = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
+	check_error(fp==NULL, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
+	size = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x*3;
+	check_info(InpPtr->node_rank==0,InpPtr->debug_file_ptr, "Forward projecting mag phantom ...\n");	
+/*	stream_offset = (long int)PHANTOM_OFFSET*(long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x*(long int)InpPtr->node_num;  */
+	stream_offset = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x*(long int)InpPtr->node_rank;
 	result = fseek (fp, stream_offset*sizeof(Real_arr_t), SEEK_SET);
-  	check_error(result != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
+  	check_error(result != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
+#ifdef VFET_DENSITY_RECON
 	result = fread (&(magobject[0][0][0][0]), sizeof(Real_arr_t), size, fp);
-  	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
+#else
+	result = fread (&(magpot[0][0][0][0]), sizeof(Real_arr_t), size, fp);
+#endif
+  	check_error(result != size, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
 	fclose(fp);	
 	
-	sprintf(phantom_file, "%s.bin", PHANTOM_ELECOBJECT_FILENAME);
+#ifdef VFET_DENSITY_RECON
+	sprintf(phantom_file, "%s.bin", PHANTOM_ELECPOT_FILENAME);
+#else
+	sprintf(phantom_file, "%s.bin", PHANTOM_ELECPOT_FILENAME);
+#endif
 	fp = fopen (phantom_file, "rb");
-	check_error(fp==NULL, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
-	size = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x;
-	check_info(TomoInputsPtr->node_rank==0,TomoInputsPtr->debug_file_ptr, "Forward projecting elec phantom ...\n");	
-	stream_offset = (long int)ScannedObjectPtr->N_z*(long int)ScannedObjectPtr->N_y*(long int)ScannedObjectPtr->N_x*(long int)TomoInputsPtr->node_rank;
+	check_error(fp==NULL, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
+	size = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x;
+	check_info(InpPtr->node_rank==0,InpPtr->debug_file_ptr, "Forward projecting elec phantom ...\n");	
+	stream_offset = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x*(long int)InpPtr->node_rank;
 	result = fseek (fp, stream_offset*sizeof(Real_arr_t), SEEK_SET);
-  	check_error(result != 0, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
+  	check_error(result != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
+#ifdef VFET_DENSITY_RECON
 	result = fread (&(elecobject[0][0][0]), sizeof(Real_arr_t), size, fp);
-  	check_error(result != size, TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
+#else
+	result = fread (&(elecpot[0][0][0]), sizeof(Real_arr_t), size, fp);
+#endif
+  	check_error(result != size, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
+	fclose(fp);	
+
+#ifdef VFET_DENSITY_RECON
+  	compute_crossprodtran (magobject, elecobject, magpot, elecpot, ObjPtr->MagFilt, ObjPtr->ElecFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
+#endif
+	
+	fp = fopen (phantom_file, "rb");
+	check_error(fp==NULL, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
+	size = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x;
+	check_info(InpPtr->node_rank==0,InpPtr->debug_file_ptr, "Forward projecting elec phantom ...\n");	
+	stream_offset = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x*(long int)InpPtr->node_rank;
+	result = fseek (fp, stream_offset*sizeof(Real_arr_t), SEEK_SET);
+  	check_error(result != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
+	result = fread (&(elecpot[0][0][0]), sizeof(Real_arr_t), size, fp);
+  	check_error(result != size, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
 	fclose(fp);	
 	
   	#pragma omp parallel for private(i,j,k,slice,idx,val,m,n,data_idx)
-	for (i=0; i<SinogramPtr->N_p; i++){
+	for (i=0; i<SinoPtr->N_p; i++){
 		AMatrixCol AMatrix;
   		AMatrix.values = (Real_t*)get_spc((int32_t)AvgNumXElements,sizeof(Real_t));
   		AMatrix.index  = (int32_t*)get_spc((int32_t)AvgNumXElements,sizeof(int32_t));
 
-		for (j=0; j<ScannedObjectPtr->N_z; j++)
-		for (k=0; k<ScannedObjectPtr->N_y; k++){	
-	   	    	calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &AMatrix, j, k, i); 
-                	for (slice=0; slice<ScannedObjectPtr->N_x; slice++){
+		for (j=0; j<ObjPtr->N_z; j++)
+		for (k=0; k<ObjPtr->N_y; k++){	
+	   	    	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &AMatrix, j, k, i); 
+                	for (slice=0; slice<ObjPtr->N_x; slice++){
 	     	          	for (m=0; m<AMatrix.count; m++){
                             		idx=AMatrix.index[m];
                             		val=AMatrix.values[m];
                             		for (n=0; n<VoxelLineResponse[slice].count; n++)
 					{
-						data_idx = i*SinogramPtr->N_t*SinogramPtr->N_r + idx*SinogramPtr->N_t + VoxelLineResponse[slice].index[n];
+						data_idx = i*SinoPtr->N_t*SinoPtr->N_r + idx*SinoPtr->N_t + VoxelLineResponse[slice].index[n];
 
-                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magobject[j][k][slice][0]*SinogramPtr->cosine[i];
-                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magobject[j][k][slice][1]*(-SinogramPtr->sine[i]);
-                                    		data_unflip_x[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecobject[j][k][slice];
+                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][k][slice][0]*SinoPtr->cosine[i];
+                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][k][slice][1]*(-SinoPtr->sine[i]);
+                                    		data_unflip_x[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecpot[j][k][slice];
                                     		
-                                    		data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magobject[j][k][slice][0])*SinogramPtr->cosine[i];
-						data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magobject[j][k][slice][1])*(-SinogramPtr->sine[i]);
-                                    		data_flip_x[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecobject[j][k][slice];
+                                    		data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][k][slice][0])*SinoPtr->cosine[i];
+						data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][k][slice][1])*(-SinoPtr->sine[i]);
+                                    		data_flip_x[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecpot[j][k][slice];
 	     				}
 				}
 			}
 	  	 }
 		
-		for (j=0; j<ScannedObjectPtr->N_z; j++)
-		for (k=0; k<ScannedObjectPtr->N_x; k++){	
-	   	    	calcAMatrixColumnforAngle(SinogramPtr, ScannedObjectPtr, SinogramPtr->DetectorResponse, &AMatrix, j, k, i); 
-                	for (slice=0; slice<ScannedObjectPtr->N_y; slice++){
+		for (j=0; j<ObjPtr->N_z; j++)
+		for (k=0; k<ObjPtr->N_x; k++){	
+	   	    	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &AMatrix, j, k, i); 
+                	for (slice=0; slice<ObjPtr->N_y; slice++){
 	     	          	for (m=0; m<AMatrix.count; m++){
                             		idx=AMatrix.index[m];
                             		val=AMatrix.values[m];
                             		for (n=0; n<VoxelLineResponse[slice].count; n++)
 					{
-						data_idx = i*SinogramPtr->N_t*SinogramPtr->N_r + VoxelLineResponse[slice].index[n]*SinogramPtr->N_r + idx;
+						data_idx = i*SinoPtr->N_t*SinoPtr->N_r + VoxelLineResponse[slice].index[n]*SinoPtr->N_r + idx;
                                     	
-                                    		data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magobject[j][slice][k][0]*SinogramPtr->cosine[i];
-						data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magobject[j][slice][k][2]*(-SinogramPtr->sine[i]);
-                                    		data_unflip_y[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecobject[j][slice][k];
+                                    		data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][slice][k][0]*SinoPtr->cosine[i];
+						data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][slice][k][2]*(-SinoPtr->sine[i]);
+                                    		data_unflip_y[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecpot[j][slice][k];
                                     		
-                                    		data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magobject[j][slice][k][0])*SinogramPtr->cosine[i];
-						data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magobject[j][slice][k][2])*(-SinogramPtr->sine[i]);
-                                    		data_flip_y[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecobject[j][slice][k];
+                                    		data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][slice][k][0])*SinoPtr->cosine[i];
+						data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][slice][k][2])*(-SinoPtr->sine[i]);
+                                    		data_flip_y[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecpot[j][slice][k];
 	     				}
 				}
 			}
 	  	 }
-
 
 		free(AMatrix.values);
 		free(AMatrix.index);
 	}
 
-	if (TomoInputsPtr->Write2Tiff == 1)
+	if (InpPtr->Write2Tiff == 1)
 	{
-		Real_arr_t* tifarray = (Real_arr_t*)get_spc(SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r, sizeof(Real_arr_t));
+		Real_arr_t* tifarray = (Real_arr_t*)get_spc(SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r, sizeof(Real_arr_t));
 		
-		size = SinogramPtr->N_p*SinogramPtr->N_t*SinogramPtr->N_r;
-		dimTiff[0] = 1; dimTiff[1] = SinogramPtr->N_p; dimTiff[2] = SinogramPtr->N_r; dimTiff[3] = SinogramPtr->N_t;
+		size = SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r;
+		dimTiff[0] = 1; dimTiff[1] = SinoPtr->N_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
 
 		for (i = 0; i < size; i++) tifarray[i] = data_unflip_x[i];
-		if (WriteMultiDimArray2Tiff ("sim_data_unflip_x", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff ("sim_data_unflip_x", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
 
 		for (i = 0; i < size; i++) tifarray[i] = data_flip_x[i];
-		if (WriteMultiDimArray2Tiff ("sim_data_flip_x", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff ("sim_data_flip_x", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
 		
-		dimTiff[0] = 1; dimTiff[1] = SinogramPtr->N_p; dimTiff[2] = SinogramPtr->N_t; dimTiff[3] = SinogramPtr->N_r;
+		dimTiff[0] = 1; dimTiff[1] = SinoPtr->N_p; dimTiff[2] = SinoPtr->N_t; dimTiff[3] = SinoPtr->N_r;
 		for (i = 0; i < size; i++) tifarray[i] = data_unflip_y[i];
-		if (WriteMultiDimArray2Tiff ("sim_data_unflip_y", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff ("sim_data_unflip_y", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
 		
 		for (i = 0; i < size; i++) tifarray[i] = data_flip_y[i];
-		if (WriteMultiDimArray2Tiff ("sim_data_flip_y", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff ("sim_data_flip_y", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
 
 		free(tifarray); 
-		tifarray = (Real_arr_t*)get_spc(ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x*3, sizeof(Real_arr_t));	
+		tifarray = (Real_arr_t*)get_spc(ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3, sizeof(Real_arr_t));	
 
-		size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x*3;	
-		dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x; dimTiff[3] = 3;
+		size = ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3;	
+		dimTiff[0] = ObjPtr->N_z; dimTiff[1] = ObjPtr->N_y; dimTiff[2] = ObjPtr->N_x; dimTiff[3] = 3;
 
+#ifdef VFET_DENSITY_RECON
 		objptr = &(magobject[0][0][0][0]);
 		for (i = 0; i < size; i++) tifarray[i] = objptr[i]; 
-		if (WriteMultiDimArray2Tiff (PHANTOM_MAGOBJECT_FILENAME, dimTiff, 0, 3, 1, 2, tifarray, 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff (PHANTOM_MAGDENSITY_FILENAME, dimTiff, 0, 3, 1, 2, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
+#endif
 		
-		size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;	
-		dimTiff[0] = 1; dimTiff[1] = ScannedObjectPtr->N_z; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;
+		objptr = &(magpot[0][0][0][0]);
+		for (i = 0; i < size; i++) tifarray[i] = objptr[i]; 
+		if (WriteMultiDimArray2Tiff (PHANTOM_MAGVECPOT_FILENAME, dimTiff, 0, 3, 1, 2, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
+		
+		size = ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x;	
+		dimTiff[0] = 1; dimTiff[1] = ObjPtr->N_z; dimTiff[2] = ObjPtr->N_y; dimTiff[3] = ObjPtr->N_x;
+
+#ifdef VFET_DENSITY_RECON
 		objptr = &(elecobject[0][0][0]);
 		for (i = 0; i < size; i++) tifarray[i] = objptr[i]; 
-		if (WriteMultiDimArray2Tiff (PHANTOM_ELECOBJECT_FILENAME, dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, TomoInputsPtr->debug_file_ptr)) {goto error;}
+		if (WriteMultiDimArray2Tiff (PHANTOM_ELECDENSITY_FILENAME, dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
+#endif
+		
+		objptr = &(elecpot[0][0][0]);
+		for (i = 0; i < size; i++) tifarray[i] = objptr[i]; 
+		if (WriteMultiDimArray2Tiff (PHANTOM_ELECPOT_FILENAME, dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
 		
 		free(tifarray); 
 	}
 	
-/*	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
-	write_SharedBinFile_At ("mag_phantom", &(realmagobject[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);
-	write_SharedBinFile_At ("phase_phantom", &(realphaseobject[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr);*/
+/*	size = ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x;
+	write_SharedBinFile_At ("mag_phantom", &(realmagobject[0][0][0]), InpPtr->node_rank*size, size, InpPtr->debug_file_ptr);
+	write_SharedBinFile_At ("phase_phantom", &(realphaseobject[0][0][0]), InpPtr->node_rank*size, size, InpPtr->debug_file_ptr);*/
 	
-        free(VoxelLineResponse->values);
-        free(VoxelLineResponse->index);
-	multifree(SinogramPtr->DetectorResponse,2);
-	free(SinogramPtr->ZLineResponse);
+	for (t = 0; t < ObjPtr->N_z; t++){
+        	free(VoxelLineResponse[t].values);
+        	free(VoxelLineResponse[t].index);
+	}
+	multifree(SinoPtr->DetectorResponse,2);
+	free(SinoPtr->ZLineResponse);
         free(VoxelLineResponse);
+#ifdef VFET_DENSITY_RECON 
 	multifree(magobject,4);
 	multifree(elecobject,3);
+#endif
+	multifree(magpot,4);
+	multifree(elecpot,3);
 	/*multifree(realmagobject,3);
 	multifree(realphaseobject,3);*/
 
@@ -239,10 +293,12 @@ int32_t ForwardProject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, 
 	multifree(fftback_freq, 3); */
 	return (0);
 error:
-        free(VoxelLineResponse->values);
-        free(VoxelLineResponse->index);
-	multifree(SinogramPtr->DetectorResponse,2);
-	free(SinogramPtr->ZLineResponse);
+	for (t = 0; t < ObjPtr->N_z; t++){
+        	free(VoxelLineResponse[t].values);
+        	free(VoxelLineResponse[t].index);
+	}
+	multifree(SinoPtr->DetectorResponse,2);
+	free(SinoPtr->ZLineResponse);
         free(VoxelLineResponse);
 	multifree(magobject,4);
 	multifree(elecobject,3);

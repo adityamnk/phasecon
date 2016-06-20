@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
-#include <mpi.h>
+/*#include <mpi.h>*/
 #include <stdlib.h>
 #include <getopt.h>
 #include "XT_Main.h"
@@ -20,10 +20,10 @@ int main(int argc, char **argv)
 	FILE *debug_msg_ptr;
 
 	/*initialize MPI process.*/	
-	MPI_Init(&argc, &argv);
+	/*MPI_Init(&argc, &argv);*/
 	/*Find the total number of nodes.*/
-	MPI_Comm_size(MPI_COMM_WORLD, &nodes_num);
-	MPI_Comm_rank(MPI_COMM_WORLD, &nodes_rank);
+	/*MPI_Comm_size(MPI_COMM_WORLD, &nodes_num);
+	MPI_Comm_rank(MPI_COMM_WORLD, &nodes_rank);*/
 	
 	/*All messages to help debug any potential mistakes or bugs are written to debug.log*/
 	debug_msg_ptr = fopen("debug.log", "w");
@@ -52,48 +52,40 @@ int main(int argc, char **argv)
 	free(proj_angles);
 
 	fclose (debug_msg_ptr); 
-	MPI_Finalize();
+	/*MPI_Finalize();*/
 	return (0);
 }
 
-void read_BinFile (char filename[100], float* data, int32_t offset, int32_t size, FILE* debug_file_ptr)
+void read_BinFile (char filename[100], float* data, size_t offset, size_t size, FILE* debug_file_ptr)
 {
-	MPI_File fh;
-	MPI_Status status;
-	char BinFilename[100];
-	int32_t len;
+  	char file[100];
+	FILE* fp;
+	size_t result;
+  	sprintf(file,"%s.bin", filename);
 
-    	sprintf(BinFilename, "%s.bin", filename);
-	MPI_File_open(MPI_COMM_WORLD, BinFilename, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
-	MPI_File_read_at(fh, offset*sizeof(float), data, size, MPI_FLOAT, &status);
-	MPI_Get_count(&status, MPI_FLOAT, &len);
-	MPI_File_close(&fh);
-    	if(len == MPI_UNDEFINED || len != size)
+	fp = fopen (file, "rb" );
+	if(fp == NULL)
 	{
-		fprintf (debug_file_ptr, "ERROR: read_BinFile: Read %d number of elements from the file %s at an offset of %d bytes.\n. However, required number of elements is %d.", len, filename, offset, size);
-		exit(1);
+		fprintf(debug_file_ptr, "Error in reading file %s.\n", file);
+		exit(-1);
 	}
-}
 
-void write_BinFile (char filename[100], float* data, int32_t offset, int32_t size, FILE* debug_file_ptr)
-{
-	MPI_File fhw;
-	MPI_Status status;
-	char BinFilename[100];
-	int32_t len;
+	result = fseek(fp, offset*sizeof(float), SEEK_SET);
 
-    	sprintf(BinFilename, "%s.bin", filename);
-	MPI_File_open(MPI_COMM_WORLD, BinFilename, MPI_MODE_CREATE|MPI_MODE_WRONLY, MPI_INFO_NULL, &fhw);
-	MPI_File_write_at(fhw, offset*sizeof(float), data, size, MPI_FLOAT, &status);
-	MPI_Get_count(&status, MPI_FLOAT, &len);
-	MPI_File_close(&fhw);
-    	if(len == MPI_UNDEFINED || len != size)
+	if (result != 0)
 	{
-		fprintf (debug_file_ptr, "ERROR: write_BinFile: Wrote %d number of elements to the file %s at an offset of %d bytes.\n. However, actual number of elements to be written is %d.", len, filename, offset, size);
-		exit(1);
+		fprintf(debug_file_ptr, "Could not seek the specified offset in file %s\n", file);
 	}
-}
 
+	result = fread (data, sizeof(float), size, fp);
+
+  	if(result != size)
+	{
+		fprintf(debug_file_ptr, "Number of elements read does not match required, required = %zu, read = %zu\n", size, result);
+		exit(-1);
+	}
+	fclose(fp);
+}
 
 void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_y, float **data_flip_y, float **proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, FILE* debug_file_ptr)
 {
@@ -105,8 +97,9 @@ void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_
 	int32_t offset, size;
 	int32_t i, idx, rank, num_nodes;
 
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &num_nodes);
+/*	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &num_nodes);*/
+	rank = 0; num_nodes = 1;
 	*proj_angles = (float*)calloc (proj_num, sizeof(float));
 	
 	*data_unflip_x = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
@@ -114,16 +107,16 @@ void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_
 	*data_unflip_y = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 	*data_flip_y = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 
-	idx = 0;	
+	/*idx = 0;	
 	for (i = -(proj_num-1); i <= (proj_num-1); i=i+2)
 	{
 		(*proj_angles)[idx] = M_PI*((float)(i))/180;
 		idx++;
 	}
 	
-	vfettomo_forward_project (data_unflip_x, data_flip_x, data_unflip_y, data_flip_y, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);
+	vfettomo_forward_project (data_unflip_x, data_flip_x, data_unflip_y, data_flip_y, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);*/
 	
-/*	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
+	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
 	size = proj_rows*proj_cols/num_nodes;
 	for (i = 0; i < proj_num; i++)
 	{
@@ -132,7 +125,7 @@ void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_
 		read_BinFile (data_flip_x_filename, *data_flip_x + i*size, offset, size, debug_file_ptr);
 		read_BinFile (data_unflip_y_filename, *data_unflip_y + i*size, offset, size, debug_file_ptr);
 		read_BinFile (data_flip_y_filename, *data_flip_y + i*size, offset, size, debug_file_ptr);
-	}*/
+	}
 }
 
 void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, float *vox_wid, float *rot_center, float *mag_sigma, float *mag_c, float *elec_sigma, float *elec_c, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr)
