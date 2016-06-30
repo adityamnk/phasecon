@@ -83,7 +83,8 @@ void upsample_object_bilinear_2D (Real_arr_t**** MagPotentials, Real_arr_t*** El
     	}
   	}
  }
-  
+ 
+#ifdef VFET_ELEC_RECON 
   for (slice=0; slice < N_z; slice++){
     for (j=0; j < N_y; j++){
       buffer[j][0] = ElecInit[slice][j][0];
@@ -108,6 +109,7 @@ void upsample_object_bilinear_2D (Real_arr_t**** MagPotentials, Real_arr_t*** El
       }
     }
   }
+#endif
   multifree(buffer,2);
 }
 
@@ -216,6 +218,7 @@ void upsample_object_bilinear_3D (Real_arr_t**** MagPotentials, Real_arr_t*** El
   	}
   }
   
+#ifdef VFET_ELEC_RECON 
   for (slice=0; slice < N_z; slice++){
     for (j=0; j < N_y; j++){
       buffer2D[slice][j][0] = ElecInit[slice][j][0];
@@ -254,6 +257,7 @@ void upsample_object_bilinear_3D (Real_arr_t**** MagPotentials, Real_arr_t*** El
     ElecPotentials[2*slice+z_off][j][k] = (buffer3D[slice-1][j][k] + 3.0*buffer3D[slice][j][k])/4.0;
     ElecPotentials[2*slice+1+z_off][j][k] = (3.0*buffer3D[slice][j][k] + buffer3D[slice+1][j][k])/4.0;
   }
+#endif
   
   multifree(buffer2D,3);
   multifree(buffer3D,3);
@@ -304,16 +308,11 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   for (k = 0; k < ScannedObjectPtr->N_y; k++)
   for (l = 0; l < ScannedObjectPtr->N_x; l++)
   {
-#ifdef VFET_DENSITY_RECON 
   	ScannedObjectPtr->Magnetization[j][k][l][0] = MAGOBJECT_INIT_VAL;
   	ScannedObjectPtr->Magnetization[j][k][l][1] = MAGOBJECT_INIT_VAL;
   	ScannedObjectPtr->Magnetization[j][k][l][2] = MAGOBJECT_INIT_VAL;
+#ifdef VFET_ELEC_RECON
   	ScannedObjectPtr->ChargeDensity[j][k][l] = ELECOBJECT_INIT_VAL;
-#else
-	ScannedObjectPtr->MagPotentials[j][k][l][0] = MAGOBJECT_INIT_VAL;
-  	ScannedObjectPtr->MagPotentials[j][k][l][1] = MAGOBJECT_INIT_VAL;
-  	ScannedObjectPtr->MagPotentials[j][k][l][2] = MAGOBJECT_INIT_VAL;
-  	ScannedObjectPtr->ElecPotentials[j][k][l] = ELECOBJECT_INIT_VAL;
 #endif
   }
 
@@ -329,18 +328,13 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
   }
   else if (TomoInputsPtr->initICD == 1)
   {
-#ifdef VFET_DENSITY_RECON
 	Read4mBin (MAGNETIZATION_FILENAME, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 3, sizeof(Real_arr_t), &(ScannedObjectPtr->Magnetization[0][0][0][0]), TomoInputsPtr->debug_file_ptr);
+#ifdef VFET_ELEC_RECON
 	Read4mBin (ELECCHARGEDENSITY_FILENAME, 1, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, sizeof(Real_arr_t), &(ScannedObjectPtr->ChargeDensity[0][0][0]), TomoInputsPtr->debug_file_ptr);
+#endif
 /*	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
 	if (read_SharedBinFile_At (MAGNETIZATION_FILENAME, &(ScannedObjectPtr->Magnetization[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
 	if (read_SharedBinFile_At (ELECCHARGEDENSITY_FILENAME, &(ScannedObjectPtr->ChargeDensity[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;*/
-#else	
-	Read4mBin (MAGVECPOT_FILENAME, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, 3, sizeof(Real_arr_t), &(ScannedObjectPtr->MagPotentials[0][0][0][0]), TomoInputsPtr->debug_file_ptr);
-	Read4mBin (ELECPOT_FILENAME, 1, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, sizeof(Real_arr_t), &(ScannedObjectPtr->ElecPotentials[0][0][0]), TomoInputsPtr->debug_file_ptr);
-	/*if (read_SharedBinFile_At (MAGVECPOT_FILENAME, &(ScannedObjectPtr->MagPotentials[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
-	if (read_SharedBinFile_At (ELECPOT_FILENAME, &(ScannedObjectPtr->ElecPotentials[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;*/
-#endif
 /*	if (TomoInputsPtr->initMagUpMap == 1)
       	{
 		size = TomoInputsPtr->num_z_blocks*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x;
@@ -352,49 +346,45 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
       	if (TomoInputsPtr->initICD == 3)
       	{
         	MagInit = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 3);
+#ifdef VFET_ELEC_RECON
         	ElecInit = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2);
+#endif
 	        check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Interpolating object using 3D bilinear interpolation.\n");
 			
 		/*size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x/8;*/
-#ifdef VFET_DENSITY_RECON
 		Read4mBin (MAGNETIZATION_FILENAME, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 3, sizeof(Real_arr_t), &(MagInit[0][0][0][0]), TomoInputsPtr->debug_file_ptr);
+#ifdef VFET_ELEC_RECON
 		Read4mBin (ELECCHARGEDENSITY_FILENAME, 1, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, sizeof(Real_arr_t), &(ElecInit[0][0][0]), TomoInputsPtr->debug_file_ptr);
+#endif
 /*		if (read_SharedBinFile_At (MAGNETIZATION_FILENAME, &(MagInit[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
 		if (read_SharedBinFile_At (ELECCHARGEDENSITY_FILENAME, &(ElecInit[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;*/
           	upsample_object_bilinear_3D (ScannedObjectPtr->Magnetization, ScannedObjectPtr->ChargeDensity, MagInit, ElecInit, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 0);
-#else	
-		Read4mBin (MAGVECPOT_FILENAME, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 3, sizeof(Real_arr_t), &(MagInit[0][0][0][0]), TomoInputsPtr->debug_file_ptr);
-		Read4mBin (ELECPOT_FILENAME, 1, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, sizeof(Real_arr_t), &(ElecInit[0][0][0]), TomoInputsPtr->debug_file_ptr);
-		/*if (read_SharedBinFile_At (MAGVECPOT_FILENAME, &(MagInit[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
-		if (read_SharedBinFile_At (ELECPOT_FILENAME, &(ElecInit[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;*/
-          	upsample_object_bilinear_3D (ScannedObjectPtr->MagPotentials, ScannedObjectPtr->ElecPotentials, MagInit, ElecInit, ScannedObjectPtr->N_z/2, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 1);
-#endif
          		 
 		multifree(MagInit, 4);
+#ifdef VFET_ELEC_RECON
 		multifree(ElecInit, 3);
+#endif
         	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Done with interpolating object using 3D bilinear interpolation.\n");
       	}
 	else
       	{
         	MagInit = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 3);
+#ifdef VFET_ELEC_RECON
         	ElecInit = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2);
+#endif
 	        check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Interpolating object using 2D bilinear interpolation.\n");
 /*	  	size = ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x/4;*/
-#ifdef VFET_DENSITY_RECON
 		Read4mBin (MAGNETIZATION_FILENAME, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 3, sizeof(Real_arr_t), &(MagInit[0][0][0][0]), TomoInputsPtr->debug_file_ptr);
+#ifdef VFET_ELEC_RECON
 		Read4mBin (ELECCHARGEDENSITY_FILENAME, 1, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, sizeof(Real_arr_t), &(ElecInit[0][0][0]), TomoInputsPtr->debug_file_ptr);
+#endif
 		/*if (read_SharedBinFile_At (MAGNETIZATION_FILENAME, &(MagInit[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
 		if (read_SharedBinFile_At (ELECCHARGEDENSITY_FILENAME, &(ElecInit[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;*/
           	upsample_object_bilinear_2D (ScannedObjectPtr->Magnetization, ScannedObjectPtr->ChargeDensity, MagInit, ElecInit, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2);
-#else	
-		Read4mBin (MAGVECPOT_FILENAME, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, 3, sizeof(Real_arr_t), &(MagInit[0][0][0][0]), TomoInputsPtr->debug_file_ptr);
-		Read4mBin (ELECPOT_FILENAME, 1, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2, sizeof(Real_arr_t), &(ElecInit[0][0][0]), TomoInputsPtr->debug_file_ptr);
-		/*if (read_SharedBinFile_At (MAGVECPOT_FILENAME, &(MagInit[0][0][0][0]), TomoInputsPtr->node_rank*size*3, size*3, TomoInputsPtr->debug_file_ptr)) flag = -1;
-		if (read_SharedBinFile_At (ELECPOT_FILENAME, &(ElecInit[0][0][0]), TomoInputsPtr->node_rank*size, size, TomoInputsPtr->debug_file_ptr)) flag = -1;*/
-          	upsample_object_bilinear_2D (ScannedObjectPtr->MagPotentials, ScannedObjectPtr->ElecPotentials, MagInit, ElecInit, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y/2, ScannedObjectPtr->N_x/2);
-#endif
         	multifree(MagInit,4);
+#ifdef VFET_ELEC_RECON
         	multifree(ElecInit,3);
+#endif
         	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Done with interpolating object using 2D bilinear interpolation.\n");
       	}
 /*        if (TomoInputsPtr->initMagUpMap == 1)
@@ -425,34 +415,16 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
           }*/
       }
   
-/*#ifdef INIT_GROUND_TRUTH_PHANTOM
-	if (TomoInputsPtr->initICD == 0)
-	dwnsmpl_init_phantom (ScannedObjectPtr->MagPotentials, ScannedObjectPtr->ElecPotentials, ScannedObjectPtr->MagPotGndTruth, ScannedObjectPtr->ElecPotGndTruth, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, PHANTOM_Z_SIZE/ScannedObjectPtr->N_z, PHANTOM_XY_SIZE/ScannedObjectPtr->N_y, PHANTOM_XY_SIZE/ScannedObjectPtr->N_x);
-#endif*/
-  /*	dimTiff[0] = 1; dimTiff[1] = TomoInputsPtr->num_z_blocks; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;
-  	sprintf(object_file, "%s_n%d", UPDATE_MAP_FILENAME, TomoInputsPtr->node_rank);
-  	if (TomoInputsPtr->Write2Tiff == 1)
-  		if (WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->UpdateMap[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr))
-			flag = -1;*/
-  
     	if (TomoInputsPtr->Write2Tiff == 1)
 	{	    	
-#ifdef VFET_DENSITY_RECON 
 		dimTiff[3] = 3; dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x;
 		sprintf (object_file, "%s_n%d", INIT_MAGOBJECT_FILENAME, TomoInputsPtr->node_rank);
     		if (WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 3, 1, 2, &(ScannedObjectPtr->Magnetization[0][0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr))flag = -1;
 	    		
+#ifdef VFET_ELEC_RECON 
 		dimTiff[0] = 1; dimTiff[1] = ScannedObjectPtr->N_z; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;
 		sprintf (object_file, "%s_n%d", INIT_ELECOBJECT_FILENAME, TomoInputsPtr->node_rank);
     		if (WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->ChargeDensity[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr))flag = -1;
-#else
-		dimTiff[3] = 3; dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x;
-		sprintf (object_file, "%s_n%d", INIT_MAGOBJECT_FILENAME, TomoInputsPtr->node_rank);
-    		if (WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 3, 1, 2, &(ScannedObjectPtr->MagPotentials[0][0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr))flag = -1;
-	    		
-		dimTiff[0] = 1; dimTiff[1] = ScannedObjectPtr->N_z; dimTiff[2] = ScannedObjectPtr->N_y; dimTiff[3] = ScannedObjectPtr->N_x;
-		sprintf (object_file, "%s_n%d", INIT_ELECOBJECT_FILENAME, TomoInputsPtr->node_rank);
-    		if (WriteMultiDimArray2Tiff (object_file, dimTiff, 0, 1, 2, 3, &(ScannedObjectPtr->ElecPotentials[0][0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr))flag = -1;
 #endif
 	}
 

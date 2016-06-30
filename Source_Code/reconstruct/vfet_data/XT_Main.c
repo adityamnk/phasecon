@@ -26,6 +26,8 @@ int main(int argc, char **argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &nodes_rank);*/
 	
 	/*All messages to help debug any potential mistakes or bugs are written to debug.log*/
+	nodes_num = 1; nodes_rank = 0;
+
 	debug_msg_ptr = fopen("debug.log", "w");
 	debug_msg_ptr = stdout;	
 	/*Read the command line arguments to determine the reconstruction parameters*/

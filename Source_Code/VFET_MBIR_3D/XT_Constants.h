@@ -55,6 +55,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 
 #define VFET_TWO_AXES
 #define VFET_DENSITY_RECON
+/*#define VFET_ELEC_RECON*/
 
 #define MAGOBJECT_INIT_VAL 0
 #define ELECOBJECT_INIT_VAL 0

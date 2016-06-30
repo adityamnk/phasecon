@@ -18,28 +18,32 @@ int32_t find_max(int32_t* array_in, int32_t num)
   return(maxnum);
 }
 
-void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino_Unflip_x, Real_arr_t*** ErrorSino_Flip_x, Real_arr_t*** ErrorSino_Unflip_y, Real_arr_t*** ErrorSino_Flip_y, AMatrixCol* AMatrixPtr_X, AMatrixCol* AMatrixPtr_Y, /*AMatrixCol* VoxelLineResponse,*/ Real_t Mag3D_Nhood[3][3][3][3], Real_t Elec3D_Nhood[3][3][3], bool BDFlag_3D[3][3][3], Real_t MagPrior[3], Real_t ElecPrior, int32_t slice, int32_t j_new, int32_t k_new)
+void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino_Unflip_x, Real_arr_t*** ErrorSino_Flip_x, Real_arr_t*** ErrorSino_Unflip_y, Real_arr_t*** ErrorSino_Flip_y, AMatrixCol* AMatrixPtr_X, AMatrixCol* AMatrixPtr_Y, Real_t MagPrior[3], Real_t ElecPrior, int32_t slice, int32_t j_new, int32_t k_new)
 {
   	int32_t p, q, r, z_overlap_num;
-	Real_t VMag[3], VElec, THETA1Mag[3], THETA1Elec, THETA2Mag[3][3], THETA2Elec, ProjectionEntry, ProjEntryComp;
+	Real_t VMag[3], THETA1Mag[3], THETA2Mag[3][3], ProjectionEntry, ProjEntryComp, THETA1Elec, THETA2Elec;
   	int32_t i_r, i_t;
 
         VMag[0] = ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0]; /*Store the present value of the voxel*/
         VMag[1] = ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1]; /*Store the present value of the voxel*/
         VMag[2] = ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2]; /*Store the present value of the voxel*/
-        VElec = ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]; /*Store the present value of the voxel*/
 
 	z_overlap_num = SinogramPtr->z_overlap_num;
 
 	THETA1Mag[0] = 0.0;
 	THETA1Mag[1] = 0.0;
 	THETA1Mag[2] = 0.0;
-	THETA1Elec = 0.0;
 
 	THETA2Mag[0][0] = 0.0; THETA2Mag[0][1] = 0.0; THETA2Mag[0][2] = 0.0;
 	THETA2Mag[1][0] = 0.0; THETA2Mag[1][1] = 0.0; THETA2Mag[1][2] = 0.0;
 	THETA2Mag[2][0] = 0.0; THETA2Mag[2][1] = 0.0; THETA2Mag[2][2] = 0.0;
+
+#ifdef VFET_ELEC_RECON
+	Real_t VElec;
+        VElec = ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]; /*Store the present value of the voxel*/
+	THETA1Elec = 0.0;
 	THETA2Elec = 0.0;
+#endif	
 
 	for (p = 0; p < SinogramPtr->N_p; p++){
 		for (q = 0; q < AMatrixPtr_X[p].count; q++)
@@ -52,19 +56,30 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 			{ 
 				/*i_t = VoxelLineResponse[slice].index[r];*/
 				i_t = k_new*z_overlap_num + r;
-				THETA2Mag[0][1] += -2*ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight*TomoInputsPtr->MagPhaseMultiple*TomoInputsPtr->MagPhaseMultiple;
+				THETA2Mag[0][1] += -ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight*TomoInputsPtr->MagPhaseMultiple*TomoInputsPtr->MagPhaseMultiple;
 					
 				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
-	        	   	THETA2Mag[0][0] += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
-               			THETA1Mag[0] += -((ErrorSino_Unflip_x[p][i_r][i_t]-ErrorSino_Flip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+	        	   	THETA2Mag[0][0] += ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
+               			THETA1Mag[0] += -((ErrorSino_Unflip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
 				
 				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
-				THETA2Mag[1][1] += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
-               			THETA1Mag[1] += -((ErrorSino_Unflip_x[p][i_r][i_t]-ErrorSino_Flip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+				THETA2Mag[1][1] += ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
+               			THETA1Mag[1] += -((ErrorSino_Unflip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+#ifdef VFET_ELEC_RECON				
+				THETA2Mag[0][1] += -ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight*TomoInputsPtr->MagPhaseMultiple*TomoInputsPtr->MagPhaseMultiple;
+					
+				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
+	        	   	THETA2Mag[0][0] += ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
+               			THETA1Mag[0] += -((-ErrorSino_Flip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+				
+				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
+				THETA2Mag[1][1] += ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
+               			THETA1Mag[1] += -((-ErrorSino_Flip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
 				
 				ProjEntryComp = ProjectionEntry*TomoInputsPtr->ElecPhaseMultiple;
 	        	   	THETA2Elec += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
                			THETA1Elec += -((ErrorSino_Unflip_x[p][i_r][i_t]+ErrorSino_Flip_x[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+#endif
             		}
 		}
         }
@@ -81,19 +96,31 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 			{ 
 				/*i_t = VoxelLineResponse[slice].index[r];*/
 				i_t = j_new*z_overlap_num + r;
-				THETA2Mag[0][2] += -2*ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight*TomoInputsPtr->MagPhaseMultiple*TomoInputsPtr->MagPhaseMultiple;
+				THETA2Mag[0][2] += -ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight*TomoInputsPtr->MagPhaseMultiple*TomoInputsPtr->MagPhaseMultiple;
 					
 				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
-	        	   	THETA2Mag[0][0] += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
-               			THETA1Mag[0] += -((ErrorSino_Unflip_y[p][i_r][i_t]-ErrorSino_Flip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+	        	   	THETA2Mag[0][0] += ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
+               			THETA1Mag[0] += -((ErrorSino_Unflip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
 				
 				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
-				THETA2Mag[2][2] += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
-               			THETA1Mag[2] += -((ErrorSino_Unflip_y[p][i_r][i_t]-ErrorSino_Flip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+				THETA2Mag[2][2] += ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
+               			THETA1Mag[2] += -((ErrorSino_Unflip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+				
+#ifdef VFET_ELEC_RECON				
+				THETA2Mag[0][2] += -ProjectionEntry*ProjectionEntry*SinogramPtr->sine[p]*SinogramPtr->cosine[p]*TomoInputsPtr->Weight*TomoInputsPtr->MagPhaseMultiple*TomoInputsPtr->MagPhaseMultiple;
+					
+				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
+	        	   	THETA2Mag[0][0] += ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
+               			THETA1Mag[0] += -((-ErrorSino_Flip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+				
+				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
+				THETA2Mag[2][2] += ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
+               			THETA1Mag[2] += -((-ErrorSino_Flip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
 				
 				ProjEntryComp = ProjectionEntry*TomoInputsPtr->ElecPhaseMultiple;
 	        	   	THETA2Elec += 2*ProjEntryComp*ProjEntryComp*TomoInputsPtr->Weight;
                			THETA1Elec += -((ErrorSino_Unflip_y[p][i_r][i_t]+ErrorSino_Flip_y[p][i_r][i_t])*ProjEntryComp*TomoInputsPtr->Weight);
+#endif
             		}
 		}
         }
@@ -102,12 +129,10 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
             /*Solve the 1-D optimization problem
             TODO : What if theta1 = 0 ? Then this will give error*/
 
-/*	ScannedObjectPtr->MagPotentials[i_new][slice+1][j_new][k_new] = Mag_FunctionalSubstitution(ScannedObjectPtr->MagPotentials[i_new][slice+1][j_new][k_new], THETA1Mag, THETA2, ScannedObjectPtr, TomoInputsPtr, Mag3D_Nhood, MagTime_Nhood, BDFlag_3D, BDFlag_Time);
-        ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new] = Phase_FunctionalSubstitution(ScannedObjectPtr->PhaseObject[i_new][slice+1][j_new][k_new], THETA1Phase, THETA2, ScannedObjectPtr, TomoInputsPtr, Phase3D_Nhood, PhaseTime_Nhood, BDFlag_3D, BDFlag_Time);*/
-#ifdef VFET_DENSITY_RECON
-	FunctionalSubstitutionConstPrior(&(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0]), &(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]), THETA1Mag, THETA2Mag, THETA1Elec, THETA2Elec, ScannedObjectPtr, TomoInputsPtr, MagPrior, ElecPrior);
-#else
-	FunctionalSubstitutionMRFPrior(&(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0]), &(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]), THETA1Mag, THETA2Mag, THETA1Elec, THETA2Elec, ScannedObjectPtr, TomoInputsPtr, Mag3D_Nhood, Elec3D_Nhood, BDFlag_3D);
+	MagFunctionalSubstitutionConstPrior(&(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0]), THETA1Mag, THETA2Mag, ScannedObjectPtr, TomoInputsPtr, MagPrior);
+
+#ifdef VFET_ELEC_RECON
+	ElecFunctionalSubstitutionConstPrior(&(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]), THETA1Elec, THETA2Elec, ScannedObjectPtr, TomoInputsPtr, ElecPrior);
 #endif
 	
 	for (p = 0; p < SinogramPtr->N_p; p++){
@@ -124,15 +149,21 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 				i_t = k_new*z_overlap_num + r;
 				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Unflip_x[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0] - VMag[0]));
-	        		ErrorSino_Flip_x[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0] - VMag[0]));
 
 				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Unflip_x[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1] - VMag[1]));
+				
+#ifdef VFET_ELEC_RECON				
+				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
+	        		ErrorSino_Flip_x[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0] - VMag[0]));
+				
+				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Flip_x[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1] - VMag[1]));
 				
 				ProjEntryComp = ProjectionEntry*TomoInputsPtr->ElecPhaseMultiple;
 	        		ErrorSino_Unflip_x[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new] - VElec));
 	        		ErrorSino_Flip_x[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new] - VElec));
+#endif
 	   		}
 		}
 	}
@@ -151,13 +182,21 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 				i_t = j_new*z_overlap_num + r;
 				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Unflip_y[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0] - VMag[0]));
-	        		ErrorSino_Flip_y[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0] - VMag[0]));
+			
 				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Unflip_y[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2] - VMag[2]));
+	
+#ifdef VFET_ELEC_RECON				
+				ProjEntryComp = ProjectionEntry*SinogramPtr->cosine[p]*TomoInputsPtr->MagPhaseMultiple;
+	        		ErrorSino_Flip_y[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0] - VMag[0]));
+				
+				ProjEntryComp = -ProjectionEntry*SinogramPtr->sine[p]*TomoInputsPtr->MagPhaseMultiple;
 	        		ErrorSino_Flip_y[p][i_r][i_t] -= (-ProjEntryComp*(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2] - VMag[2]));
+				
 				ProjEntryComp = ProjectionEntry*TomoInputsPtr->ElecPhaseMultiple;
 	        		ErrorSino_Unflip_y[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new] - VElec));
 	        		ErrorSino_Flip_y[p][i_r][i_t] -= (ProjEntryComp*(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new] - VElec));
+#endif
 	   		}
 		}
 	}
@@ -165,23 +204,21 @@ void compute_voxel_update_Atten (Sinogram* SinogramPtr, ScannedObject* ScannedOb
 	ScannedObjectPtr->ErrorPotMag[slice][j_new][k_new][0] += (ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0] - VMag[0]); 
 	ScannedObjectPtr->ErrorPotMag[slice][j_new][k_new][1] += (ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1] - VMag[1]); 
 	ScannedObjectPtr->ErrorPotMag[slice][j_new][k_new][2] += (ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2] - VMag[2]); 
-	ScannedObjectPtr->ErrorPotElec[slice][j_new][k_new] += (ScannedObjectPtr->ElecPotentials[slice][j_new][k_new] - VElec); 
+#ifdef VFET_ELEC_RECON				
+	ScannedObjectPtr->ErrorPotElec[slice][j_new][k_new] += (ScannedObjectPtr->ElecPotentials[slice][j_new][k_new] - VElec);
+#endif
 }
 
 Real_t updateVoxels_Atten (int32_t slice_begin, int32_t slice_end, int32_t xy_begin, int32_t xy_end, int32_t* x_rand_select, int32_t* y_rand_select, Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** ErrorSino_Unflip_x, Real_arr_t*** ErrorSino_Flip_x, Real_arr_t*** ErrorSino_Unflip_y, Real_arr_t*** ErrorSino_Flip_y, Real_arr_t** DetectorResponse_XY, /*AMatrixCol* VoxelLineResponse,*/ int32_t Iter, long int *zero_count, Real_t *MagUpdate, Real_t *ElecUpdate, Real_t *MagSum, Real_t *ElecSum, uint8_t** Mask)
 {
-  int32_t p,q,r,slice,j_new,k_new,index_xy;
-  Real_t VMag[3], VElec, MagPrior[3], ElecPrior;
-  bool ZSFlag;
+  int32_t p,slice,j_new,k_new,index_xy;
+  Real_t VMag[3], MagPrior[3];
   int32_t z_min, z_max;
   Real_t total_vox_mag = 0.0;
+  Real_t VElec, ElecPrior;
 
   z_min = 0;
   z_max = ScannedObjectPtr->N_z - 1;
-
-    Real_t Mag3D_Nhood[3][3][3][3]; 
-    Real_t Elec3D_Nhood[3][3][3]; 
-    bool BDFlag_3D[3][3][3];
 
    /*printf ("maxview = %d, size of AMatrixCol = %d\n",maxview,sizeof(AMatrixCol));*/
   AMatrixCol* AMatrixPtr_X = (AMatrixCol*)get_spc(SinogramPtr->N_p, sizeof(AMatrixCol));
@@ -218,111 +255,29 @@ Real_t updateVoxels_Atten (int32_t slice_begin, int32_t slice_end, int32_t xy_be
             /*For a given (i,j,k) store its 26 point neighborhood*/           
 	    if (Mask[j_new][k_new] == 1)
 	    {   
-#ifndef VFET_DENSITY_RECON
-		int32_t idxp, idxq, idxr;
-	 	for (p = 0; p < 3; p++)
-	 	{
-			idxp = slice + p;
-			if (idxp >= z_min && idxp <= z_max)
-			{
-	 			for (q = 0; q < 3; q++)
-         			{
-	 				idxq = j_new + q - 1;
-                			if(idxq >= 0 && idxq < ScannedObjectPtr->N_y)
-         				{
-						for (r = 0; r < 3; r++)
-						{
-		    					idxr = k_new + r - 1;
-                    					if(idxr >= 0 && idxr < ScannedObjectPtr->N_x){
-	                					Mag3D_Nhood[p][q][r][0] = ScannedObjectPtr->MagPotentials[idxp][idxq][idxr][0];
-	                					Mag3D_Nhood[p][q][r][1] = ScannedObjectPtr->MagPotentials[idxp][idxq][idxr][1];
-	                					Mag3D_Nhood[p][q][r][2] = ScannedObjectPtr->MagPotentials[idxp][idxq][idxr][2];
-	                					Elec3D_Nhood[p][q][r] = ScannedObjectPtr->ElecPotentials[idxp][idxq][idxr];
-        	        					BDFlag_3D[p][q][r] = true;
-                    					}
-							else
-							{
-	                					Mag3D_Nhood[p][q][r][0] = 0.0;
-	                					Mag3D_Nhood[p][q][r][1] = 0.0;
-	                					Mag3D_Nhood[p][q][r][2] = 0.0;
-	                					Elec3D_Nhood[p][q][r] = 0.0;
-                    						BDFlag_3D[p][q][r] = false;
-							}
-						}
-					}
-		 			else
-					{
-         					for (r = 0; r < 3; r++){
-	                				Mag3D_Nhood[p][q][r][0] = 0.0;
-	                				Mag3D_Nhood[p][q][r][1] = 0.0;
-	                				Mag3D_Nhood[p][q][r][2] = 0.0;
-	                				Elec3D_Nhood[p][q][r] = 0.0;
-                    					BDFlag_3D[p][q][r] = false;
-						}
-					}
-                		}
-			}
-			else
-        		{ 
-				for (q = 0; q < 3; q++){
-				for (r = 0; r < 3; r++){
-	              			Mag3D_Nhood[p][q][r][0] = 0.0;
-	              			Mag3D_Nhood[p][q][r][1] = 0.0;
-	              			Mag3D_Nhood[p][q][r][2] = 0.0;
-	              			Elec3D_Nhood[p][q][r] = 0.0;
-                   			BDFlag_3D[p][q][r] = false;
-				}
-				}
-               		}
-		}
+		MagPrior[0] = -(ScannedObjectPtr->ErrorPotMag[slice][j_new][k_new][0] - ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0]);
+		MagPrior[1] = -(ScannedObjectPtr->ErrorPotMag[slice][j_new][k_new][1] - ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1]);
+		MagPrior[2] = -(ScannedObjectPtr->ErrorPotMag[slice][j_new][k_new][2] - ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2]); 
+        
+		VMag[0] = ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0]; /*Store the present value of the voxel*/
+        	VMag[1] = ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1]; /*Store the present value of the voxel*/
+        	VMag[2] = ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2]; /*Store the present value of the voxel*/
 
-        Mag3D_Nhood[1][1][1][0] = 0.0;
-        Mag3D_Nhood[1][1][1][1] = 0.0;
-        Mag3D_Nhood[1][1][1][2] = 0.0;
-        Elec3D_Nhood[1][1][1] = 0.0;
-#else
-	MagPrior[0] = -(ScannedObjectPtr->ErrorPotMag[slice][j_new][k_new][0] - ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0]);
-	MagPrior[1] = -(ScannedObjectPtr->ErrorPotMag[slice][j_new][k_new][1] - ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1]);
-	MagPrior[2] = -(ScannedObjectPtr->ErrorPotMag[slice][j_new][k_new][2] - ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2]); 
-	ElecPrior = -(ScannedObjectPtr->ErrorPotElec[slice][j_new][k_new] - ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]); 
+#ifdef VFET_ELEC_RECON		
+		ElecPrior = -(ScannedObjectPtr->ErrorPotElec[slice][j_new][k_new] - ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]); 
+        	VElec = ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]; /*Store the present value of the voxel*/
 #endif
-        VMag[0] = ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0]; /*Store the present value of the voxel*/
-        VMag[1] = ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1]; /*Store the present value of the voxel*/
-        VMag[2] = ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2]; /*Store the present value of the voxel*/
-        VElec = ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]; /*Store the present value of the voxel*/
 
-#ifdef ZERO_SKIPPING
-			  /*Zero Skipping Algorithm*/
-			 ZSFlag = true;
-			 if(VMag[0] == 0.0 && VMag[1] == 0.0 && VMag[2] == 0.0 && VElec == 0.0 && Iter > 1) /*Iteration starts from 1. Iteration 0 corresponds to initial cost before ICD*/
-			  {
-					for(p = 0; p < 3; p++)
-						for(q = 0; q < 3; q++)
-					  		for(r = 0; r < 3; r++)
-							  	if(Mag3D_Nhood[p][q][r][0] > 0.0 || Mag3D_Nhood[p][q][r][1] > 0.0 || Mag3D_Nhood[p][q][r][2] > 0.0 || Elec3D_Nhood[p][q][r] > 0.0)
-							  	{
-									  ZSFlag = false;
-								 	  break;
-							  	}
-			  }
-			  else
-			  {
-				  ZSFlag = false;
-			  }
-#else
-			  ZSFlag = false; /*do ICD on all voxels*/
-#endif /*#ifdef ZERO_SKIPPING*/
-	if(ZSFlag == false)
-	{
-		compute_voxel_update_Atten (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, ErrorSino_Unflip_x, ErrorSino_Flip_x, ErrorSino_Unflip_y, ErrorSino_Flip_y, AMatrixPtr_X, AMatrixPtr_Y, /*VoxelLineResponse,*/ Mag3D_Nhood, Elec3D_Nhood, BDFlag_3D, MagPrior, ElecPrior, slice, j_new, k_new);
+		compute_voxel_update_Atten (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, ErrorSino_Unflip_x, ErrorSino_Flip_x, ErrorSino_Unflip_y, ErrorSino_Flip_y, AMatrixPtr_X, AMatrixPtr_Y, MagPrior, ElecPrior, slice, j_new, k_new);
+
 		(*MagUpdate) += sqrt(pow(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0] - VMag[0],2) + pow(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1] - VMag[1],2) + pow(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2] - VMag[2],2)); 
-		(*ElecUpdate) += fabs(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new] - VElec); 
 		(*MagSum) += sqrt(pow(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][0],2) + pow(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][1],2) + pow(ScannedObjectPtr->MagPotentials[slice][j_new][k_new][2],2)); 
+
+#ifdef VFET_ELEC_RECON		
+		(*ElecUpdate) += fabs(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new] - VElec); 
 		(*ElecSum) += fabs(ScannedObjectPtr->ElecPotentials[slice][j_new][k_new]);
- 	}
-		else
-		    (*zero_count)++;
-       }
+#endif
+       	     }
        }
        }
 

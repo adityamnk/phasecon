@@ -81,21 +81,25 @@ Real_t computeCost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr)
   AMatrixCol AMatrixPtr_X, AMatrixPtr_Y;
   uint8_t AvgNumXElements = (uint8_t)ceil(3*ObjPtr->delta_xy/SinoPtr->delta_r);
 
+  Real_arr_t ***ErrSino_Flip_x, ***ErrSino_Flip_y, ***ErrSino_Unflip_x, ***ErrSino_Unflip_y;
+
   AMatrixPtr_X.values = (Real_t*)get_spc(AvgNumXElements, sizeof(Real_t));
   AMatrixPtr_X.index = (int32_t*)get_spc(AvgNumXElements, sizeof(int32_t));
   AMatrixPtr_Y.values = (Real_t*)get_spc(AvgNumXElements, sizeof(Real_t));
   AMatrixPtr_Y.index = (int32_t*)get_spc(AvgNumXElements, sizeof(int32_t));
   
-  Real_arr_t*** ErrSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  Real_arr_t*** ErrSino_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  Real_arr_t*** ErrSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  Real_arr_t*** ErrSino_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  
+  ErrSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+  ErrSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
   memset(&(ErrSino_Unflip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrSino_Flip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
   memset(&(ErrSino_Unflip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrSino_Flip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
 
+#ifdef VFET_ELEC_RECON  
+  ErrSino_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+  ErrSino_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+  memset(&(ErrSino_Flip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrSino_Flip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+#endif
+  
 /*  #pragma omp parallel for private(j, k, sino_idx, slice)*/
     for (slice=0; slice<ObjPtr->N_z; slice++){
     for (j=0; j<ObjPtr->N_y; j++)
@@ -107,8 +111,14 @@ Real_t computeCost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr)
     	      	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &(AMatrixPtr_X), slice, j, sino_idx);
           	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &(AMatrixPtr_Y), slice, k, sino_idx);
             /*	printf("count = %d, idx = %d, val = %f\n", VoxelLineResponse[slice].count, VoxelLineResponse[slice].index[0], VoxelLineResponse[slice].values[0]);*/
-		forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][1], ObjPtr->ElecPotentials[slice][j][k], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), sino_idx, k);
-		forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][2], ObjPtr->ElecPotentials[slice][j][k], ErrSino_Unflip_y, ErrSino_Flip_y, &(AMatrixPtr_Y), sino_idx, j);
+
+		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][1], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), sino_idx, k);
+		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][2], ErrSino_Unflip_y, ErrSino_Flip_y, &(AMatrixPtr_Y), sino_idx, j);
+
+#ifdef VFET_ELEC_RECON  
+		elec_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->ElecPotentials[slice][j][k], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), sino_idx, k);
+		elec_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->ElecPotentials[slice][j][k], ErrSino_Unflip_y, ErrSino_Flip_y, &(AMatrixPtr_Y), sino_idx, j);
+#endif
           }
         }
       }
@@ -126,24 +136,27 @@ Real_t computeCost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr)
   {
     temp = (SinoPtr->Data_Unflip_x[i][j][k] - ErrSino_Unflip_x[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
-    temp = (SinoPtr->Data_Flip_x[i][j][k] - ErrSino_Flip_x[i][j][k]);
-    forward += temp*temp*InpPtr->Weight;
     temp = (SinoPtr->Data_Unflip_y[i][j][k] - ErrSino_Unflip_y[i][j][k]);
+    forward += temp*temp*InpPtr->Weight;
+#ifdef VFET_ELEC_RECON  
+    temp = (SinoPtr->Data_Flip_x[i][j][k] - ErrSino_Flip_x[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
     temp = (SinoPtr->Data_Flip_y[i][j][k] - ErrSino_Flip_y[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
+#endif
   }
   
   forward /= 2.0; 
  
   multifree(ErrSino_Unflip_x, 3);
-  multifree(ErrSino_Flip_x, 3);
   multifree(ErrSino_Unflip_y, 3);
+#ifdef VFET_ELEC_RECON  
+  multifree(ErrSino_Flip_x, 3);
   multifree(ErrSino_Flip_y, 3);
-
+#endif
   /*When computing the cost of the prior term it is important to make sure that you don't include the cost of any pair of neighbors more than once. In this code, a certain sense of causality is used to compute the cost. We also assume that the weghting kernel given by 'Filter' is symmetric. Let i, j and k correspond to the three dimensions. If we go forward to i+1, then all neighbors at j-1, j, j+1, k+1, k, k-1 are to be considered. However, if for the same i, if we go forward to j+1, then all k-1, k, and k+1 should be considered. For same i and j, only the neighbor at k+1 is considred.*/
   prior = 0;
-#ifdef VFET_DENSITY_RECON
+  
   for (p = 0; p < ObjPtr->N_z; p++)
   for (j = 0; j < ObjPtr->N_y; j++)
   for (k = 0; k < ObjPtr->N_x; k++)
@@ -151,151 +164,11 @@ Real_t computeCost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr)
 	temp = ObjPtr->ErrorPotMag[p][j][k][0]*ObjPtr->ErrorPotMag[p][j][k][0];
 	temp += ObjPtr->ErrorPotMag[p][j][k][1]*ObjPtr->ErrorPotMag[p][j][k][1];
 	temp += ObjPtr->ErrorPotMag[p][j][k][2]*ObjPtr->ErrorPotMag[p][j][k][2];
+#ifdef VFET_ELEC_RECON  
 	temp += ObjPtr->ErrorPotElec[p][j][k]*ObjPtr->ErrorPotElec[p][j][k];
+#endif
 	prior += InpPtr->ADMM_mu*temp/2;
   }
-#else 
-  bool j_minus, k_minus, j_plus, k_plus, p_plus;
-  Real_t Diff;
-  int32_t cidx;
-
-  #pragma omp parallel for private(Diff, p, j, k, j_minus, k_minus, p_plus, j_plus, k_plus, cidx) reduction(+:prior)
-  for (p = 0; p < ObjPtr->N_z; p++)
-  for (j = 0; j < ObjPtr->N_y; j++)
-  {
-    for (k = 0; k < ObjPtr->N_x; k++)
-    {
-      j_minus = (j - 1 >= 0)? true : false;
-      k_minus = (k - 1 >= 0)? true : false;
-      
-      p_plus = (p + 1 < ObjPtr->N_z)? true : false;
-      j_plus = (j + 1 < ObjPtr->N_y)? true : false;
-      k_plus = (k + 1 < ObjPtr->N_x)? true : false;
-      
-      if(k_plus == true) {
-	for (cidx = 0; cidx < 3; cidx++){
-        	Diff = (ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p][j][k + 1][cidx]);
-        	prior += InpPtr->Spatial_Filter[1][1][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	}
-        Diff = (ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p][j][k + 1]);
-        prior += InpPtr->Spatial_Filter[1][1][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-      }
-      if(j_plus == true) {
-        if(k_minus == true) {
-	  for (cidx = 0; cidx < 3; cidx++){
-          	Diff = (ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p][j + 1][k - 1][cidx]);
-          	prior += InpPtr->Spatial_Filter[1][2][0] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-          }
-	  Diff = (ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p][j + 1][k - 1]);
-          prior += InpPtr->Spatial_Filter[1][2][0] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-        }
-	for (cidx = 0; cidx < 3; cidx++){
-        	Diff = (ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p][j + 1][k][cidx]);
-        	prior += InpPtr->Spatial_Filter[1][2][1] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	}
-        Diff = (ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p][j + 1][k]);
-        prior += InpPtr->Spatial_Filter[1][2][1] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-
-        if(k_plus == true) {
-	  for (cidx = 0; cidx < 3; cidx++){
-          	Diff = (ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p][j + 1][k + 1][cidx]);
-          	prior += InpPtr->Spatial_Filter[1][2][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-          }
-	  Diff = (ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p][j + 1][k + 1]);
-          prior += InpPtr->Spatial_Filter[1][2][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-        }
-      }
-      if (p_plus == true)
-      {
-        if(j_minus == true)
-        {
-	  for (cidx = 0; cidx < 3; cidx++){
-          	Diff = ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p + 1][j - 1][k][cidx];
-          	prior += InpPtr->Spatial_Filter[2][0][1] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	  }
-          Diff = ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p + 1][j - 1][k];
-          prior += InpPtr->Spatial_Filter[2][0][1] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-        }
-        
-	for (cidx = 0; cidx < 3; cidx++){
-        	Diff = ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p+1][j][k][cidx];
-        	prior += InpPtr->Spatial_Filter[2][1][1] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	}
-        Diff = ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p+1][j][k];
-        prior += InpPtr->Spatial_Filter[2][1][1] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-        if(j_plus == true)
-        {
-	  for (cidx = 0; cidx < 3; cidx++){
-          	Diff = ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p+1][j + 1][k][cidx];
-          	prior += InpPtr->Spatial_Filter[2][2][1] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	  }
-          Diff = ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p+1][j + 1][k];
-          prior += InpPtr->Spatial_Filter[2][2][1] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-        }
-        if(j_minus == true)
-        {
-          if(k_minus == true)
-          {
-	    for (cidx = 0; cidx < 3; cidx++){
-            	Diff = ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p + 1][j - 1][k - 1][cidx];
-            	prior += InpPtr->Spatial_Filter[2][0][0] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	    }
-            Diff = ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p + 1][j - 1][k - 1];
-            prior += InpPtr->Spatial_Filter[2][0][0] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-          }
-          if(k_plus == true)
-          {
-	    for (cidx = 0; cidx < 3; cidx++){
-            	Diff = ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p + 1][j - 1][k + 1][cidx];
-            	prior += InpPtr->Spatial_Filter[2][0][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	    }
-            Diff = ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p + 1][j - 1][k + 1];
-            prior += InpPtr->Spatial_Filter[2][0][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-          }
-        }
-        if(k_minus == true)
-        {
-	  for (cidx = 0; cidx < 3; cidx++){
-          	Diff = ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p + 1][j][k - 1][cidx];
-          	prior += InpPtr->Spatial_Filter[2][1][0] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	  }
-          Diff = ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p + 1][j][k - 1];
-          prior += InpPtr->Spatial_Filter[2][1][0] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-        }
-        if(j_plus == true)
-        {
-          if(k_minus == true)
-          {
-	    for (cidx = 0; cidx < 3; cidx++){
-            	Diff = ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p + 1][j + 1][k - 1][cidx];
-            	prior += InpPtr->Spatial_Filter[2][2][0] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	    }
-            Diff = ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p + 1][j + 1][k - 1];
-            prior += InpPtr->Spatial_Filter[2][2][0] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-          }
-          if(k_plus == true)
-          {
-	    for (cidx = 0; cidx < 3; cidx++){
-            	Diff = ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p + 1][j + 1][k + 1][cidx];
-            	prior += InpPtr->Spatial_Filter[2][2][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	    }
-            Diff = ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p + 1][j + 1][k + 1];
-            prior += InpPtr->Spatial_Filter[2][2][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-          }
-        }
-        if(k_plus == true)
-        {
-	  for (cidx = 0; cidx < 3; cidx++){
-          	Diff = ObjPtr->MagPotentials[p][j][k][cidx] - ObjPtr->MagPotentials[p + 1][j][k + 1][cidx];
-          	prior += InpPtr->Spatial_Filter[2][1][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
-	  }
-          Diff = ObjPtr->ElecPotentials[p][j][k] - ObjPtr->ElecPotentials[p + 1][j][k + 1];
-          prior += InpPtr->Spatial_Filter[2][1][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-        }
-      }
-    }
-  }
-#endif
 
     check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Forward cost = %f\n",forward);
     check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Prior cost = %f\n",prior);
@@ -311,6 +184,7 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
 {
   Real_t cost=0, temp=0, forward=0, prior=0;
   Real_t Diff;
+  Real_arr_t ***ErrSino_Flip_x, ***ErrSino_Flip_y, ***ElecPotentials;
   int32_t p,i,j,k,cidx,sino_idx,slice;
   bool j_minus, k_minus, j_plus, k_plus, p_plus;
  
@@ -323,21 +197,26 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
   AMatrixPtr_Y.index = (int32_t*)get_spc(AvgNumXElements, sizeof(int32_t));
   
   Real_arr_t*** ErrSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  Real_arr_t*** ErrSino_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
   Real_arr_t*** ErrSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  Real_arr_t*** ErrSino_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
   Real_arr_t**** MagPotentials = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
-  Real_arr_t*** ElecPotentials = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
-  
+
   memset(&(ErrSino_Unflip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrSino_Flip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
   memset(&(ErrSino_Unflip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrSino_Flip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-
   memset(&(MagPotentials[0][0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3*sizeof(Real_arr_t));
-  memset(&(ElecPotentials[0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*sizeof(Real_arr_t));
 
-  compute_crossprodtran (ObjPtr->Magnetization, ObjPtr->ChargeDensity, MagPotentials, ElecPotentials, ObjPtr->MagFilt, ObjPtr->ElecFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
+  compute_magcrossprodtran (ObjPtr->Magnetization, MagPotentials, ObjPtr->MagFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
+
+#ifdef VFET_ELEC_RECON  
+  ErrSino_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+  ErrSino_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+  ElecPotentials = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
+
+  memset(&(ErrSino_Flip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrSino_Flip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ElecPotentials[0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*sizeof(Real_arr_t));
+  
+  compute_elecprodtran (ObjPtr->ChargeDensity, ElecPotentials, ObjPtr->ElecFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
+#endif  
 
 /*  #pragma omp parallel for private(j, k, sino_idx, slice)*/
     for (slice=0; slice<ObjPtr->N_z; slice++){
@@ -348,8 +227,13 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
           	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &(AMatrixPtr_X), slice, j, sino_idx);
           	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &(AMatrixPtr_Y), slice, k, sino_idx);
             /*	printf("count = %d, idx = %d, val = %f\n", VoxelLineResponse[slice].count, VoxelLineResponse[slice].index[0], VoxelLineResponse[slice].values[0]);*/
-		forward_project_voxel (SinoPtr, InpPtr, MagPotentials[slice][j][k][0], MagPotentials[slice][j][k][1], ElecPotentials[slice][j][k], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), sino_idx, k);
-		forward_project_voxel (SinoPtr, InpPtr, MagPotentials[slice][j][k][0], MagPotentials[slice][j][k][2], ElecPotentials[slice][j][k], ErrSino_Unflip_y, ErrSino_Flip_y, &(AMatrixPtr_Y), sino_idx, j);
+
+		mag_forward_project_voxel (SinoPtr, InpPtr, MagPotentials[slice][j][k][0], MagPotentials[slice][j][k][1], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), sino_idx, k);
+		mag_forward_project_voxel (SinoPtr, InpPtr, MagPotentials[slice][j][k][0], MagPotentials[slice][j][k][2], ErrSino_Unflip_y, ErrSino_Flip_y, &(AMatrixPtr_Y), sino_idx, j);
+#ifdef VFET_ELEC_RECON
+		elec_forward_project_voxel (SinoPtr, InpPtr, ElecPotentials[slice][j][k], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), sino_idx, k);
+		elec_forward_project_voxel (SinoPtr, InpPtr, ElecPotentials[slice][j][k], ErrSino_Unflip_y, ErrSino_Flip_y, &(AMatrixPtr_Y), sino_idx, j);
+#endif
           }
         }
       }
@@ -367,22 +251,25 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
   {
     temp = (SinoPtr->Data_Unflip_x[i][j][k] - ErrSino_Unflip_x[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
-    temp = (SinoPtr->Data_Flip_x[i][j][k] - ErrSino_Flip_x[i][j][k]);
-    forward += temp*temp*InpPtr->Weight;
     temp = (SinoPtr->Data_Unflip_y[i][j][k] - ErrSino_Unflip_y[i][j][k]);
+    forward += temp*temp*InpPtr->Weight;
+#ifdef VFET_ELEC_RECON
+    temp = (SinoPtr->Data_Flip_x[i][j][k] - ErrSino_Flip_x[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
     temp = (SinoPtr->Data_Flip_y[i][j][k] - ErrSino_Flip_y[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
+#endif
   }
   forward /= 2.0;
   
   multifree(ErrSino_Unflip_x, 3);
-  multifree(ErrSino_Flip_x, 3);
   multifree(ErrSino_Unflip_y, 3);
-  multifree(ErrSino_Flip_y, 3);
-
   multifree(MagPotentials, 4);
+#ifdef VFET_ELEC_RECON
+  multifree(ErrSino_Flip_x, 3);
+  multifree(ErrSino_Flip_y, 3);
   multifree(ElecPotentials, 3);
+#endif
 
   /*When computing the cost of the prior term it is important to make sure that you don't include the cost of any pair of neighbors more than once. In this code, a certain sense of causality is used to compute the cost. We also assume that the weghting kernel given by 'Filter' is symmetric. Let i, j and k correspond to the three dimensions. If we go forward to i+1, then all neighbors at j-1, j, j+1, k+1, k, k-1 are to be considered. However, if for the same i, if we go forward to j+1, then all k-1, k, and k+1 should be considered. For same i and j, only the neighbor at k+1 is considred.*/
   prior = 0;
@@ -404,8 +291,10 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
         	Diff = (ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p][j][k + 1][cidx]);
         	prior += InpPtr->Spatial_Filter[1][1][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	}
+#ifdef VFET_ELEC_RECON
         Diff = (ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p][j][k + 1]);
         prior += InpPtr->Spatial_Filter[1][1][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
       }
       if(j_plus == true) {
         if(k_minus == true) {
@@ -413,23 +302,28 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
           	Diff = (ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p][j + 1][k - 1][cidx]);
           	prior += InpPtr->Spatial_Filter[1][2][0] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
           }
+#ifdef VFET_ELEC_RECON
 	  Diff = (ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p][j + 1][k - 1]);
           prior += InpPtr->Spatial_Filter[1][2][0] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
         }
 	for (cidx = 0; cidx < 3; cidx++){
         	Diff = (ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p][j + 1][k][cidx]);
         	prior += InpPtr->Spatial_Filter[1][2][1] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	}
+#ifdef VFET_ELEC_RECON
         Diff = (ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p][j + 1][k]);
         prior += InpPtr->Spatial_Filter[1][2][1] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
-
+#endif
         if(k_plus == true) {
 	  for (cidx = 0; cidx < 3; cidx++){
           	Diff = (ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p][j + 1][k + 1][cidx]);
           	prior += InpPtr->Spatial_Filter[1][2][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
           }
+#ifdef VFET_ELEC_RECON
 	  Diff = (ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p][j + 1][k + 1]);
           prior += InpPtr->Spatial_Filter[1][2][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
         }
       }
       if (p_plus == true)
@@ -440,24 +334,30 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
           	Diff = ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p + 1][j - 1][k][cidx];
           	prior += InpPtr->Spatial_Filter[2][0][1] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	  }
+#ifdef VFET_ELEC_RECON
           Diff = ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p + 1][j - 1][k];
           prior += InpPtr->Spatial_Filter[2][0][1] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
         }
         
 	for (cidx = 0; cidx < 3; cidx++){
         	Diff = ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p+1][j][k][cidx];
         	prior += InpPtr->Spatial_Filter[2][1][1] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	}
+#ifdef VFET_ELEC_RECON
         Diff = ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p+1][j][k];
         prior += InpPtr->Spatial_Filter[2][1][1] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
         if(j_plus == true)
         {
 	  for (cidx = 0; cidx < 3; cidx++){
           	Diff = ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p+1][j + 1][k][cidx];
           	prior += InpPtr->Spatial_Filter[2][2][1] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	  }
+#ifdef VFET_ELEC_RECON
           Diff = ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p+1][j + 1][k];
           prior += InpPtr->Spatial_Filter[2][2][1] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
         }
         if(j_minus == true)
         {
@@ -467,8 +367,10 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
             	Diff = ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p + 1][j - 1][k - 1][cidx];
             	prior += InpPtr->Spatial_Filter[2][0][0] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	    }
+#ifdef VFET_ELEC_RECON
             Diff = ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p + 1][j - 1][k - 1];
             prior += InpPtr->Spatial_Filter[2][0][0] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
           }
           if(k_plus == true)
           {
@@ -476,8 +378,10 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
             	Diff = ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p + 1][j - 1][k + 1][cidx];
             	prior += InpPtr->Spatial_Filter[2][0][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	    }
+#ifdef VFET_ELEC_RECON
             Diff = ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p + 1][j - 1][k + 1];
             prior += InpPtr->Spatial_Filter[2][0][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
           }
         }
         if(k_minus == true)
@@ -486,8 +390,10 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
           	Diff = ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p + 1][j][k - 1][cidx];
           	prior += InpPtr->Spatial_Filter[2][1][0] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	  }
+#ifdef VFET_ELEC_RECON
           Diff = ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p + 1][j][k - 1];
           prior += InpPtr->Spatial_Filter[2][1][0] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
         }
         if(j_plus == true)
         {
@@ -497,8 +403,10 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
             	Diff = ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p + 1][j + 1][k - 1][cidx];
             	prior += InpPtr->Spatial_Filter[2][2][0] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	    }
+#ifdef VFET_ELEC_RECON
             Diff = ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p + 1][j + 1][k - 1];
             prior += InpPtr->Spatial_Filter[2][2][0] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
           }
           if(k_plus == true)
           {
@@ -506,8 +414,10 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
             	Diff = ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p + 1][j + 1][k + 1][cidx];
             	prior += InpPtr->Spatial_Filter[2][2][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	    }
+#ifdef VFET_ELEC_RECON
             Diff = ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p + 1][j + 1][k + 1];
             prior += InpPtr->Spatial_Filter[2][2][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
           }
         }
         if(k_plus == true)
@@ -516,8 +426,10 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
           	Diff = ObjPtr->Magnetization[p][j][k][cidx] - ObjPtr->Magnetization[p + 1][j][k + 1][cidx];
           	prior += InpPtr->Spatial_Filter[2][1][2] * QGGMRF_Value(Diff,InpPtr->Mag_Sigma_Q[cidx], InpPtr->Mag_Sigma_Q_P[cidx], ObjPtr->Mag_C[cidx]);
 	  }
+#ifdef VFET_ELEC_RECON
           Diff = ObjPtr->ChargeDensity[p][j][k] - ObjPtr->ChargeDensity[p + 1][j][k + 1];
           prior += InpPtr->Spatial_Filter[2][1][2] * QGGMRF_Value(Diff,InpPtr->Elec_Sigma_Q, InpPtr->Elec_Sigma_Q_P, ObjPtr->Elec_C);
+#endif
         }
       }
     }
@@ -572,8 +484,8 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 {
  
   Real_arr_t*** ErrorSino_Unflip_x = SinoPtr->ErrorSino_Unflip_x;
-  Real_arr_t*** ErrorSino_Flip_x = SinoPtr->ErrorSino_Flip_x;
   Real_arr_t*** ErrorSino_Unflip_y = SinoPtr->ErrorSino_Unflip_y;
+  Real_arr_t*** ErrorSino_Flip_x = SinoPtr->ErrorSino_Flip_x;
   Real_arr_t*** ErrorSino_Flip_y = SinoPtr->ErrorSino_Flip_y;
   
   Real_t unflipavg = 0, flipavg = 0, potxavg = 0, potyavg = 0, potzavg = 0, potrhoavg = 0;
@@ -588,19 +500,22 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
   AMatrixPtr_Y.index = (int32_t*)get_spc(AvgNumXElements, sizeof(int32_t));
   
   memset(&(ErrorSino_Unflip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrorSino_Flip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
   memset(&(ErrorSino_Unflip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrorSino_Flip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  
   memset(&(ObjPtr->MagPotentials[0][0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3*sizeof(Real_arr_t));
-  memset(&(ObjPtr->ElecPotentials[0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*sizeof(Real_arr_t));
-
   memset(&(ObjPtr->ErrorPotMag[0][0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3*sizeof(Real_arr_t));
-  memset(&(ObjPtr->ErrorPotElec[0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*sizeof(Real_arr_t));
   memset(&(ObjPtr->MagPotDual[0][0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3*sizeof(Real_arr_t));
+
+  compute_magcrossprodtran (ObjPtr->Magnetization, ObjPtr->MagPotentials, ObjPtr->MagFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
+
+#ifdef VFET_ELEC_RECON 
+  memset(&(ErrorSino_Flip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrorSino_Flip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ObjPtr->ElecPotentials[0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*sizeof(Real_arr_t));
+  memset(&(ObjPtr->ErrorPotElec[0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*sizeof(Real_arr_t));
   memset(&(ObjPtr->ElecPotDual[0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*sizeof(Real_arr_t));
- 
-  compute_crossprodtran (ObjPtr->Magnetization, ObjPtr->ChargeDensity, ObjPtr->MagPotentials, ObjPtr->ElecPotentials, ObjPtr->MagFilt, ObjPtr->ElecFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
+  
+  compute_elecprodtran (ObjPtr->ChargeDensity, ObjPtr->ElecPotentials, ObjPtr->ElecFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
+#endif 
 	
   for (i = 0; i < ObjPtr->N_z; i++)
   for (j = 0; j < ObjPtr->N_y; j++)
@@ -609,15 +524,19 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 	potzavg += ObjPtr->MagPotentials[i][j][k][0];
 	potyavg += ObjPtr->MagPotentials[i][j][k][1];
 	potxavg += ObjPtr->MagPotentials[i][j][k][2];
+#ifdef VFET_ELEC_RECON 
 	potrhoavg += ObjPtr->ElecPotentials[i][j][k];
+#endif
   }	
 
   potzavg /= (ObjPtr->N_x*ObjPtr->N_y*ObjPtr->N_z);
   potyavg /= (ObjPtr->N_x*ObjPtr->N_y*ObjPtr->N_z);
   potxavg /= (ObjPtr->N_x*ObjPtr->N_y*ObjPtr->N_z);
+  check_debug(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Average of potentials after forward projection are (x, y, z) = (%f, %f, %f)\n", potxavg, potyavg, potzavg);
+#ifdef VFET_ELEC_RECON 
   potrhoavg /= (ObjPtr->N_x*ObjPtr->N_y*ObjPtr->N_z);
-
-  check_debug(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Average of potentials after forward projection are (x, y, z, rho) = (%f, %f, %f, %f)\n", potxavg, potyavg, potzavg, potrhoavg);
+  check_debug(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Average of potentials after forward projection are (rho) = (%f)\n", potrhoavg);
+#endif
 
 /*  #pragma omp parallel for private(j, k, sino_idx, slice)*/
     for (slice=0; slice<ObjPtr->N_z; slice++){
@@ -628,8 +547,12 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     	      	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &(AMatrixPtr_X), slice, j, sino_idx);
           	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &(AMatrixPtr_Y), slice, k, sino_idx);
             /*	printf("count = %d, idx = %d, val = %f\n", VoxelLineResponse[slice].count, VoxelLineResponse[slice].index[0], VoxelLineResponse[slice].values[0]);*/
-		forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][1], ObjPtr->ElecPotentials[slice][j][k], ErrorSino_Unflip_x, ErrorSino_Flip_x, &(AMatrixPtr_X), sino_idx, k);
-		forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][2], ObjPtr->ElecPotentials[slice][j][k], ErrorSino_Unflip_y, ErrorSino_Flip_y, &(AMatrixPtr_Y), sino_idx, j);
+		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][1], ErrorSino_Unflip_x, ErrorSino_Flip_x, &(AMatrixPtr_X), sino_idx, k);
+		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][2], ErrorSino_Unflip_y, ErrorSino_Flip_y, &(AMatrixPtr_Y), sino_idx, j);
+#ifdef VFET_ELEC_RECON 
+		elec_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->ElecPotentials[slice][j][k], ErrorSino_Unflip_x, ErrorSino_Flip_x, &(AMatrixPtr_X), sino_idx, k);
+		elec_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->ElecPotentials[slice][j][k], ErrorSino_Unflip_y, ErrorSino_Flip_y, &(AMatrixPtr_Y), sino_idx, j);
+#endif
           }
         }
       }
@@ -642,25 +565,25 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
   for(k = 0; k < SinoPtr->N_t; k++)
   {
     	unflipavg += ErrorSino_Unflip_x[i][j][k];
-    	flipavg += ErrorSino_Flip_x[i][j][k];
     	unflipavg += ErrorSino_Unflip_y[i][j][k];
+	ErrorSino_Unflip_x[i][j][k] = SinoPtr->Data_Unflip_x[i][j][k] - ErrorSino_Unflip_x[i][j][k];
+	ErrorSino_Unflip_y[i][j][k] = SinoPtr->Data_Unflip_y[i][j][k] - ErrorSino_Unflip_y[i][j][k];
+			
+#ifdef VFET_ELEC_RECON 
+    	flipavg += ErrorSino_Flip_x[i][j][k];
     	flipavg += ErrorSino_Flip_y[i][j][k];
+	ErrorSino_Flip_x[i][j][k] = SinoPtr->Data_Flip_x[i][j][k] - ErrorSino_Flip_x[i][j][k];
+	ErrorSino_Flip_y[i][j][k] = SinoPtr->Data_Flip_y[i][j][k] - ErrorSino_Flip_y[i][j][k];
+#endif
   }
   unflipavg = unflipavg/(SinoPtr->N_r*SinoPtr->N_t*SinoPtr->N_p);
-  flipavg = flipavg/(SinoPtr->N_r*SinoPtr->N_t*SinoPtr->N_p);
-  check_debug(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Average of unflipped and flipped components of forward projection in node %d are %f and %f\n", InpPtr->node_rank, unflipavg, flipavg);
+  check_debug(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Average of unflipped component of forward projection in node %d is %f\n", InpPtr->node_rank, unflipavg);
 
-  #pragma omp parallel for private(j, k)
-  for(i = 0; i < SinoPtr->N_p; i++)
-  for (j = 0; j < SinoPtr->N_r; j++)
-  for (k = 0; k < SinoPtr->N_t; k++)
-  {
-	ErrorSino_Unflip_x[i][j][k] = SinoPtr->Data_Unflip_x[i][j][k] - ErrorSino_Unflip_x[i][j][k];
-	ErrorSino_Flip_x[i][j][k] = SinoPtr->Data_Flip_x[i][j][k] - ErrorSino_Flip_x[i][j][k];
-	ErrorSino_Unflip_y[i][j][k] = SinoPtr->Data_Unflip_y[i][j][k] - ErrorSino_Unflip_y[i][j][k];
-	ErrorSino_Flip_y[i][j][k] = SinoPtr->Data_Flip_y[i][j][k] - ErrorSino_Flip_y[i][j][k];
-  }
-			
+#ifdef VFET_ELEC_RECON 
+  flipavg = flipavg/(SinoPtr->N_r*SinoPtr->N_t*SinoPtr->N_p);
+  check_debug(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Average of flipped components of forward projection in node %d is %f\n", InpPtr->node_rank, flipavg);
+#endif
+
   free(AMatrixPtr_X.values);
   free(AMatrixPtr_X.index);
   free(AMatrixPtr_Y.values);
@@ -812,15 +735,25 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 /*    avg_update_percentage = 100*tempUpdate/vox_mag;*/
 
     magpot_update = 100*magpot_update_tot/magpot_sum_tot;
+    check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Percentage average magnitude of voxel updates of (Magnetic) potential is (%e).\n", magpot_update);
+   
+#ifdef VFET_ELEC_RECON 
     elecpot_update = 100*elecpot_update_tot/elecpot_sum_tot;
+    check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Percentage average magnitude of voxel updates of (Electrostatic) potentials are (%e).\n", elecpot_update);
 
-    check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Percentage average magnitude of voxel updates of (Magnetic, Electrostatic) potentials are (%f, %f).\n", magpot_update, elecpot_update);
-    
     if (magpot_update < InpPtr->StopThreshold && elecpot_update < InpPtr->StopThreshold)
     {
       check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Percentage average magnitude of voxel updates is less than convergence threshold.\n");
       return (1);
     }
+#else
+    if (magpot_update < InpPtr->StopThreshold)
+    {
+      check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Percentage average magnitude of voxel updates is less than convergence threshold.\n");
+      return (1);
+    }
+#endif
+
     return(0);
   }
 
@@ -850,13 +783,14 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     SinoPtr->DetectorResponse = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinoPtr->N_p, DETECTOR_RESPONSE_BINS + 1);
 
     SinoPtr->ErrorSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-    SinoPtr->ErrorSino_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-
     SinoPtr->ErrorSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-    SinoPtr->ErrorSino_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-    
     ObjPtr->ErrorPotMag = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
+   
+#ifdef VFET_ELEC_RECON 
+    SinoPtr->ErrorSino_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+    SinoPtr->ErrorSino_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
     ObjPtr->ErrorPotElec = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
+#endif
 
     Mask = (uint8_t**)multialloc(sizeof(uint8_t), 2, ObjPtr->N_y, ObjPtr->N_x);
     
@@ -895,7 +829,11 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 
     for (HeadIter = 1; HeadIter <= InpPtr->Head_MaxIter; HeadIter++)
     {
-	    reconstruct_magelec(ObjPtr, InpPtr, fftptr);
+	    reconstruct_magnetization(ObjPtr, InpPtr, fftptr);
+#ifdef VFET_ELEC_RECON
+	    reconstruct_elecchargedens(ObjPtr, InpPtr, fftptr);
+#endif
+
 #ifndef NO_COST_CALCULATE
 	    cost = computeCost(SinoPtr,ObjPtr,InpPtr);
 	    cost_0_iter = cost;
@@ -945,17 +883,20 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 		DualMag[0] = ObjPtr->MagPotDual[i][j][k][0];
 		DualMag[1] = ObjPtr->MagPotDual[i][j][k][1];
 		DualMag[2] = ObjPtr->MagPotDual[i][j][k][2];
-		DualElec = ObjPtr->ElecPotDual[i][j][k];
 		
 		ObjPtr->MagPotDual[i][j][k][0] = -ObjPtr->ErrorPotMag[i][j][k][0];
 		ObjPtr->MagPotDual[i][j][k][1] = -ObjPtr->ErrorPotMag[i][j][k][1];
 		ObjPtr->MagPotDual[i][j][k][2] = -ObjPtr->ErrorPotMag[i][j][k][2];
-		ObjPtr->ElecPotDual[i][j][k] = -ObjPtr->ErrorPotElec[i][j][k];
 	
 		ObjPtr->ErrorPotMag[i][j][k][0] -= (ObjPtr->MagPotDual[i][j][k][0] - DualMag[0]);	
 		ObjPtr->ErrorPotMag[i][j][k][1] -= (ObjPtr->MagPotDual[i][j][k][1] - DualMag[1]);	
 		ObjPtr->ErrorPotMag[i][j][k][2] -= (ObjPtr->MagPotDual[i][j][k][2] - DualMag[2]);	
-		ObjPtr->ErrorPotElec[i][j][k] -= (ObjPtr->ElecPotDual[i][j][k] - DualElec);	
+
+#ifdef VFET_ELEC_RECON		
+		DualElec = ObjPtr->ElecPotDual[i][j][k];
+		ObjPtr->ElecPotDual[i][j][k] = -ObjPtr->ErrorPotElec[i][j][k];
+		ObjPtr->ErrorPotElec[i][j][k] -= (ObjPtr->ElecPotDual[i][j][k] - DualElec);
+#endif	
 	}
 
         orig_cost = compute_orig_cost(SinoPtr, ObjPtr, InpPtr, fftptr);
@@ -981,18 +922,22 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     if (InpPtr->Write2Tiff == 1)
     {
     	if (WriteMultiDimArray2Tiff (ERRORSINO_UNFLIP_X_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->ErrorSino_Unflip_x[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
-    	if (WriteMultiDimArray2Tiff (ERRORSINO_FLIP_X_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->ErrorSino_Flip_x[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
     	if (WriteMultiDimArray2Tiff (ERRORSINO_UNFLIP_Y_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->ErrorSino_Unflip_y[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
+#ifdef VFET_ELEC_RECON
+	if (WriteMultiDimArray2Tiff (ERRORSINO_FLIP_X_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->ErrorSino_Flip_x[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
     	if (WriteMultiDimArray2Tiff (ERRORSINO_FLIP_Y_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->ErrorSino_Flip_y[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
+#endif
     }
 
     multifree(SinoPtr->ErrorSino_Unflip_x, 3);
-    multifree(SinoPtr->ErrorSino_Flip_x, 3);
     multifree(SinoPtr->ErrorSino_Unflip_y, 3);
-    multifree(SinoPtr->ErrorSino_Flip_y, 3);
-    
     multifree(ObjPtr->ErrorPotMag, 4);
+
+#ifdef VFET_ELEC_RECON 
+    multifree(SinoPtr->ErrorSino_Flip_x, 3);
+    multifree(SinoPtr->ErrorSino_Flip_y, 3);
     multifree(ObjPtr->ErrorPotElec, 3);
+#endif
 
     multifree(SinoPtr->DetectorResponse, 2);
     multifree(Mask, 2);

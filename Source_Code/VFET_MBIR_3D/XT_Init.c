@@ -126,34 +126,42 @@ void calculateSinCos(Sinogram* SinoPtr, TomoInputs* InpPtr)
 void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftarr)
 {
 	int32_t i, j, k, idx_i, idx_j, idx_k, idx;
-	Real_t dist, delta, distmag, distelec, h0_mag, h0_elec, magxr, magyr, magzr, elecr, magxi, magyi, magzi, eleci;
+	Real_t dist, delta, magxr, magyr, magzr, magxi, magyi, magzi;
+#ifdef VFET_ELEC_RECON
+	Real_t distelec, h0_elec, elecr, eleci;
+	h0_elec = 0;
 
 	delta = ObjPtr->delta_xy/(2.0*CROSSPROD_IMP_WIDTH+1);
-	h0_mag = 0; h0_elec = 0;
+	/*h0_mag = 0;*/ 
 	for (i = -CROSSPROD_IMP_WIDTH; i <= CROSSPROD_IMP_WIDTH; i++)
 	for (j = -CROSSPROD_IMP_WIDTH; j <= CROSSPROD_IMP_WIDTH; j++)
 	for (k = -CROSSPROD_IMP_WIDTH; k <= CROSSPROD_IMP_WIDTH; k++)
 	{
-		distmag = pow(sqrt((Real_t)(i*i + j*j + k*k)), 3);
+		/*distmag = pow(sqrt((Real_t)(i*i + j*j + k*k)), 3);*/
 		distelec = sqrt((Real_t)(i*i + j*j + k*k));
 		if (i != 0 || j != 0 || k != 0)
 		{
-			h0_mag += ((Real_t)i)/distmag;
+			/*h0_mag += ((Real_t)i)/distmag;*/
 			h0_elec += 1.0/distelec;
 		}
 		else
 		{
-			h0_mag += 0;
+			/*h0_mag += 0;*/
 			h0_elec += 1.0;
 		}
 	}
-	h0_mag *= delta;
+	/*h0_mag *= delta;*/
 	h0_elec *= delta*delta;
+	fprintf(InpPtr->debug_file_ptr, "initCrossProdFilter: Zero'th impulse function value for elec charge denstiy is %e\n", h0_elec);
+#endif
 
-	fprintf(InpPtr->debug_file_ptr, "initCrossProdFilter: Zero'th impulse function value is (mag,elec) = (%e,%e)\n", h0_mag, h0_elec);
 
-	magxr = 0; magyr = 0; magzr = 0; elecr = 0;
-	magxi = 0; magyi = 0; magzi = 0; eleci = 0;
+	magxr = 0; magyr = 0; magzr = 0;
+	magxi = 0; magyi = 0; magzi = 0; 
+#ifdef VFET_ELEC_RECON
+	eleci = 0;
+	elecr = 0;
+#endif
 	for (i = ObjPtr->N_z/2 - 1; i >= -ObjPtr->N_z/2 + 1; i--)
 	for (j = ObjPtr->N_y/2 - 1; j >= -ObjPtr->N_y/2 + 1; j--)
 	for (k = ObjPtr->N_x/2 - 1; k >= -ObjPtr->N_x/2 + 1; k--)
@@ -171,54 +179,74 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 			fftarr->fftforw_magarr[1][idx][0] = ObjPtr->delta_xy*((Real_t)j)/dist;
 			fftarr->fftforw_magarr[2][idx][0] = ObjPtr->delta_xy*((Real_t)k)/dist;
 		
+#ifdef VFET_ELEC_RECON
 			dist = sqrt((Real_t)(i*i + j*j + k*k));
 			fftarr->fftforw_elecarr[idx][0] = ObjPtr->delta_xy*ObjPtr->delta_xy/dist;
+#endif
 		}
 		else
 		{
 			fftarr->fftforw_magarr[0][idx][0] = 0;
 			fftarr->fftforw_magarr[1][idx][0] = 0;
 			fftarr->fftforw_magarr[2][idx][0] = 0;
+#ifdef VFET_ELEC_RECON
 			fftarr->fftforw_elecarr[idx][0] = h0_elec;
+#endif
 		}
 		
 		fftarr->fftforw_magarr[0][idx][1] = 0;
 		fftarr->fftforw_magarr[1][idx][1] = 0;
 		fftarr->fftforw_magarr[2][idx][1] = 0;
+#ifdef VFET_ELEC_RECON
 		fftarr->fftforw_elecarr[idx][1] = 0;
+#endif
 		
 /*		printf("Space i = %d, j = %d, k = %d, idx_i = %d, idx_j = %d, idx_k = %d, idx = %d, fft (mag,elec) = ((%e,%e),(%e,%e),(%e,%e),(%e,%e))\n", i, j, k, idx_i, idx_j, idx_k, idx, fftarr->fftforw_magarr[0][idx][0], fftarr->fftforw_magarr[0][idx][1], fftarr->fftforw_magarr[1][idx][0], fftarr->fftforw_magarr[1][idx][1], fftarr->fftforw_magarr[2][idx][0], fftarr->fftforw_magarr[2][idx][1], fftarr->fftforw_elecarr[idx][0], fftarr->fftforw_elecarr[idx][1]);*/
 		
 		magzr += fabs(fftarr->fftforw_magarr[0][idx][0]);	
 		magyr += fabs(fftarr->fftforw_magarr[1][idx][0]);	
 		magxr += fabs(fftarr->fftforw_magarr[2][idx][0]);	
-		elecr += fabs(fftarr->fftforw_elecarr[idx][0]);	
 		
 		magzi += fabs(fftarr->fftforw_magarr[0][idx][1]);	
 		magyi += fabs(fftarr->fftforw_magarr[1][idx][1]);	
 		magxi += fabs(fftarr->fftforw_magarr[2][idx][1]);	
+		
+#ifdef VFET_ELEC_RECON
+		elecr += fabs(fftarr->fftforw_elecarr[idx][0]);	
 		eleci += fabs(fftarr->fftforw_elecarr[idx][1]);	
+#endif
 	}
 	
 	magxr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	magyr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	magzr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
-	elecr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 
 	magxi /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	magyi /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	magzi /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
-	eleci /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	
-	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of space domain Green's function filters are (magxr, magxi), (magyr, magyi), (magzr, magzi), (elecr, eleci) = (%e,%e),(%e,%e),(%e,%e),(%e,%e)\n", magxr, magxi, magyr, magyi, magzr, magzi, elecr, eleci);
+	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of space domain Green's function filters are (magxr, magxi), (magyr, magyi), (magzr, magzi) = (%e,%e),(%e,%e),(%e,%e)\n", magxr, magxi, magyr, magyi, magzr, magzi);
+	
+#ifdef VFET_ELEC_RECON
+	elecr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
+	eleci /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
+
+	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of space domain Green's function filters are (elecr, eleci) = (%e,%e)\n", elecr, eleci);
+#endif
 	
 	fftw_execute(fftarr->fftforw_magplan[0]);
 	fftw_execute(fftarr->fftforw_magplan[1]);
 	fftw_execute(fftarr->fftforw_magplan[2]);
+#ifdef VFET_ELEC_RECON
 	fftw_execute(fftarr->fftforw_elecplan);
+#endif
 
-	magxr = 0; magyr = 0; magzr = 0; elecr = 0;
-	magxi = 0; magyi = 0; magzi = 0; eleci = 0;
+	magxr = 0; magyr = 0; magzr = 0;
+	magxi = 0; magyi = 0; magzi = 0;
+#ifdef VFET_ELEC_RECON
+	eleci = 0;
+	elecr = 0;
+#endif
 	for (i = 0; i < fftarr->z_num; i++)
 	for (j = 0; j < fftarr->y_num; j++)
 	for (k = 0; k < fftarr->x_num; k++)
@@ -228,24 +256,29 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 		ObjPtr->MagFilt[i][j][k][2*0+0] = fftarr->fftforw_magarr[0][idx][0];	
 		ObjPtr->MagFilt[i][j][k][2*1+0] = fftarr->fftforw_magarr[1][idx][0];	
 		ObjPtr->MagFilt[i][j][k][2*2+0] = fftarr->fftforw_magarr[2][idx][0];	
-		ObjPtr->ElecFilt[i][j][k][0] = fftarr->fftforw_elecarr[idx][0];	
 		
 		ObjPtr->MagFilt[i][j][k][2*0+1] = fftarr->fftforw_magarr[0][idx][1];	
 		ObjPtr->MagFilt[i][j][k][2*1+1] = fftarr->fftforw_magarr[1][idx][1];	
 		ObjPtr->MagFilt[i][j][k][2*2+1] = fftarr->fftforw_magarr[2][idx][1];	
+
+#ifdef VFET_ELEC_RECON
+		ObjPtr->ElecFilt[i][j][k][0] = fftarr->fftforw_elecarr[idx][0];	
 		ObjPtr->ElecFilt[i][j][k][1] = fftarr->fftforw_elecarr[idx][1];
+#endif
 
 /*		printf("Freq i = %d, j = %d, k = %d, idx = %d, fft (mag,elec) = (%e,%e,%e,%e)\n", i, j, k, idx, fftarr->fftforw_magarr[0][idx][0], fftarr->fftforw_magarr[1][idx][0], fftarr->fftforw_magarr[2][idx][0], fftarr->fftforw_elecarr[idx][0]);*/
 
 		magzr += fabs(fftarr->fftforw_magarr[0][idx][0]);	
 		magyr += fabs(fftarr->fftforw_magarr[1][idx][0]);	
 		magxr += fabs(fftarr->fftforw_magarr[2][idx][0]);	
-		elecr += fabs(fftarr->fftforw_elecarr[idx][0]);	
 		
 		magzi += fabs(fftarr->fftforw_magarr[0][idx][1]);	
 		magyi += fabs(fftarr->fftforw_magarr[1][idx][1]);	
 		magxi += fabs(fftarr->fftforw_magarr[2][idx][1]);	
-		eleci += fabs(fftarr->fftforw_elecarr[idx][1]);	
+#ifdef VFET_ELEC_RECON
+		elecr += fabs(fftarr->fftforw_elecarr[idx][0]);	
+		eleci += fabs(fftarr->fftforw_elecarr[idx][1]);
+#endif
 		
 /*		magzr += fabs(ObjPtr->MagFilt[i][j][k][0][0]);	
 		magyr += fabs(ObjPtr->MagFilt[i][j][k][1][0]);	
@@ -261,27 +294,34 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 	magxr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	magyr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	magzr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
-	elecr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 
 	magxi /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	magyi /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	magzi /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
+	
+	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of freq domain Green's function filters are (magxr, magxi), (magyr, magyi), (magzr, magzi) = (%e,%e),(%e,%e),(%e,%e)\n", magxr, magxi, magyr, magyi, magzr, magzi);
+
+#ifdef VFET_ELEC_RECON
+	elecr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 	eleci /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
 
+	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of freq domain Green's function filters are (elecr, eleci) = (%e,%e)\n", elecr, eleci);
+#endif
 	
 	Write2Bin ("mag_freq_resp", fftarr->z_num, fftarr->y_num, fftarr->x_num, 6, sizeof(Real_arr_t), &(ObjPtr->MagFilt[0][0][0][0]), InpPtr->debug_file_ptr);
+#ifdef VFET_ELEC_RECON
 	Write2Bin ("elec_freq_resp", fftarr->z_num, fftarr->y_num, fftarr->x_num, 2, sizeof(Real_arr_t), &(ObjPtr->ElecFilt[0][0][0][0]), InpPtr->debug_file_ptr);
+#endif
 
-	int dimTiff[4];
+	/*int dimTiff[4];
     	if (InpPtr->Write2Tiff == 1)
 	{
     		dimTiff[0] = fftarr->z_num; dimTiff[1] = fftarr->y_num; dimTiff[2] = fftarr->x_num; dimTiff[3] = 6;
     		WriteMultiDimArray2Tiff ("mag_freq_resp", dimTiff, 0, 3, 1, 2, &(ObjPtr->MagFilt[0][0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr);
     		dimTiff[0] = fftarr->z_num; dimTiff[1] = fftarr->y_num; dimTiff[2] = fftarr->x_num; dimTiff[3] = 2;
     		WriteMultiDimArray2Tiff ("elec_freq_resp", dimTiff, 0, 3, 1, 2, &(ObjPtr->ElecFilt[0][0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr);
-	}
+	}*/
 
-	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of freq domain Green's function filters are (magxr, magxi), (magyr, magyi), (magzr, magzi), (elecr, eleci) = (%e,%e),(%e,%e),(%e,%e),(%e,%e)\n", magxr, magxi, magyr, magyi, magzr, magzi, elecr, eleci);
 }
 
 
@@ -302,10 +342,12 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	ObjPtr->Mag_C[0] = mag_c;
 	ObjPtr->Mag_C[1] = mag_c;
 	ObjPtr->Mag_C[2] = mag_c;
-	
+
+#ifdef VFET_ELEC_RECON
 	ObjPtr->Elec_Sigma = elec_sigma;
 	ObjPtr->Elec_C = elec_c;
-
+#endif
+	
 	InpPtr->Weight = 1;
 	
 	ObjPtr->mult_xy = mult_xy[mult_idx];
@@ -346,19 +388,27 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	SinoPtr->N_t = SinoPtr->total_t_slices/InpPtr->node_num;
 	
 	SinoPtr->Data_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+#ifdef VFET_ELEC_RECON
 	SinoPtr->Data_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+#endif
 
 #ifdef VFET_TWO_AXES
 	SinoPtr->Data_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-	SinoPtr->Data_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+	#ifdef VFET_ELEC_RECON
+		SinoPtr->Data_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+	#endif
 
 	for (i = 0; i < SinoPtr->N_p; i++)
 	for (j = 0; j < SinoPtr->N_r; j++)
 	for (k = 0; k < SinoPtr->N_t; k++)
 	{
 		idx = i*SinoPtr->N_t*SinoPtr->N_r + k*SinoPtr->N_r + j;
+	#ifdef VFET_ELEC_RECON
 		SinoPtr->Data_Unflip_y[i][j][k] = data_unflip_y[idx];
 		SinoPtr->Data_Flip_y[i][j][k] = data_flip_y[idx];
+	#else
+		SinoPtr->Data_Unflip_y[i][j][k] = (data_unflip_y[idx] - data_flip_y[idx])/2;
+	#endif
 	}
 #endif
 	
@@ -367,8 +417,12 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	for (k = 0; k < SinoPtr->N_t; k++)
 	{
 		idx = i*SinoPtr->N_t*SinoPtr->N_r + j*SinoPtr->N_t + k;
+#ifdef VFET_ELEC_RECON
 		SinoPtr->Data_Unflip_x[i][j][k] = data_unflip_x[idx];
 		SinoPtr->Data_Flip_x[i][j][k] = data_flip_x[idx];
+#else
+		SinoPtr->Data_Unflip_x[i][j][k] = (data_unflip_x[idx] - data_flip_x[idx])/2;
+#endif
 	}
 
 	int dimTiff[4];
@@ -376,10 +430,14 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
     	if (InpPtr->Write2Tiff == 1)
 	{
     		if (WriteMultiDimArray2Tiff (DATA_UNFLIP_X_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Unflip_x[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
+#ifdef VFET_ELEC_RECON
     		if (WriteMultiDimArray2Tiff (DATA_FLIP_X_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Flip_x[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
+#endif
 #ifdef VFET_TWO_AXES
     		if (WriteMultiDimArray2Tiff (DATA_UNFLIP_Y_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Unflip_y[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
+	#ifdef VFET_ELEC_RECON
     		if (WriteMultiDimArray2Tiff (DATA_FLIP_Y_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Flip_y[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
+	#endif
 #endif
 	}	
 	
@@ -410,11 +468,14 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
     	ObjPtr->BeamWidth = SinoPtr->delta_r; /*Weighting of the projections at different points of the detector*/
 
 	ObjPtr->MagPotentials = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
-	ObjPtr->ElecPotentials = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
 	ObjPtr->Magnetization = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
-	ObjPtr->ChargeDensity = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
     	ObjPtr->MagPotDual = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
+
+#ifdef VFET_ELEC_RECON	
+	ObjPtr->ChargeDensity = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
+	ObjPtr->ElecPotentials = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
     	ObjPtr->ElecPotDual = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
+#endif
 
 	/*OffsetR is stepsize of the distance between center of voxel of the object and the detector pixel, at which projections are computed*/
 	SinoPtr->OffsetR = (ObjPtr->delta_xy/sqrt(2.0)+SinoPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
@@ -467,8 +528,10 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		InpPtr->Mag_Sigma_Q_P[i] = pow(ObjPtr->Mag_Sigma[i]*ObjPtr->mult_xy,MRF_Q-MRF_P);	
 	}
 
+#ifdef VFET_ELEC_RECON
 	InpPtr->Elec_Sigma_Q = pow((ObjPtr->Elec_Sigma*ObjPtr->mult_xy),MRF_Q);
-	InpPtr->Elec_Sigma_Q_P = pow(ObjPtr->Elec_Sigma*ObjPtr->mult_xy,MRF_Q-MRF_P);	
+	InpPtr->Elec_Sigma_Q_P = pow(ObjPtr->Elec_Sigma*ObjPtr->mult_xy,MRF_Q-MRF_P);
+#endif	
 	initFilter (ObjPtr, InpPtr);
 	
 	calculateSinCos (SinoPtr, InpPtr);
@@ -486,7 +549,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	InpPtr->DensUpdate_MaxIter = 2;*/
 	
 	InpPtr->Head_threshold = 1;
-	InpPtr->DensUpdate_thresh = convg_thresh;
+	InpPtr->DensUpdate_thresh = convg_thresh/100;
 
 /*#ifdef INIT_GROUND_TRUTH_PHANTOM
 	ObjPtr->ElecPotGndTruth = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, PHANTOM_Z_SIZE, PHANTOM_Y_SIZE, PHANTOM_X_SIZE);
@@ -501,11 +564,14 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	check_error(SinoPtr->N_t % (int32_t)ObjPtr->mult_z != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ObjPtr->mult_z, SinoPtr->N_t);
 	check_error(SinoPtr->N_r % (int32_t)ObjPtr->mult_xy != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot do reconstruction since mult_xy = %d does not divide %d\n", (int32_t)ObjPtr->mult_xy, SinoPtr->N_r);
 
-	/*InpPtr->MagPhaseMultiple = 0.01;
-	InpPtr->ElecPhaseMultiple = 0.01;*/
+	InpPtr->MagPhaseMultiple = 0.01;
+	InpPtr->ElecPhaseMultiple = 1;
 	
-	InpPtr->MagPhaseMultiple = -3.794e-6*SinoPtr->delta_r*SinoPtr->delta_r;
-	InpPtr->ElecPhaseMultiple = 0.0364*SinoPtr->delta_r;
+	/*InpPtr->MagPhaseMultiple = -3.794e-6*SinoPtr->delta_r*SinoPtr->delta_r;
+	InpPtr->MagPhaseMultiple = 0.01*SinoPtr->delta_r;
+	InpPtr->ElecPhaseMultiple = 0.01*SinoPtr->delta_r;*/
+	/*InpPtr->MagPhaseMultiple = 3.794e-6;
+	InpPtr->ElecPhaseMultiple = 0.0364;*/
 
 	fftptr->z_num = 2*ObjPtr->N_z;
 	fftptr->y_num = 2*ObjPtr->N_y;
@@ -528,13 +594,16 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		fftptr->fftback_magplan[i] = fftw_plan_dft_3d(fftptr->z_num, fftptr->y_num, fftptr->x_num, fftptr->fftback_magarr[i], fftptr->fftback_magarr[i], FFTW_BACKWARD, FFTW_ESTIMATE);
 	}
 	
+	ObjPtr->MagFilt = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, fftptr->z_num, fftptr->y_num, fftptr->x_num, 6);	
+	
+#ifdef VFET_ELEC_RECON
 	fftptr->fftforw_elecarr = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*fftptr->z_num*fftptr->y_num*fftptr->x_num);
 	fftptr->fftforw_elecplan = fftw_plan_dft_3d(fftptr->z_num, fftptr->y_num, fftptr->x_num, fftptr->fftforw_elecarr, fftptr->fftforw_elecarr, FFTW_FORWARD, FFTW_ESTIMATE);
 	fftptr->fftback_elecarr = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*fftptr->z_num*fftptr->y_num*fftptr->x_num);
 	fftptr->fftback_elecplan = fftw_plan_dft_3d(fftptr->z_num, fftptr->y_num, fftptr->x_num, fftptr->fftback_elecarr, fftptr->fftback_elecarr, FFTW_BACKWARD, FFTW_ESTIMATE);
 	
-	ObjPtr->MagFilt = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, fftptr->z_num, fftptr->y_num, fftptr->x_num, 6);	
 	ObjPtr->ElecFilt = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, fftptr->z_num, fftptr->y_num, fftptr->x_num, 2);	
+#endif
 
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Done initializing FFT arrays and plans.\n");
 	
@@ -559,36 +628,44 @@ void freeMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr, FF
 		fftw_free(fftptr->fftback_magarr[i]);
 	}
 
-	fftw_destroy_plan(fftptr->fftforw_elecplan);
-	fftw_destroy_plan(fftptr->fftback_elecplan);
-	fftw_free(fftptr->fftforw_elecarr); 
-	fftw_free(fftptr->fftback_elecarr);
-
 	free(fftptr->fftforw_magarr);
 	free(fftptr->fftback_magarr);
 	free(fftptr->fftforw_magplan);
 	free(fftptr->fftback_magplan);
 
 	multifree(ObjPtr->MagFilt, 4);
-	multifree(ObjPtr->ElecFilt, 4);
+	
+	multifree(ObjPtr->MagPotentials,4);
+	multifree(ObjPtr->Magnetization,4);
+	multifree(ObjPtr->MagPotDual,4);
 
+#ifdef VFET_ELEC_RECON
+	fftw_destroy_plan(fftptr->fftforw_elecplan);
+	fftw_destroy_plan(fftptr->fftback_elecplan);
+	fftw_free(fftptr->fftforw_elecarr); 
+	fftw_free(fftptr->fftback_elecarr);
+
+	multifree(ObjPtr->ElecFilt, 4);
+	
+	multifree(ObjPtr->ElecPotentials,3);
+	multifree(ObjPtr->ChargeDensity,3);
+	multifree(ObjPtr->ElecPotDual,3);
+#endif
 /*#ifdef INIT_GROUND_TRUTH_PHANTOM
 	multifree(ObjPtr->MagPotGndTruth,4);
 	multifree(ObjPtr->ElecPotGndTruth,3);
 #endif*/
-	multifree(ObjPtr->MagPotentials,4);
-	multifree(ObjPtr->ElecPotentials,3);
-	multifree(ObjPtr->Magnetization,4);
-	multifree(ObjPtr->ChargeDensity,3);
-	multifree(ObjPtr->MagPotDual,4);
-	multifree(ObjPtr->ElecPotDual,3);
 	if (SinoPtr->ViewPtr) free(SinoPtr->ViewPtr);
 
 	if (SinoPtr->Data_Unflip_x) multifree(SinoPtr->Data_Unflip_x,3);
+#ifdef VFET_ELEC_RECON
 	if (SinoPtr->Data_Flip_x) multifree(SinoPtr->Data_Flip_x,3);
+#endif
 #ifdef VFET_TWO_AXES
 	if (SinoPtr->Data_Unflip_y) multifree(SinoPtr->Data_Unflip_y,3);
+	#ifdef VFET_ELEC_RECON
 	if (SinoPtr->Data_Flip_y) multifree(SinoPtr->Data_Flip_y,3);
+	#endif
 #endif
 	
 	if (InpPtr->x_rand_select) multifree(InpPtr->x_rand_select,2);
@@ -614,7 +691,7 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 	
 	SinoPtr->Length_R = vox_wid*proj_cols;
 	SinoPtr->Length_T = vox_wid*proj_rows;
-	InpPtr->RotCenter = rot_center*(PHANTOM_XY_SIZE/proj_cols);
+	InpPtr->RotCenter = rot_center;
 		
 	InpPtr->Write2Tiff = ENABLE_TIFF_WRITES;
 	SinoPtr->N_p = proj_num;	
@@ -672,8 +749,9 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 	
 	/*InpPtr->MagPhaseMultiple = -0.001517;
 	InpPtr->ElecPhaseMultiple = 0.007288;*/
-	InpPtr->MagPhaseMultiple = 0.01; /*Gauss^-1 px^-2*/
-	InpPtr->ElecPhaseMultiple = 0.01; /*V^-1 px^-1*/
+	/*InpPtr->MagPhaseMultiple = -3.794e-6*SinoPtr->delta_r*SinoPtr->delta_r;*/
+	InpPtr->MagPhaseMultiple = 0.01*SinoPtr->delta_r;
+	InpPtr->ElecPhaseMultiple = 0.01*SinoPtr->delta_r;
 	
 	fftptr->z_num = 2*ObjPtr->N_z;
 	fftptr->y_num = 2*ObjPtr->N_y;
@@ -727,17 +805,18 @@ void freePhantomMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* Inp
 		fftw_free(fftptr->fftback_magarr[i]);
 	}
 
-	fftw_destroy_plan(fftptr->fftforw_elecplan);
-	fftw_destroy_plan(fftptr->fftback_elecplan);
-	fftw_free(fftptr->fftforw_elecarr); 
-	fftw_free(fftptr->fftback_elecarr);
-
 	free(fftptr->fftforw_magarr);
 	free(fftptr->fftback_magarr);
 	free(fftptr->fftforw_magplan);
 	free(fftptr->fftback_magplan);
 
 	multifree(ObjPtr->MagFilt, 4);
+
+	fftw_destroy_plan(fftptr->fftforw_elecplan);
+	fftw_destroy_plan(fftptr->fftback_elecplan);
+	fftw_free(fftptr->fftforw_elecarr); 
+	fftw_free(fftptr->fftback_elecarr);
+	
 	multifree(ObjPtr->ElecFilt, 4);
 
 /*	int32_t i;

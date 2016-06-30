@@ -70,10 +70,9 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	MagPhaseMultiple = InpPtr->MagPhaseMultiple; 
 	ElecPhaseMultiple = InpPtr->ElecPhaseMultiple; 
 
-#ifdef VFET_DENSITY_RECON 
 	Real_arr_t**** magobject = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
 	Real_arr_t*** elecobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
-#endif
+	
 	Real_arr_t**** magpot = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
 	Real_arr_t*** elecpot = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
 
@@ -104,11 +103,7 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	r_subsmpl = ObjPtr->N_x/SinoPtr->N_r;
 	t_subsmpl = ObjPtr->N_z/SinoPtr->N_t;
 
-#ifdef VFET_DENSITY_RECON
 	sprintf(phantom_file, "%s.bin", PHANTOM_MAGDENSITY_FILENAME);
-#else 
-	sprintf(phantom_file, "%s.bin", PHANTOM_MAGVECPOT_FILENAME);
-#endif
 	fp = fopen (phantom_file, "rb");
 	check_error(fp==NULL, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
 	size = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x*3;
@@ -117,19 +112,11 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	stream_offset = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x*(long int)InpPtr->node_rank;
 	result = fseek (fp, stream_offset*sizeof(Real_arr_t), SEEK_SET);
   	check_error(result != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
-#ifdef VFET_DENSITY_RECON
 	result = fread (&(magobject[0][0][0][0]), sizeof(Real_arr_t), size, fp);
-#else
-	result = fread (&(magpot[0][0][0][0]), sizeof(Real_arr_t), size, fp);
-#endif
   	check_error(result != size, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
 	fclose(fp);	
 	
-#ifdef VFET_DENSITY_RECON
-	sprintf(phantom_file, "%s.bin", PHANTOM_ELECPOT_FILENAME);
-#else
-	sprintf(phantom_file, "%s.bin", PHANTOM_ELECPOT_FILENAME);
-#endif
+	sprintf(phantom_file, "%s.bin", PHANTOM_ELECDENSITY_FILENAME);
 	fp = fopen (phantom_file, "rb");
 	check_error(fp==NULL, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
 	size = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x;
@@ -137,19 +124,19 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	stream_offset = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x*(long int)InpPtr->node_rank;
 	result = fseek (fp, stream_offset*sizeof(Real_arr_t), SEEK_SET);
   	check_error(result != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
-#ifdef VFET_DENSITY_RECON
 	result = fread (&(elecobject[0][0][0]), sizeof(Real_arr_t), size, fp);
-#else
-	result = fread (&(elecpot[0][0][0]), sizeof(Real_arr_t), size, fp);
-#endif
   	check_error(result != size, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
 	fclose(fp);	
 
-#ifdef VFET_DENSITY_RECON
-  	compute_crossprodtran (magobject, elecobject, magpot, elecpot, ObjPtr->MagFilt, ObjPtr->ElecFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
-#endif
+  	compute_magcrossprodtran (magobject, magpot, ObjPtr->MagFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
+  	compute_elecprodtran (elecobject, elecpot, ObjPtr->ElecFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
+
+	Write2Bin (PHANTOM_MAGDENSITY_FILENAME, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3, sizeof(Real_arr_t), &(magobject[0][0][0][0]), InpPtr->debug_file_ptr);
+	Write2Bin (PHANTOM_ELECDENSITY_FILENAME, 1, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, sizeof(Real_arr_t), &(elecobject[0][0][0]), InpPtr->debug_file_ptr);
+	Write2Bin (PHANTOM_MAGVECPOT_FILENAME, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3, sizeof(Real_arr_t), &(magpot[0][0][0][0]), InpPtr->debug_file_ptr);
+	Write2Bin (PHANTOM_ELECPOT_FILENAME, 1, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, sizeof(Real_arr_t), &(elecpot[0][0][0]), InpPtr->debug_file_ptr);
 	
-	fp = fopen (phantom_file, "rb");
+	/*fp = fopen (phantom_file, "rb");
 	check_error(fp==NULL, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
 	size = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x;
 	check_info(InpPtr->node_rank==0,InpPtr->debug_file_ptr, "Forward projecting elec phantom ...\n");	
@@ -158,7 +145,7 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
   	check_error(result != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
 	result = fread (&(elecpot[0][0][0]), sizeof(Real_arr_t), size, fp);
   	check_error(result != size, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
-	fclose(fp);	
+	fclose(fp);*/	
 	
   	#pragma omp parallel for private(i,j,k,slice,idx,val,m,n,data_idx)
 	for (i=0; i<SinoPtr->N_p; i++){
@@ -242,11 +229,9 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		size = ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3;	
 		dimTiff[0] = ObjPtr->N_z; dimTiff[1] = ObjPtr->N_y; dimTiff[2] = ObjPtr->N_x; dimTiff[3] = 3;
 
-#ifdef VFET_DENSITY_RECON
 		objptr = &(magobject[0][0][0][0]);
 		for (i = 0; i < size; i++) tifarray[i] = objptr[i]; 
 		if (WriteMultiDimArray2Tiff (PHANTOM_MAGDENSITY_FILENAME, dimTiff, 0, 3, 1, 2, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
-#endif
 		
 		objptr = &(magpot[0][0][0][0]);
 		for (i = 0; i < size; i++) tifarray[i] = objptr[i]; 
@@ -255,11 +240,9 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		size = ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x;	
 		dimTiff[0] = 1; dimTiff[1] = ObjPtr->N_z; dimTiff[2] = ObjPtr->N_y; dimTiff[3] = ObjPtr->N_x;
 
-#ifdef VFET_DENSITY_RECON
 		objptr = &(elecobject[0][0][0]);
 		for (i = 0; i < size; i++) tifarray[i] = objptr[i]; 
 		if (WriteMultiDimArray2Tiff (PHANTOM_ELECDENSITY_FILENAME, dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, InpPtr->debug_file_ptr)) {goto error;}
-#endif
 		
 		objptr = &(elecpot[0][0][0]);
 		for (i = 0; i < size; i++) tifarray[i] = objptr[i]; 
@@ -279,10 +262,8 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	multifree(SinoPtr->DetectorResponse,2);
 	free(SinoPtr->ZLineResponse);
         free(VoxelLineResponse);
-#ifdef VFET_DENSITY_RECON 
 	multifree(magobject,4);
 	multifree(elecobject,3);
-#endif
 	multifree(magpot,4);
 	multifree(elecpot,3);
 	/*multifree(realmagobject,3);
