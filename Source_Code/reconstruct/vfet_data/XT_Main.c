@@ -8,7 +8,7 @@
 
 /*Function prototype definitions which will be defined later in the file.*/
 void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_y, float **data_flip_y, float **proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, FILE* debug_file_ptr);
-void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, float *vox_wid, float *rot_center, float *mag_sigma, float *mag_c, float *elec_sigma, float *elec_c, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr);
+void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, float *vox_wid, float *rot_center, float *mag_sigma, float *mag_c, float *elec_sigma, float *elec_c, float *convg_thresh, float *admm_mu, uint8_t *restart, FILE* debug_msg_ptr);
 
 /*The main function which reads the command line arguments, reads the data,
   and does the reconstruction.*/
@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 {
 	uint8_t restart;
 	int32_t proj_rows, proj_cols, proj_num, nodes_num, nodes_rank;
-	float *magobject, *elecobject, *data_unflip_x, *data_flip_x, *data_unflip_y, *data_flip_y, *proj_angles, vox_wid, rot_center, mag_sigma, mag_c, elec_sigma, elec_c, convg_thresh;
+	float *magobject, *elecobject, *data_unflip_x, *data_flip_x, *data_unflip_y, *data_flip_y, *proj_angles, vox_wid, rot_center, mag_sigma, mag_c, elec_sigma, elec_c, convg_thresh, admm_mu;
 	FILE *debug_msg_ptr;
 
 	/*initialize MPI process.*/	
@@ -24,15 +24,14 @@ int main(int argc, char **argv)
 	/*Find the total number of nodes.*/
 	/*MPI_Comm_size(MPI_COMM_WORLD, &nodes_num);
 	MPI_Comm_rank(MPI_COMM_WORLD, &nodes_rank);*/
+	nodes_num = 1; nodes_rank = 0;
 	
 	/*All messages to help debug any potential mistakes or bugs are written to debug.log*/
-	nodes_num = 1; nodes_rank = 0;
-
 	debug_msg_ptr = fopen("debug.log", "w");
 	debug_msg_ptr = stdout;	
 	/*Read the command line arguments to determine the reconstruction parameters*/
-	read_command_line_args (argc, argv, &proj_rows, &proj_cols, &proj_num, &vox_wid, &rot_center, &mag_sigma, &mag_c, &elec_sigma, &elec_c, &convg_thresh, &restart, debug_msg_ptr);
-	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Number of nodes is %d and command line input argument values are proj_rows = %d, proj_cols = %d, proj_num = %d, vox_wid = %e, rot_center = %e, mag_sigma = %e, mag_c = %e, elec_sigma = %e, elec_c = %e, convg_thresh = %e, restart = %d\n", nodes_num, proj_rows, proj_cols, proj_num, vox_wid, rot_center, mag_sigma, mag_c, elec_sigma, elec_c, convg_thresh, restart);	
+	read_command_line_args (argc, argv, &proj_rows, &proj_cols, &proj_num, &vox_wid, &rot_center, &mag_sigma, &mag_c, &elec_sigma, &elec_c, &convg_thresh, &admm_mu, &restart, debug_msg_ptr);
+	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Number of nodes is %d and command line input argument values are proj_rows = %d, proj_cols = %d, proj_num = %d, vox_wid = %e, rot_center = %e, mag_sigma = %e, mag_c = %e, elec_sigma = %e, elec_c = %e, convg_thresh = %e, admm mu = %e, restart = %d\n", nodes_num, proj_rows, proj_cols, proj_num, vox_wid, rot_center, mag_sigma, mag_c, elec_sigma, elec_c, convg_thresh, admm_mu, restart);	
 	
 	/*Allocate memory for data arrays used for reconstruction.*/
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Allocating memory for data ....\n");
@@ -43,7 +42,7 @@ int main(int argc, char **argv)
 	
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Reconstructing the data ....\n");
 	/*Run the reconstruction*/
-	vfet_reconstruct (&magobject, &elecobject, data_unflip_x, data_flip_x, data_unflip_y, data_flip_y, proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, mag_sigma, mag_c, elec_sigma, elec_c, convg_thresh, restart, debug_msg_ptr);
+	vfet_reconstruct (&magobject, &elecobject, data_unflip_x, data_flip_x, data_unflip_y, data_flip_y, proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, mag_sigma, mag_c, elec_sigma, elec_c, convg_thresh, admm_mu, restart, debug_msg_ptr);
 	/*free(magobject);
 	free(elecobject);*/
 	
@@ -89,6 +88,30 @@ void read_BinFile (char filename[100], float* data, size_t offset, size_t size, 
 	fclose(fp);
 }
 
+void write_BinFile (char filename[100], float* data, size_t size, FILE* debug_file_ptr)
+{
+  	char file[100];
+	FILE* fp;
+	size_t result;
+  	sprintf(file,"%s.bin", filename);
+
+	fp = fopen (file, "wb" );
+	if(fp == NULL)
+	{
+		fprintf(debug_file_ptr, "Error in reading file %s.\n", file);
+		exit(-1);
+	}
+
+  	result = fwrite(data, sizeof(float), size, fp);	
+
+  	if(result != size)
+	{
+		fprintf(debug_file_ptr, "Number of elements written does not match total, total = %zu, written = %zu\n", size, result);
+		exit(-1);
+	}
+	fclose(fp);
+}
+
 void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_y, float **data_flip_y, float **proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, FILE* debug_file_ptr)
 {
 	char data_unflip_x_filename[] = DATA_UNFLIP_X_FILENAME;
@@ -109,16 +132,23 @@ void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_
 	*data_unflip_y = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 	*data_flip_y = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 
-	/*idx = 0;	
+	idx = 0;	
 	for (i = -(proj_num-1); i <= (proj_num-1); i=i+2)
 	{
 		(*proj_angles)[idx] = M_PI*((float)(i))/180;
 		idx++;
 	}
 	
-	vfettomo_forward_project (data_unflip_x, data_flip_x, data_unflip_y, data_flip_y, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);*/
+	vfettomo_forward_project (data_unflip_x, data_flip_x, data_unflip_y, data_flip_y, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, debug_file_ptr);
 	
-	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
+        size = proj_rows*proj_cols*proj_num;
+	write_BinFile (proj_angles_filename, *proj_angles, proj_num, debug_file_ptr);
+	write_BinFile (data_unflip_x_filename, *data_unflip_x, size, debug_file_ptr);
+	write_BinFile (data_flip_x_filename, *data_flip_x, size, debug_file_ptr);
+	write_BinFile (data_unflip_y_filename, *data_unflip_y, size, debug_file_ptr);
+	write_BinFile (data_flip_y_filename, *data_flip_y, size, debug_file_ptr);
+	
+/*	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
 	size = proj_rows*proj_cols/num_nodes;
 	for (i = 0; i < proj_num; i++)
 	{
@@ -127,10 +157,10 @@ void read_data (float **data_unflip_x, float **data_flip_x, float **data_unflip_
 		read_BinFile (data_flip_x_filename, *data_flip_x + i*size, offset, size, debug_file_ptr);
 		read_BinFile (data_unflip_y_filename, *data_unflip_y + i*size, offset, size, debug_file_ptr);
 		read_BinFile (data_flip_y_filename, *data_flip_y + i*size, offset, size, debug_file_ptr);
-	}
+	}*/
 }
 
-void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, float *vox_wid, float *rot_center, float *mag_sigma, float *mag_c, float *elec_sigma, float *elec_c, float *convg_thresh, uint8_t *restart, FILE* debug_msg_ptr)
+void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, float *vox_wid, float *rot_center, float *mag_sigma, float *mag_c, float *elec_sigma, float *elec_c, float *convg_thresh, float *admm_mu, uint8_t *restart, FILE* debug_msg_ptr)
 /*Function which parses the command line input to the C code and initializes several variables.*/
 {
 	int32_t option_index;
@@ -157,6 +187,7 @@ void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int3
                {"convg_thresh",    required_argument, 0, 'j'}, /*Used to determine when the algorithm is converged at each stage of multi-resolution.
 		If the ratio of the average magnitude of voxel updates to the average voxel value expressed as a percentage is less
 		than "convg_thresh" then the algorithm is assumed to have converged and the algorithm stops.*/
+               {"admm_mu",    required_argument, 0, 'l'}, /*ADMM parameter used to control convergence*/
                {"restart",    no_argument, 0, 'k'}, /*If the reconstruction gets killed due to any unfortunate reason (like exceeding walltime in a super-computing cluster), use this flag to restart the reconstruction from the beginning of the current multi-resolution stage. Don't use restart if WRITE_EVERY_ITER  is 1.*/
 		{0, 0, 0, 0}
          };
@@ -164,7 +195,7 @@ void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int3
 	*restart = 0;
 	while(1)
 	{		
-	   c = getopt_long (argc, argv, "a:b:c:d:e:f:g:h:i:j:k", long_options, &option_index);
+	   c = getopt_long (argc, argv, "a:b:c:d:e:f:g:h:i:j:l:k", long_options, &option_index);
            /* Detect the end of the options. */
           if (c == -1) break;
 	  switch (c) { 
@@ -179,6 +210,7 @@ void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int3
 		case 'h': *elec_sigma = (float)atof(optarg);			break;
 		case 'i': *elec_c = (float)atof(optarg);				break;
 		case 'j': *convg_thresh = (float)atof(optarg);			break;
+		case 'l': *admm_mu = (float)atof(optarg);			break;
 		case 'k': *restart = 1;		break;
 		case '?': fprintf(debug_msg_ptr, "ERROR: read_command_line_args: Cannot recognize argument %s\n",optarg); break;
 		}

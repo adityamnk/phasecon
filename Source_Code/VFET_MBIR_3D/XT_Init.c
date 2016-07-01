@@ -327,7 +327,7 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 
 /*Initializes the variables in the three major structures used throughout the code -
 Sinogram, ScannedObject, TomoInputs. It also allocates memory for several variables.*/
-int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, int32_t mult_idx, int32_t mult_xy[], int32_t mult_z[], float *data_unflip_x, float *data_flip_x, float *data_unflip_y, float *data_flip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid, Real_t rot_center, Real_t mag_sigma, Real_t mag_c, Real_t elec_sigma, Real_t elec_c, Real_t convg_thresh)
+int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, int32_t mult_idx, int32_t mult_xy[], int32_t mult_z[], float *data_unflip_x, float *data_flip_x, float *data_unflip_y, float *data_flip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid, Real_t rot_center, Real_t mag_sigma, Real_t mag_c, Real_t elec_sigma, Real_t elec_c, Real_t convg_thresh, Real_t admm_mu)
 {
 	int flag = 0, i;
 
@@ -536,7 +536,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	
 	calculateSinCos (SinoPtr, InpPtr);
 	
-	InpPtr->ADMM_mu = 1;	
+	InpPtr->ADMM_mu = admm_mu;	
 
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "The ADMM mu is %f.\n", InpPtr->ADMM_mu);
 		
@@ -549,7 +549,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	InpPtr->DensUpdate_MaxIter = 2;*/
 	
 	InpPtr->Head_threshold = 1;
-	InpPtr->DensUpdate_thresh = convg_thresh/100;
+	InpPtr->DensUpdate_thresh = convg_thresh;
 
 /*#ifdef INIT_GROUND_TRUTH_PHANTOM
 	ObjPtr->ElecPotGndTruth = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, PHANTOM_Z_SIZE, PHANTOM_Y_SIZE, PHANTOM_X_SIZE);
@@ -564,14 +564,16 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	check_error(SinoPtr->N_t % (int32_t)ObjPtr->mult_z != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ObjPtr->mult_z, SinoPtr->N_t);
 	check_error(SinoPtr->N_r % (int32_t)ObjPtr->mult_xy != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot do reconstruction since mult_xy = %d does not divide %d\n", (int32_t)ObjPtr->mult_xy, SinoPtr->N_r);
 
-	InpPtr->MagPhaseMultiple = 0.01;
+	InpPtr->MagPhaseMultiple = 1;
 	InpPtr->ElecPhaseMultiple = 1;
-	
+
 	/*InpPtr->MagPhaseMultiple = -3.794e-6*SinoPtr->delta_r*SinoPtr->delta_r;
 	InpPtr->MagPhaseMultiple = 0.01*SinoPtr->delta_r;
 	InpPtr->ElecPhaseMultiple = 0.01*SinoPtr->delta_r;*/
-	/*InpPtr->MagPhaseMultiple = 3.794e-6;
+	/*InpPtr->MagPhaseMultiple = 0.000003794;
 	InpPtr->ElecPhaseMultiple = 0.0364;*/
+	
+	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Mag and Elec pre multipliers to the phase are %e and %e\n.", InpPtr->MagPhaseMultiple, InpPtr->ElecPhaseMultiple);
 
 	fftptr->z_num = 2*ObjPtr->N_z;
 	fftptr->y_num = 2*ObjPtr->N_y;
@@ -750,8 +752,10 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 	/*InpPtr->MagPhaseMultiple = -0.001517;
 	InpPtr->ElecPhaseMultiple = 0.007288;*/
 	/*InpPtr->MagPhaseMultiple = -3.794e-6*SinoPtr->delta_r*SinoPtr->delta_r;*/
-	InpPtr->MagPhaseMultiple = 0.01*SinoPtr->delta_r;
-	InpPtr->ElecPhaseMultiple = 0.01*SinoPtr->delta_r;
+	/*InpPtr->MagPhaseMultiple = 0.01*SinoPtr->delta_r;
+	InpPtr->ElecPhaseMultiple = 0.01*SinoPtr->delta_r;*/
+	InpPtr->MagPhaseMultiple = 1;
+	InpPtr->ElecPhaseMultiple = 1;
 	
 	fftptr->z_num = 2*ObjPtr->N_z;
 	fftptr->y_num = 2*ObjPtr->N_y;

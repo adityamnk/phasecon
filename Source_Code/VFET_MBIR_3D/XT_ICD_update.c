@@ -764,7 +764,7 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     Real_t cost, cost_0_iter, cost_last_iter, percentage_change_in_cost = 0, orig_cost_last = 0, orig_cost = 0;
     char costfile[100] = COST_FILENAME, origcostfile[100] = ORIG_COST_FILENAME;
     #endif
-    Real_t x, y, DualMag[3], DualElec;
+    Real_t x, y, DualMag[3], DualElec, mag_primal_res = 0, elec_primal_res = 0;
     int32_t i, j, flag = 0, Iter, k, HeadIter;
     int dimTiff[4];
     time_t start;
@@ -822,8 +822,10 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 
     check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Time taken to initialize object and compute error sinogram = %fmins\n", difftime(time(NULL),start)/60.0);
   
-    orig_cost_last = compute_orig_cost(SinoPtr, ObjPtr, InpPtr, fftptr);
     start=time(NULL);
+    
+    orig_cost_last = compute_orig_cost(SinoPtr, ObjPtr, InpPtr, fftptr);
+    check_info(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "HeadIter = 0: The original cost value is %f.\n", orig_cost_last);
     if (InpPtr->node_rank == 0)
 	   Write2Bin (origcostfile, 1, 1, 1, 1, sizeof(Real_t), &orig_cost_last, InpPtr->debug_file_ptr);
 
@@ -876,6 +878,7 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
       			check_warn(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot flush buffer.\n");
     	}
 
+	mag_primal_res = 0; elec_primal_res = 0;
 	for (i = 0; i < ObjPtr->N_z; i++)
 	for (j = 0; j < ObjPtr->N_y; j++)
 	for (k = 0; k < ObjPtr->N_x; k++)
@@ -890,17 +893,32 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 	
 		ObjPtr->ErrorPotMag[i][j][k][0] -= (ObjPtr->MagPotDual[i][j][k][0] - DualMag[0]);	
 		ObjPtr->ErrorPotMag[i][j][k][1] -= (ObjPtr->MagPotDual[i][j][k][1] - DualMag[1]);	
-		ObjPtr->ErrorPotMag[i][j][k][2] -= (ObjPtr->MagPotDual[i][j][k][2] - DualMag[2]);	
+		ObjPtr->ErrorPotMag[i][j][k][2] -= (ObjPtr->MagPotDual[i][j][k][2] - DualMag[2]);
 
+		mag_primal_res += fabs(ObjPtr->ErrorPotMag[i][j][k][0] + ObjPtr->MagPotDual[i][j][k][0]);  
+		mag_primal_res += fabs(ObjPtr->ErrorPotMag[i][j][k][1] + ObjPtr->MagPotDual[i][j][k][1]);  
+		mag_primal_res += fabs(ObjPtr->ErrorPotMag[i][j][k][2] + ObjPtr->MagPotDual[i][j][k][2]);  
+	
 #ifdef VFET_ELEC_RECON		
 		DualElec = ObjPtr->ElecPotDual[i][j][k];
 		ObjPtr->ElecPotDual[i][j][k] = -ObjPtr->ErrorPotElec[i][j][k];
 		ObjPtr->ErrorPotElec[i][j][k] -= (ObjPtr->ElecPotDual[i][j][k] - DualElec);
+		
+		elec_primal_res += fabs(ObjPtr->ErrorPotElec[i][j][k] + ObjPtr->ElecPotDual[i][j][k]);  
 #endif	
 	}
 
         orig_cost = compute_orig_cost(SinoPtr, ObjPtr, InpPtr, fftptr);
         check_info(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "HeadIter = %d: The original cost value is %f. The decrease in original cost is %f.\n", HeadIter, orig_cost, orig_cost_last - orig_cost);
+	
+	mag_primal_res /= (ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
+        check_info(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Mag average primal residual is %e.\n", mag_primal_res);
+	
+#ifdef VFET_ELEC_RECON
+	elec_primal_res /= (ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
+        check_info(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Elec average primal residual is %e.\n", elec_primal_res);
+#endif
+
     	if (InpPtr->node_rank == 0)
 	   Append2Bin (origcostfile, 1, 1, 1, 1, sizeof(Real_t), &orig_cost, InpPtr->debug_file_ptr);
 	
