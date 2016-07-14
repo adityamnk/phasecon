@@ -263,7 +263,7 @@ void upsample_object_bilinear_3D (Real_arr_t**** MagPotentials, Real_arr_t*** El
   multifree(buffer3D,3);
 }
 
-void dwnsmpl_init_phantom (Real_arr_t**** MagObject, Real_t*** ElecObject, Real_t**** MagInit, Real_t*** ElecInit, int32_t N_z, int32_t N_y, int32_t N_x, int32_t dwnsmpl_z, int32_t dwnsmpl_y, int32_t dwnsmpl_x)
+void dwnsmpl_init_phantom (Real_arr_t**** MagObject, /*Real_t*** ElecObject,*/ Real_t**** MagInit, /*Real_t*** ElecInit,*/ int32_t N_z, int32_t N_y, int32_t N_x, int32_t dwnsmpl_z, int32_t dwnsmpl_y, int32_t dwnsmpl_x)
 {
 	int32_t i, j, k, m, n, p;
 	
@@ -271,21 +271,24 @@ void dwnsmpl_init_phantom (Real_arr_t**** MagObject, Real_t*** ElecObject, Real_
 	for (j = 0; j < N_y; j++)
 	for (k = 0; k < N_x; k++)
 	{
-		MagObject[i+1][j][k][0] = 0;
-		MagObject[i+1][j][k][1] = 0;
-		ElecObject[i+1][j][k] = 0;
+		MagObject[i][j][k][0] = 0;
+		MagObject[i][j][k][1] = 0;
+		MagObject[i][j][k][2] = 0;
+/*		ElecObject[i+1][j][k] = 0;*/
 		for (m = 0; m < dwnsmpl_z; m++)
 		for (n = 0; n < dwnsmpl_y; n++)
 		for (p = 0; p < dwnsmpl_x; p++)
 		{
-			MagObject[i+1][j][k][0] += MagInit[k*dwnsmpl_x + p][i*dwnsmpl_z + m][j*dwnsmpl_y + n][3];
-			MagObject[i+1][j][k][1] += MagInit[k*dwnsmpl_x + p][i*dwnsmpl_z + m][j*dwnsmpl_y + n][2];
-			ElecObject[i+1][j][k] += ElecInit[k*dwnsmpl_x + p][i*dwnsmpl_z + m][j*dwnsmpl_y + n];
+			MagObject[i][j][k][0] += MagInit[i*dwnsmpl_z + m][j*dwnsmpl_y + n][k*dwnsmpl_x + p][0];
+			MagObject[i][j][k][1] += MagInit[i*dwnsmpl_z + m][j*dwnsmpl_y + n][k*dwnsmpl_x + p][1];
+			MagObject[i][j][k][2] += MagInit[i*dwnsmpl_z + m][j*dwnsmpl_y + n][k*dwnsmpl_x + p][2];
+/*			ElecObject[i+1][j][k] += ElecInit[k*dwnsmpl_x + p][i*dwnsmpl_z + m][j*dwnsmpl_y + n];*/
 		}
 		
-		MagObject[i+1][j][k][0] /= (dwnsmpl_z*dwnsmpl_y*dwnsmpl_x);
-		MagObject[i+1][j][k][1] /= (dwnsmpl_z*dwnsmpl_y*dwnsmpl_x);
-		ElecObject[i+1][j][k] /= (dwnsmpl_z*dwnsmpl_y*dwnsmpl_x);
+		MagObject[i][j][k][0] /= (dwnsmpl_z*dwnsmpl_y*dwnsmpl_x);
+		MagObject[i][j][k][1] /= (dwnsmpl_z*dwnsmpl_y*dwnsmpl_x);
+		MagObject[i][j][k][2] /= (dwnsmpl_z*dwnsmpl_y*dwnsmpl_x);
+/*		ElecObject[i+1][j][k] /= (dwnsmpl_z*dwnsmpl_y*dwnsmpl_x);*/
 	}
 }
 
@@ -414,7 +417,11 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
 	  	}	
           }*/
       }
-  
+
+#ifdef INIT_GROUND_TRUTH_PHANTOM
+	dwnsmpl_init_phantom (ScannedObjectPtr->Magnetization, /*ScannedObjectPtr->ElecPotentials, */ScannedObjectPtr->MagPotGndTruth, /*ScannedObjectPtr->ElecPotGndTruth, */ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, PHANTOM_Z_SIZE/ScannedObjectPtr->N_z, PHANTOM_XY_SIZE/ScannedObjectPtr->N_y, PHANTOM_XY_SIZE/ScannedObjectPtr->N_x)
+#endif
+
     	if (TomoInputsPtr->Write2Tiff == 1)
 	{	    	
 		dimTiff[3] = 3; dimTiff[0] = ScannedObjectPtr->N_z; dimTiff[1] = ScannedObjectPtr->N_y; dimTiff[2] = ScannedObjectPtr->N_x;

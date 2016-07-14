@@ -541,7 +541,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "The ADMM mu is %f.\n", InpPtr->ADMM_mu);
 		
 	InpPtr->NumIter = MAX_NUM_ITERATIONS;
-	InpPtr->Head_MaxIter = 20;
+	InpPtr->Head_MaxIter = 30;
 	InpPtr->DensUpdate_MaxIter = 100;
 	
 	/*InpPtr->NumIter = 2;
@@ -551,13 +551,13 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	InpPtr->Head_threshold = 1;
 	InpPtr->DensUpdate_thresh = convg_thresh;
 
-/*#ifdef INIT_GROUND_TRUTH_PHANTOM
-	ObjPtr->ElecPotGndTruth = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, PHANTOM_Z_SIZE, PHANTOM_Y_SIZE, PHANTOM_X_SIZE);
+#ifdef INIT_GROUND_TRUTH_PHANTOM
+/*	ObjPtr->ElecPotGndTruth = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, PHANTOM_Z_SIZE, PHANTOM_Y_SIZE, PHANTOM_X_SIZE);*/
 	ObjPtr->MagPotGndTruth = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, PHANTOM_Z_SIZE, PHANTOM_Y_SIZE, PHANTOM_X_SIZE, 3);
 	size = PHANTOM_Z_SIZE*PHANTOM_Y_SIZE*PHANTOM_X_SIZE;
-	if (read_SharedBinFile_At (PHANTOM_ELECOBJECT_FILENAME, &(ObjPtr->ElecPotGndTruth[0][0][0]), InpPtr->node_rank*size, size, InpPtr->debug_file_ptr)) flag = -1;
-	if (read_SharedBinFile_At (PHANTOM_MAGOBJECT_FILENAME, &(ObjPtr->MagPotGndTruth[0][0][0][0]), InpPtr->node_rank*size*3, size*3, InpPtr->debug_file_ptr)) flag = -1;
-#endif*/
+/*	if (read_SharedBinFile_At (PHANTOM_ELECOBJECT_FILENAME, &(ObjPtr->ElecPotGndTruth[0][0][0]), InpPtr->node_rank*size, size, InpPtr->debug_file_ptr)) flag = -1;*/
+	if (read_SharedBinFile_At (PHANTOM_MAGDENSITY_FILENAME, &(ObjPtr->MagPotGndTruth[0][0][0][0]), InpPtr->node_rank*size*3, size*3, InpPtr->debug_file_ptr)) flag = -1;
+#endif
 
 	check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
 	
@@ -653,10 +653,10 @@ void freeMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr, FF
 	multifree(ObjPtr->ChargeDensity,3);
 	multifree(ObjPtr->ElecPotDual,3);
 #endif
-/*#ifdef INIT_GROUND_TRUTH_PHANTOM
+#ifdef INIT_GROUND_TRUTH_PHANTOM
 	multifree(ObjPtr->MagPotGndTruth,4);
-	multifree(ObjPtr->ElecPotGndTruth,3);
-#endif*/
+/*	multifree(ObjPtr->ElecPotGndTruth,3);*/
+#endif
 	if (SinoPtr->ViewPtr) free(SinoPtr->ViewPtr);
 
 	if (SinoPtr->Data_Unflip_x) multifree(SinoPtr->Data_Unflip_x,3);

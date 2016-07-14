@@ -116,7 +116,7 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
   	check_error(result != size, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
 	fclose(fp);	
 	
-	sprintf(phantom_file, "%s.bin", PHANTOM_ELECPOT_FILENAME);
+	sprintf(phantom_file, "%s.bin", PHANTOM_ELECDENSITY_FILENAME);
 	fp = fopen (phantom_file, "rb");
 	check_error(fp==NULL, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Error in reading file %s\n", phantom_file);		
 	size = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x;
@@ -124,12 +124,12 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	stream_offset = (long int)ObjPtr->N_z*(long int)ObjPtr->N_y*(long int)ObjPtr->N_x*(long int)InpPtr->node_rank;
 	result = fseek (fp, stream_offset*sizeof(Real_arr_t), SEEK_SET);
   	check_error(result != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Error in seeking file %s, stream_offset = %ld\n",phantom_file,stream_offset);
-	result = fread (&(elecpot[0][0][0]), sizeof(Real_arr_t), size, fp);
+	result = fread (&(elecobject[0][0][0]), sizeof(Real_arr_t), size, fp);
   	check_error(result != size, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Reading file %s, Number of elements read does not match required, number of elements read=%ld, stream_offset=%ld, size=%ld\n",phantom_file,result,stream_offset,size);
 	fclose(fp);	
 
   	compute_magcrossprodtran (magobject, magpot, ObjPtr->MagFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
-/*  	compute_elecprodtran (elecobject, elecpot, ObjPtr->ElecFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);*/
+  	compute_elecprodtran (elecobject, elecpot, ObjPtr->ElecFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
 
 	Write2Bin (PHANTOM_MAGDENSITY_FILENAME, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3, sizeof(Real_arr_t), &(magobject[0][0][0][0]), InpPtr->debug_file_ptr);
 	Write2Bin (PHANTOM_ELECDENSITY_FILENAME, 1, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, sizeof(Real_arr_t), &(elecobject[0][0][0]), InpPtr->debug_file_ptr);
