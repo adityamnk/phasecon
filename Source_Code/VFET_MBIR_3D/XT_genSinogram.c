@@ -155,7 +155,7 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 
 		for (j=0; j<ObjPtr->N_z; j++)
 		for (k=0; k<ObjPtr->N_y; k++){	
-	   	    	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &AMatrix, j, k, i); 
+	   	    	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[i], &AMatrix, j, k, SinoPtr->cosine_x[i], SinoPtr->sine_x[i]); 
                 	for (slice=0; slice<ObjPtr->N_x; slice++){
 	     	          	for (m=0; m<AMatrix.count; m++){
                             		idx=AMatrix.index[m];
@@ -164,12 +164,12 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 					{
 						data_idx = i*SinoPtr->N_t*SinoPtr->N_r + idx*SinoPtr->N_t + VoxelLineResponse[slice].index[n];
 
-                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][k][slice][0]*SinoPtr->cosine[i];
-                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][k][slice][1]*(-SinoPtr->sine[i]);
+                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][k][slice][0]*SinoPtr->cosine_x[i];
+                                    		data_unflip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][k][slice][1]*(-SinoPtr->sine_x[i]);
                                     		data_unflip_x[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecpot[j][k][slice];
                                     		
-                                    		data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][k][slice][0])*SinoPtr->cosine[i];
-						data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][k][slice][1])*(-SinoPtr->sine[i]);
+                                    		data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][k][slice][0])*SinoPtr->cosine_x[i];
+						data_flip_x[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][k][slice][1])*(-SinoPtr->sine_x[i]);
                                     		data_flip_x[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecpot[j][k][slice];
 	     				}
 				}
@@ -178,7 +178,7 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		
 		for (j=0; j<ObjPtr->N_z; j++)
 		for (k=0; k<ObjPtr->N_x; k++){	
-	   	    	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse, &AMatrix, j, k, i); 
+	   	    	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[i], &AMatrix, j, k, SinoPtr->cosine_y[i], SinoPtr->sine_y[i]); 
                 	for (slice=0; slice<ObjPtr->N_y; slice++){
 	     	          	for (m=0; m<AMatrix.count; m++){
                             		idx=AMatrix.index[m];
@@ -187,12 +187,12 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 					{
 						data_idx = i*SinoPtr->N_t*SinoPtr->N_r + VoxelLineResponse[slice].index[n]*SinoPtr->N_r + idx;
                                     	
-                                    		data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][slice][k][0]*SinoPtr->cosine[i];
-						data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][slice][k][2]*(-SinoPtr->sine[i]);
+                                    		data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][slice][k][0]*SinoPtr->cosine_y[i];
+						data_unflip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*magpot[j][slice][k][2]*(-SinoPtr->sine_y[i]);
                                     		data_unflip_y[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecpot[j][slice][k];
                                     		
-                                    		data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][slice][k][0])*SinoPtr->cosine[i];
-						data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][slice][k][2])*(-SinoPtr->sine[i]);
+                                    		data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][slice][k][0])*SinoPtr->cosine_y[i];
+						data_flip_y[data_idx] += val*MagPhaseMultiple*VoxelLineResponse[slice].values[n]*(-magpot[j][slice][k][2])*(-SinoPtr->sine_y[i]);
                                     		data_flip_y[data_idx] += val*ElecPhaseMultiple*VoxelLineResponse[slice].values[n]*elecpot[j][slice][k];
 	     				}
 				}

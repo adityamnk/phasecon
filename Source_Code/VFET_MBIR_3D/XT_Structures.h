@@ -63,7 +63,8 @@
     Real_t delta_t;/*Distance between successive measurements along t (or detector pixel width along t)*/
     Real_t R0,RMax;/*location of leftmost and rightmost corner of detector along r*/
     Real_t T0,TMax;/*location of leftmost and rightmost corner of detector along t*/
-    Real_t *cosine, *sine; /*stores the cosines and sines of the angles at which projections are acquired*/
+    Real_t *cosine_x, *sine_x; /*stores the cosines and sines of the angles at which projections are acquired*/
+    Real_t *cosine_y, *sine_y; /*stores the cosines and sines of the angles at which projections are acquired*/
     Real_t Length_R; /*Length of the detector along the r-dimension*/
     Real_t Length_T; /*Length of the detector along the t-dimension*/
     Real_t OffsetR; /*increments of distance between the center of the voxel and the midpoint of the detector along r axis */

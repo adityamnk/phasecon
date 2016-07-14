@@ -47,7 +47,7 @@
 Ai - Pointer of A Matrix
 row, col - row and column of detector for which the A Matrix values are computed
 proj_idx - angle index at which A matrix values are computed for the given row, col*/
-void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Real_arr_t** DetectorResponse, AMatrixCol *Ai, int32_t row, int32_t col, int32_t proj_idx)
+void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Real_arr_t* DetectorResponse, AMatrixCol *Ai, int32_t row, int32_t col, Real_t cosine, Real_t sine)
 {
   int32_t j;
   Real_t x,y;
@@ -61,7 +61,7 @@ void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObj
   x = ScannedObjectPtr->x0 + ((Real_t)col+0.5)*ScannedObjectPtr->delta_xy;/*0.5 is for center of voxel. x_0 is the left corner*/
   y = ScannedObjectPtr->y0 + ((Real_t)row+0.5)*ScannedObjectPtr->delta_xy;/*0.5 is for center of voxel. y_0 is the left corner*/
 /*'r' is the center of the voxel as projected on the detector. 'rmin' and 'rmax' gives the leftmost and rightmost distance at which the voxel of choice may have non-zero projection. We include some overhead*/
-    r = x*SinogramPtr->cosine[proj_idx] - y*SinogramPtr->sine[proj_idx];
+    r = x*cosine - y*sine;
 
     rmin = r - ScannedObjectPtr->delta_xy;
     rmax = r + ScannedObjectPtr->delta_xy;
@@ -96,7 +96,7 @@ void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObj
             w1 = delta_r - index_delta_r*SinogramPtr->OffsetR;
 	    w2 = SinogramPtr->OffsetR - w1;
 
-            f1 = (w2*DetectorResponse[proj_idx][index_delta_r] + w1*DetectorResponse[proj_idx][index_delta_r+1])/SinogramPtr->OffsetR;
+            f1 = (w2*DetectorResponse[index_delta_r] + w1*DetectorResponse[index_delta_r+1])/SinogramPtr->OffsetR;
 
             if(f1 > 0)
             {

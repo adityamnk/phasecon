@@ -111,13 +111,17 @@ void calculateSinCos(Sinogram* SinoPtr, TomoInputs* InpPtr)
 {
   int32_t i;
 
-  SinoPtr->cosine=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
-  SinoPtr->sine=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
+  SinoPtr->cosine_x=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
+  SinoPtr->sine_x=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
+  SinoPtr->cosine_y=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
+  SinoPtr->sine_y=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
 
   for(i=0;i<SinoPtr->N_p;i++)
   {
-    SinoPtr->cosine[i]=cos(SinoPtr->ViewPtr[i]);
-    SinoPtr->sine[i]=sin(SinoPtr->ViewPtr[i]);
+    SinoPtr->cosine_x[i]=cos(SinoPtr->ViewPtr[i]);
+    SinoPtr->sine_x[i]=sin(SinoPtr->ViewPtr[i]);
+    SinoPtr->cosine_y[i]=cos(SinoPtr->ViewPtr[i]);
+    SinoPtr->sine_y[i]=sin(SinoPtr->ViewPtr[i]);
   }
   check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "calculateSinCos: Calculated sines and cosines of angles of rotation\n");
 }
@@ -676,8 +680,10 @@ void freeMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr, FF
 	if (InpPtr->y_NHICD_select) multifree(InpPtr->y_NHICD_select,2);
 	if (InpPtr->UpdateSelectNum) multifree(InpPtr->UpdateSelectNum,1);
 	if (InpPtr->NHICDSelectNum) multifree(InpPtr->NHICDSelectNum,1);
-	if (SinoPtr->cosine) free(SinoPtr->cosine);
-	if (SinoPtr->sine) free(SinoPtr->sine);
+	if (SinoPtr->cosine_x) free(SinoPtr->cosine_x);
+	if (SinoPtr->sine_x) free(SinoPtr->sine_x);
+	if (SinoPtr->cosine_y) free(SinoPtr->cosine_y);
+	if (SinoPtr->sine_y) free(SinoPtr->sine_y);
 }
 
 
@@ -849,7 +855,9 @@ void freePhantomMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* Inp
 	if (InpPtr->NHICDSelectNum) multifree(InpPtr->NHICDSelectNum,2);
 	if (InpPtr->Weight) multifree(InpPtr->Weight,3);	*/
 	if (SinoPtr->ViewPtr) free(SinoPtr->ViewPtr);
-	if (SinoPtr->cosine) free(SinoPtr->cosine);
-	if (SinoPtr->sine) free(SinoPtr->sine);
+	if (SinoPtr->cosine_x) free(SinoPtr->cosine_x);
+	if (SinoPtr->sine_x) free(SinoPtr->sine_x);
+	if (SinoPtr->cosine_y) free(SinoPtr->cosine_y);
+	if (SinoPtr->sine_y) free(SinoPtr->sine_y);
 }
 
