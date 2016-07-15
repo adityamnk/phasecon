@@ -118,8 +118,8 @@ void calculateSinCos(Sinogram* SinoPtr, TomoInputs* InpPtr)
 
   for(i=0;i<SinoPtr->N_p;i++)
   {
-    SinoPtr->cosine_x[i]=cos(SinoPtr->ViewPtr[i]);
-    SinoPtr->sine_x[i]=sin(SinoPtr->ViewPtr[i]);
+    SinoPtr->cosine_x[i]=cos(-SinoPtr->ViewPtr[i]);
+    SinoPtr->sine_x[i]=sin(-SinoPtr->ViewPtr[i]);
     SinoPtr->cosine_y[i]=cos(SinoPtr->ViewPtr[i]);
     SinoPtr->sine_y[i]=sin(SinoPtr->ViewPtr[i]);
   }

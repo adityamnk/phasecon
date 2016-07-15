@@ -224,8 +224,8 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
     {
       for (k=0; k<ObjPtr->N_x; k++){
         for (sino_idx=0; sino_idx < SinoPtr->N_p; sino_idx++){
-          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[p], &(AMatrixPtr_X), slice, j, SinoPtr->cosine_x[p], SinoPtr->sine_x[p]);
-          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[p], &(AMatrixPtr_Y), slice, k, SinoPtr->cosine_y[p], SinoPtr->sine_y[p]);
+          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[sino_idx], &(AMatrixPtr_X), slice, j, SinoPtr->cosine_x[sino_idx], SinoPtr->sine_x[sino_idx]);
+          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[sino_idx], &(AMatrixPtr_Y), slice, k, SinoPtr->cosine_y[sino_idx], SinoPtr->sine_y[sino_idx]);
             /*	printf("count = %d, idx = %d, val = %f\n", VoxelLineResponse[slice].count, VoxelLineResponse[slice].index[0], VoxelLineResponse[slice].values[0]);*/
 
 		mag_forward_project_voxel (SinoPtr, InpPtr, MagPotentials[slice][j][k][0], MagPotentials[slice][j][k][1], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), sino_idx, SinoPtr->cosine_x[sino_idx], SinoPtr->sine_x[sino_idx], k);
