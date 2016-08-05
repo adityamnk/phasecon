@@ -37,7 +37,7 @@
 #include "XT_Structures.h"
 void calculateVoxelProfile(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t** VoxProfile);
 void initializeBeamProfile(ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_t *BeamProfile);
-void storeVoxelLineResponse(AMatrixCol* VoxelLineResponse, ScannedObject* ScannedObjectPtr, Sinogram* SinogramPtr);
+void storeVoxelLineResponse(AMatrixCol* VoxelLineResponse, Sinogram* SinoPtr, Real_t z0, Real_t delta_z, int32_t N_z);
 void DetectorResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr);
 void ZLineResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr);
 #endif /*#ifndef XT_PROFILE_H*/

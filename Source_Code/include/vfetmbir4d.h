@@ -32,7 +32,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 #ifndef VFET_MBIR4D_H_
-int vfet_reconstruct (float **magobject, float **elecobject, float *data_unflip_x, float *data_flip_x, float *data_unflip_y, float *data_flip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, float mag_sigma, float mag_c, float elec_sigma, float elec_c, float convg_thresh, float admm_mu, uint8_t restart, FILE *debug_msg_ptr);
-int vfettomo_forward_project (float **data_unflip_x, float **data_flip_x, float **data_unflip_y, float **data_flip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, FILE *debug_msg_ptr);
+int vfet_reconstruct (float **magobject, float *data_unflip_x, float *data_unflip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t x_widnum, int32_t y_widnum, int32_t z_widnum, float vox_wid, float qggmrf_sigma, float qggmrf_c, float convg_thresh, float admm_mu, int32_t admm_maxiters, uint8_t restart, FILE *debug_msg_ptr);
+int vfettomo_forward_project (float **data_unflip_x, float **data_unflip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, FILE *debug_msg_ptr);
 #define VFET_MBIR4D_H_
 #endif

@@ -45,7 +45,8 @@ Real_t computeElecDensityCost(ScannedObject* ObjPtr, TomoInputs* InpPtr);
 void reconstruct_magnetization (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr)
 {
 	int32_t i, Iter, j, k;		
-	Real_t MagUpdate_x = 0, MagSum_x = 0, MagUpdate_y = 0, MagSum_y = 0, MagUpdate_z = 0, MagSum_z = 0, alpha_mag, cost, cost_old;
+	Real_t MagUpdate = 0, MagSum = 0, alpha_mag, cost, cost_old;
+	/*Real_t MagUpdate_x = 0, MagSum_x = 0, MagUpdate_y = 0, MagSum_y = 0, MagUpdate_z = 0, MagSum_z = 0;*/
 	Real_arr_t ****grad_mag;
 
 	grad_mag = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
@@ -65,18 +66,22 @@ void reconstruct_magnetization (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTSt
 			ObjPtr->Magnetization[i][j][k][1] -= alpha_mag*grad_mag[i][j][k][1];			
 			ObjPtr->Magnetization[i][j][k][2] -= alpha_mag*grad_mag[i][j][k][2];			
 		
-			MagUpdate_x += fabs(alpha_mag*grad_mag[i][j][k][2]);
+			MagUpdate += sqrt(pow(alpha_mag*grad_mag[i][j][k][0],2)+pow(alpha_mag*grad_mag[i][j][k][1],2)+pow(alpha_mag*grad_mag[i][j][k][2],2));
+			MagSum += sqrt(pow(ObjPtr->Magnetization[i][j][k][0],2)+pow(ObjPtr->Magnetization[i][j][k][1],2)+pow(ObjPtr->Magnetization[i][j][k][2],2)); 
+			
+			/*MagUpdate_x += fabs(alpha_mag*grad_mag[i][j][k][2]);
 			MagUpdate_y += fabs(alpha_mag*grad_mag[i][j][k][1]);
 			MagUpdate_z += fabs(alpha_mag*grad_mag[i][j][k][0]);
 
 			MagSum_x += fabs(ObjPtr->Magnetization[i][j][k][2]); 
 			MagSum_y += fabs(ObjPtr->Magnetization[i][j][k][1]); 
-			MagSum_z += fabs(ObjPtr->Magnetization[i][j][k][0]); 
+			MagSum_z += fabs(ObjPtr->Magnetization[i][j][k][0]);*/
 		}
 
-		MagUpdate_x = MagUpdate_x*100/(MagSum_x + EPSILON_ERROR);
+		MagUpdate = MagUpdate*100/(MagSum + EPSILON_ERROR);
+		/*MagUpdate_x = MagUpdate_x*100/(MagSum_x + EPSILON_ERROR);
 		MagUpdate_y = MagUpdate_y*100/(MagSum_y + EPSILON_ERROR);
-		MagUpdate_z = MagUpdate_z*100/(MagSum_z + EPSILON_ERROR);
+		MagUpdate_z = MagUpdate_z*100/(MagSum_z + EPSILON_ERROR);*/
 
   		compute_magcrossprodtran (ObjPtr->Magnetization, ObjPtr->ErrorPotMag, ObjPtr->MagFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
 		for (i = 0; i < ObjPtr->N_z; i++)
@@ -93,8 +98,10 @@ void reconstruct_magnetization (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTSt
 	      		check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "ERROR: Cost increased when updating magnetization.\n");
 		cost_old = cost;
 		
-		fprintf(InpPtr->debug_file_ptr, "------------ Mag Steep Grad Descent Iter = %d, cost = %e, Avg update as percentage (x, y, z) = (%e, %e, %e), sum  = (%e, %e, %e)--------------\n", Iter, cost, MagUpdate_x, MagUpdate_y, MagUpdate_z, MagSum_x, MagSum_y, MagSum_z);
-		if (Iter > 1 && MagUpdate_x < InpPtr->DensUpdate_thresh && MagUpdate_y < InpPtr->DensUpdate_thresh && MagUpdate_z < InpPtr->DensUpdate_thresh)
+		fprintf(InpPtr->debug_file_ptr, "------------ Mag Steep Grad Descent Iter = %d, cost = %e, Avg update as percentage = %e, sum  = %e--------------\n", Iter, cost, MagUpdate, MagSum);
+		/*fprintf(InpPtr->debug_file_ptr, "------------ Mag Steep Grad Descent Iter = %d, cost = %e, Avg update as percentage (x, y, z) = (%e, %e, %e), sum  = (%e, %e, %e)--------------\n", Iter, cost, MagUpdate_x, MagUpdate_y, MagUpdate_z, MagSum_x, MagSum_y, MagSum_z);
+		if (Iter > 1 && MagUpdate_x < InpPtr->DensUpdate_thresh && MagUpdate_y < InpPtr->DensUpdate_thresh && MagUpdate_z < InpPtr->DensUpdate_thresh)*/
+		if (Iter > 1 && MagUpdate < InpPtr->DensUpdate_thresh)
 		{
 			fprintf(InpPtr->debug_file_ptr, "******* Mag Steepest gradient descent algorithm has converged! *********\n");
 			break;		

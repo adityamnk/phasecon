@@ -79,10 +79,10 @@
 		- FILE *debug_msg_ptr : Pointer to the file to which the debug messages should be directed. Use 'stdout' if you do not want to direct messages to a file on disk.
 	- Outputs (Return value) : '0' implies a safe return.  
 */
-int vfet_reconstruct (float **magobject, float **elecobject, float *data_unflip_x, float *data_flip_x, float *data_unflip_y, float *data_flip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, float mag_sigma, float mag_c, float elec_sigma, float elec_c, float convg_thresh, float admm_mu, uint8_t restart, FILE *debug_msg_ptr)
+int vfet_reconstruct (float **magobject, float *data_unflip_x, float *data_unflip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t x_widnum, int32_t y_widnum, int32_t z_widnum, float vox_wid, float qggmrf_sigma, float qggmrf_c, float convg_thresh, float admm_mu, int32_t admm_maxiters, uint8_t restart, FILE *debug_msg_ptr)
 {
 	time_t start;	
-	int32_t flag, multres_num, i, mult_xy[MAX_MULTRES_NUM], mult_z[MAX_MULTRES_NUM], num_nodes, rank, last_multres;
+	int32_t flag, multres_num, multres_num_cols, multres_num_rows, i, mult_xyz[MAX_MULTRES_NUM], num_nodes, rank, last_multres;
 
 	Sinogram *SinogramPtr = (Sinogram*)get_spc(1,sizeof(Sinogram));
 	ScannedObject *ScannedObjectPtr = (ScannedObject*)get_spc(1,sizeof(ScannedObject));
@@ -108,23 +108,19 @@ int vfet_reconstruct (float **magobject, float **elecobject, float *data_unflip_
 	check_mem(TomoInputsPtr,rank==0,debug_msg_ptr);	
 	TomoInputsPtr->debug_file_ptr = debug_msg_ptr;
 
-	multres_num = (int32_t)(log(((float)proj_cols)/MIN_XY_RECON_RES)/log(2.0) + 1);
-	if (multres_num < 2)
-		multres_num = 2;
-	if (multres_num > MAX_MULTRES_NUM)
-		multres_num = MAX_MULTRES_NUM;
+	multres_num_cols = (int32_t)(log(((float)proj_cols)/MIN_XYZ_RECON_RES)/log(2.0) + 1);
+	multres_num_rows = (int32_t)(log(((float)proj_rows)/MIN_XYZ_RECON_RES)/log(2.0) + 1);
+	multres_num = (multres_num_cols < multres_num_rows) ? multres_num_cols : multres_num_rows;
 
-	mult_xy[0] = 1; 
-	mult_z[0] = 1;
+	if (multres_num < 2) multres_num = 2;
+	if (multres_num > MAX_MULTRES_NUM) multres_num = MAX_MULTRES_NUM;
+
+	mult_xyz[0] = 1; 
 	for (i = 1; i < multres_num; i++)
 	{
-		if (proj_cols % (mult_xy[i-1]*2) == 0)
+		if (proj_cols % (mult_xyz[i-1]*2) == 0 && proj_rows % (mult_xyz[i-1]*2)  == 0)
 		{	
-			mult_xy[i] = mult_xy[i-1]*2;
-			if (proj_rows/num_nodes % (mult_z[i-1]*2) == 0 && proj_rows/num_nodes/(mult_z[i-1]*2) >= MIN_ROWS_PER_NODE)
-				mult_z[i] = mult_z[i-1]*2;
-			else
-				mult_z[i] = mult_z[i-1];
+			mult_xyz[i] = mult_xyz[i-1]*2;
 		}
 		else
 		{
@@ -133,11 +129,10 @@ int vfet_reconstruct (float **magobject, float **elecobject, float *data_unflip_
 		}
 	}
 
-	int32_t multres_xy[MAX_MULTRES_NUM], multres_z[MAX_MULTRES_NUM];
+	int32_t multres_xyz[MAX_MULTRES_NUM];
 	for (i = 0; i < multres_num; i++)
 	{
-		multres_xy[i] = mult_xy[multres_num-1-i];
-		multres_z[i] = mult_z[multres_num-1-i];
+		multres_xyz[i] = mult_xyz[multres_num-1-i];
 	}
 
 	if (restart == 1)
@@ -153,8 +148,8 @@ int vfet_reconstruct (float **magobject, float **elecobject, float *data_unflip_
 
 	for (i = last_multres; i < multres_num; i++)
 	{
-		check_info(rank==0, TomoInputsPtr->debug_file_ptr, "Running multi-resolution stage %d with x-y voxel scale = %d and z voxel scale = %d.\n", i, multres_xy[i], multres_z[i]);
-		if (initStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr, i, multres_xy, multres_z, data_unflip_x, data_flip_x, data_unflip_y, data_flip_y, proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center, mag_sigma, mag_c, elec_sigma, elec_c, convg_thresh, admm_mu)) {goto error;}
+		check_info(rank==0, TomoInputsPtr->debug_file_ptr, "Running multi-resolution stage %d with x-y-z voxel scale = %d.\n", i, multres_xyz[i]);
+		if (initStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr, i, multres_xyz, data_unflip_x, data_unflip_y, proj_angles, proj_rows, proj_cols, proj_num, x_widnum, y_widnum, z_widnum, vox_wid, qggmrf_sigma, qggmrf_c, convg_thresh, admm_mu, admm_maxiters)) {goto error;}
 #ifdef EXTRA_DEBUG_MESSAGES
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "SinogramPtr numerical variable values are N_r = %d, N_t = %d, N_p = %d, total_t_slices = %d, delta_r = %f, delta_t = %f, R0 = %f, RMax = %f, T0 = %f, TMax = %f, Length_R = %f, Length_T = %f, OffsetR = %f, OffsetT = %f, z_overlap_num = %d\n", SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->N_p, SinogramPtr->total_t_slices, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->R0, SinogramPtr->RMax, SinogramPtr->T0, SinogramPtr->TMax, SinogramPtr->Length_R, SinogramPtr->Length_T, SinogramPtr->OffsetR, SinogramPtr->OffsetT, SinogramPtr->z_overlap_num);	
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "ScannedObjectPtr numerical variable values are Length_X = %f, Length_Y = %f, Length_Z = %f, N_x = %d, N_y = %d, N_z = %d, x0 = %f, y0 = %f, z0 = %f, delta_xy = %f, delta_z = %f, mult_xy = %f, mult_z = %f, BeamWidth = %f, Mag Sigma = (%f,%f,%f), Elec Sigma = %f, Mag C = (%f,%f,%f), Elec C = %f, NHICD_Iterations = %d. \n", ScannedObjectPtr->Length_X, ScannedObjectPtr->Length_Y, ScannedObjectPtr->Length_Z, ScannedObjectPtr->N_x, ScannedObjectPtr->N_y, ScannedObjectPtr->N_z, ScannedObjectPtr->x0, ScannedObjectPtr->y0, ScannedObjectPtr->z0, ScannedObjectPtr->delta_xy, ScannedObjectPtr->delta_z, ScannedObjectPtr->mult_xy, ScannedObjectPtr->mult_z, ScannedObjectPtr->BeamWidth, ScannedObjectPtr->Mag_Sigma[0], ScannedObjectPtr->Mag_Sigma[1], ScannedObjectPtr->Mag_Sigma[2], ScannedObjectPtr->Elec_Sigma, ScannedObjectPtr->Mag_C[0], ScannedObjectPtr->Mag_C[1], ScannedObjectPtr->Mag_C[2], ScannedObjectPtr->Elec_C, ScannedObjectPtr->NHICD_Iterations);
@@ -176,7 +171,6 @@ int vfet_reconstruct (float **magobject, float **elecobject, float *data_unflip_
 	}
 
 	*magobject = NULL;	
-	*elecobject = NULL;	
 	free(SinogramPtr);
 	free(ScannedObjectPtr);
 	free(TomoInputsPtr);
@@ -200,7 +194,7 @@ error:
 }
 
 
-int vfettomo_forward_project (float **data_unflip_x, float **data_flip_x, float **data_unflip_y, float **data_flip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, float rot_center, FILE *debug_msg_ptr)
+int vfettomo_forward_project (float **data_unflip_x, float **data_unflip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, FILE *debug_msg_ptr)
 {
 	time_t start;	
 	int32_t flag, num_nodes, rank;
@@ -224,14 +218,14 @@ int vfettomo_forward_project (float **data_unflip_x, float **data_flip_x, float 
 	check_error(proj_rows/num_nodes % 2 != 0 || proj_rows/num_nodes < MIN_ROWS_PER_NODE, rank==0, debug_msg_ptr, "The number of projection rows divided by the number of nodes should be an even number greater than or equal to %d.\n", MIN_ROWS_PER_NODE);
 
 	TomoInputsPtr->debug_file_ptr = debug_msg_ptr;
-	if (initPhantomStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr, proj_angles, proj_rows, proj_cols, proj_num, vox_wid, rot_center)) {goto error;}
+	if (initPhantomStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr, proj_angles, proj_rows, proj_cols, proj_num, vox_wid)) {goto error;}
 
 #ifdef EXTRA_DEBUG_MESSAGES
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "SinogramPtr numerical variable values are N_r = %d, N_t = %d, N_p = %d, total_t_slices = %d, delta_r = %f, delta_t = %f, R0 = %f, RMax = %f, T0 = %f, TMax = %f, Length_R = %f, Length_T = %f, OffsetR = %f, OffsetT = %f, z_overlap_num = %d\n", SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->N_p, SinogramPtr->total_t_slices, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->R0, SinogramPtr->RMax, SinogramPtr->T0, SinogramPtr->TMax, SinogramPtr->Length_R, SinogramPtr->Length_T, SinogramPtr->OffsetR, SinogramPtr->OffsetT, SinogramPtr->z_overlap_num);	
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "ScannedObjectPtr numerical variable values are Length_X = %f, Length_Y = %f, Length_Z = %f, N_x = %d, N_y = %d, N_z = %d, x0 = %f, y0 = %f, z0 = %f, delta_xy = %f, delta_z = %f, mult_xy = %f, mult_z = %f, BeamWidth = %f, Mag Sigma = (%f,%f,%f), Elec Sigma = %f, Mag C = (%f,%f,%f), Elec C = %f, NHICD_Iterations = %d. \n", ScannedObjectPtr->Length_X, ScannedObjectPtr->Length_Y, ScannedObjectPtr->Length_Z, ScannedObjectPtr->N_x, ScannedObjectPtr->N_y, ScannedObjectPtr->N_z, ScannedObjectPtr->x0, ScannedObjectPtr->y0, ScannedObjectPtr->z0, ScannedObjectPtr->delta_xy, ScannedObjectPtr->delta_z, ScannedObjectPtr->mult_xy, ScannedObjectPtr->mult_z, ScannedObjectPtr->BeamWidth, ScannedObjectPtr->Mag_Sigma[0], ScannedObjectPtr->Mag_Sigma[1], ScannedObjectPtr->Mag_Sigma[2], ScannedObjectPtr->Elec_Sigma, ScannedObjectPtr->Mag_C[0], ScannedObjectPtr->Mag_C[1], ScannedObjectPtr->Mag_C[2], ScannedObjectPtr->Elec_C, ScannedObjectPtr->NHICD_Iterations);
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "TomoInputsPtr numerical variable values are NumIter = %d, StopThreshold = %f, RotCenter = %f, radius_obj = %f, Mag Sigma_Q = (%f,%f,%f), Mag Sigma_Q_P = (%f,%f,%f), Elec Sigma_Q = %f,  Elec Sigma_Q_P = %f, Weight = %f, alpha = %f, cost_thresh = %f, initICD = %d, Write2Tiff = %d, no_NHICD = %d, WritePerIter = %d, num_z_blocks = %d, prevnum_z_blocks = %d, node_num = %d, node_rank = %d, initMagUpMap = %d, ErrorSinoCost = %f, Forward_Cost = %f, Prior_Cost = %f, num_threads = %d, ADMM mu = %f, Head_MaxIter = %d, Head_threshold = %f\n", TomoInputsPtr->NumIter, TomoInputsPtr->StopThreshold, TomoInputsPtr->RotCenter, TomoInputsPtr->radius_obj, TomoInputsPtr->Mag_Sigma_Q[0], TomoInputsPtr->Mag_Sigma_Q[1], TomoInputsPtr->Mag_Sigma_Q[2], TomoInputsPtr->Mag_Sigma_Q_P[0], TomoInputsPtr->Mag_Sigma_Q_P[1], TomoInputsPtr->Mag_Sigma_Q_P[2], TomoInputsPtr->Elec_Sigma_Q, TomoInputsPtr->Elec_Sigma_Q_P, TomoInputsPtr->Weight, TomoInputsPtr->alpha, TomoInputsPtr->cost_thresh, TomoInputsPtr->initICD, TomoInputsPtr->Write2Tiff, TomoInputsPtr->no_NHICD, TomoInputsPtr->WritePerIter, TomoInputsPtr->num_z_blocks, TomoInputsPtr->prevnum_z_blocks, TomoInputsPtr->node_num, TomoInputsPtr->node_rank, TomoInputsPtr->initMagUpMap, TomoInputsPtr->ErrorSino_Cost, TomoInputsPtr->Forward_Cost, TomoInputsPtr->Prior_Cost, TomoInputsPtr->num_threads, TomoInputsPtr->ADMM_mu, TomoInputsPtr->Head_MaxIter, TomoInputsPtr->Head_threshold);
 #endif
-	flag = ForwardProject (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr, *data_unflip_x, *data_flip_x, *data_unflip_y, *data_flip_y);
+	flag = ForwardProject (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr, *data_unflip_x, *data_unflip_y);
 	check_info(rank == 0, TomoInputsPtr->debug_file_ptr, "Time elapsed is %f minutes.\n", difftime(time(NULL), start)/60.0);
 	check_error(flag != 0, rank == 0, TomoInputsPtr->debug_file_ptr, "Forward projection failed!\n");
 	freePhantomMemory(SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr);

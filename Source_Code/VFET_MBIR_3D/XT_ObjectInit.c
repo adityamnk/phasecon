@@ -419,7 +419,7 @@ int32_t initObject (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Tomo
       }
 
 #ifdef INIT_GROUND_TRUTH_PHANTOM
-	dwnsmpl_init_phantom (ScannedObjectPtr->Magnetization, /*ScannedObjectPtr->ElecPotentials, */ScannedObjectPtr->MagPotGndTruth, /*ScannedObjectPtr->ElecPotGndTruth, */ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, PHANTOM_Z_SIZE/ScannedObjectPtr->N_z, PHANTOM_XY_SIZE/ScannedObjectPtr->N_y, PHANTOM_XY_SIZE/ScannedObjectPtr->N_x)
+	dwnsmpl_init_phantom (ScannedObjectPtr->Magnetization, /*ScannedObjectPtr->ElecPotentials, */ScannedObjectPtr->MagPotGndTruth, /*ScannedObjectPtr->ElecPotGndTruth, */ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x, PHANTOM_Z_SIZE/ScannedObjectPtr->N_z, PHANTOM_XY_SIZE/ScannedObjectPtr->N_y, PHANTOM_XY_SIZE/ScannedObjectPtr->N_x);
 #endif
 
     	if (TomoInputsPtr->Write2Tiff == 1)

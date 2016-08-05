@@ -3,47 +3,21 @@
 #include "XT_AMatrix.h"
 #include "allocate.h"
 
-void mag_forward_project_voxel (Sinogram* SinogramPtr, TomoInputs* TomoInputsPtr, Real_t mag_voxel_val_par, Real_t mag_voxel_val_perp, Real_arr_t*** ErrorSino_Unflip_z, Real_arr_t*** ErrorSino_Flip_z, AMatrixCol* AMatrixPtr, int32_t sino_idx, Real_t cosine, Real_t sine, int32_t slice)
+void mag_forward_project_voxel (Sinogram* SinogramPtr, TomoInputs* TomoInputsPtr, Real_t mag_voxel_val_par, Real_t mag_voxel_val_perp, Real_arr_t*** ErrorSino_Unflip_z, Real_arr_t*** ErrorSino_Flip_z, AMatrixCol* AMatrixPtr, AMatrixCol* VoxelLineResponse, int32_t sino_idx, Real_t cosine, Real_t sine)
 {
 	int32_t m, idx, n, z_overlap_num;
 	Real_t val, voxel_unflip, voxel_flip;
  
 	voxel_unflip = (mag_voxel_val_par*cosine - mag_voxel_val_perp*sine)*TomoInputsPtr->MagPhaseMultiple;
-#ifdef VFET_ELEC_RECON
-	voxel_flip = (-mag_voxel_val_par*cosine + mag_voxel_val_perp*sine)*TomoInputsPtr->MagPhaseMultiple;
-#endif
 	z_overlap_num = SinogramPtr->z_overlap_num;
 	for (m = 0; m < AMatrixPtr->count; m++)
 	{
 		idx = AMatrixPtr->index[m];
 		val = AMatrixPtr->values[m];
-		for (n = 0; n < z_overlap_num; n++){
-			ErrorSino_Unflip_z[sino_idx][idx][slice*z_overlap_num + n] += voxel_unflip*val;
-#ifdef VFET_ELEC_RECON
-			ErrorSino_Flip_z[sino_idx][idx][slice*z_overlap_num + n] += voxel_flip*val;
-#endif
+		for (n = 0; n < VoxelLineResponse->count; n++){
+			ErrorSino_Unflip_z[sino_idx][idx][VoxelLineResponse->index[n]] += voxel_unflip*val;
 		}
 	}
 }
 
-void elec_forward_project_voxel (Sinogram* SinogramPtr, TomoInputs* TomoInputsPtr, Real_t elec_voxel_val, Real_arr_t*** ErrorSino_Unflip_z, Real_arr_t*** ErrorSino_Flip_z, AMatrixCol* AMatrixPtr/*, AMatrixCol* VoxelLineResponse*/, int32_t sino_idx, int32_t slice)
-{
-	int32_t m, idx, n, z_overlap_num;
-	Real_t val, voxel;
- 
-	voxel = elec_voxel_val*TomoInputsPtr->ElecPhaseMultiple;
-	z_overlap_num = SinogramPtr->z_overlap_num;
-	for (m = 0; m < AMatrixPtr->count; m++)
-	{
-		idx = AMatrixPtr->index[m];
-		val = AMatrixPtr->values[m];
-		/*val = AMatrixPtr->values[m];
-		for (n = 0; n < VoxelLineResponse->count; n++){*/
-		for (n = 0; n < z_overlap_num; n++){
-			/*ErrorSino[sino_idx][idx][VoxelLineResponse->index[n]] += voxel_val*val*VoxelLineResponse->values[n];*/
-			ErrorSino_Unflip_z[sino_idx][idx][slice*z_overlap_num + n] += voxel*val;
-			ErrorSino_Flip_z[sino_idx][idx][slice*z_overlap_num + n] += voxel*val;
-		}
-	}
-}
 

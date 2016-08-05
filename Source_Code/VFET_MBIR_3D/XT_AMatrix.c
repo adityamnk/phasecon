@@ -47,30 +47,29 @@
 Ai - Pointer of A Matrix
 row, col - row and column of detector for which the A Matrix values are computed
 proj_idx - angle index at which A matrix values are computed for the given row, col*/
-void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Real_arr_t* DetectorResponse, AMatrixCol *Ai, int32_t row, int32_t col, Real_t cosine, Real_t sine)
+void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, Real_arr_t* DetectorResponse, AMatrixCol *Ai, Real_t r)
 {
   int32_t j;
   Real_t x,y;
-  Real_t r;
   Real_t rmax,rmin;
   Real_t R_Center,delta_r;
   Real_t w1,w2,f1;
   int32_t index_min,index_max,index_delta_r;/*stores the detector index in which the profile lies*/
   int32_t count = 0;
 
-  x = ScannedObjectPtr->x0 + ((Real_t)col+0.5)*ScannedObjectPtr->delta_xy;/*0.5 is for center of voxel. x_0 is the left corner*/
-  y = ScannedObjectPtr->y0 + ((Real_t)row+0.5)*ScannedObjectPtr->delta_xy;/*0.5 is for center of voxel. y_0 is the left corner*/
+  /*x = ScannedObjectPtr->x0 + ((Real_t)col+0.5)*ScannedObjectPtr->delta_xy;*//*0.5 is for center of voxel. x_0 is the left corner*/
+  /*y = ScannedObjectPtr->y0 + ((Real_t)row+0.5)*ScannedObjectPtr->delta_xy;*//*0.5 is for center of voxel. y_0 is the left corner*/
 /*'r' is the center of the voxel as projected on the detector. 'rmin' and 'rmax' gives the leftmost and rightmost distance at which the voxel of choice may have non-zero projection. We include some overhead*/
-    r = x*cosine - y*sine;
+/*    r = x*cosine - y*sine;*/
 
-    rmin = r - ScannedObjectPtr->delta_xy;
-    rmax = r + ScannedObjectPtr->delta_xy;
+    rmin = r - ScannedObjectPtr->delta_x;
+    rmax = r + ScannedObjectPtr->delta_x;
 
     if(rmax < SinogramPtr->R0 || rmin > SinogramPtr->RMax){
 	Ai->count = 0;
-        return;
     }
-
+    else
+    {
     index_min = (int32_t)(floor(((rmin - SinogramPtr->R0)/SinogramPtr->delta_r)));
     index_max = (int32_t)(floor((rmax - SinogramPtr->R0)/SinogramPtr->delta_r));
 /*index_min and index_max is the quantized version of rmin and rmax*/
@@ -107,6 +106,7 @@ void calcAMatrixColumnforAngle (Sinogram* SinogramPtr, ScannedObject* ScannedObj
        }
     }
     Ai->count = count;
+    }
 }
 
 /*

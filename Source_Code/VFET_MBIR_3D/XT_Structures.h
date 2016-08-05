@@ -39,6 +39,14 @@
 #include "XT_Constants.h"
 #include <stdbool.h>
 #include <fftw3.h>
+  
+/*Structure to store a single column(A_i) of the A-matrix*/
+  typedef struct
+  {
+      Real_t* values; /*Store the non zero entries*/
+      uint8_t count; /*The number of non zero values present in the column*/
+      int32_t *index; /*This maps each value to its location in the column.*/
+  } AMatrixCol;
 
 /*Structure 'Sinogram' contains the sinogram itself and also other parameters related to the sinogram and the detector*/
   typedef struct
@@ -95,8 +103,7 @@
     Real_t ****MagFilt;
     Real_t ****ElecFilt;
  
-/*    Real_arr_t ***MagPotUpdateMap; *//*Stores the reconstructed object*/
-/*    Real_arr_t ***ElecPotUpdateMap; *//*Stores the reconstructed object*/
+    Real_arr_t ***MagPotUpdateMap;
 
     Real_t Length_X;/*maximum possible length of the object along x*/
     Real_t Length_Y;/*max length of object along y*/
@@ -109,10 +116,10 @@
     Real_t x0;
     Real_t z0;
     Real_t y0;
-    Real_t delta_xy;/*Voxel size in the x-y direction*/
+    Real_t delta_x;/*Voxel size in the x direction*/
+    Real_t delta_y;/*Voxel size in the y direction*/
     Real_t delta_z;/*Voxel size in the z direction*/
-    Real_t mult_xy;/*voxel size as a multiple of detector pixel size along r*/
-    Real_t mult_z;/*Voxel size as a multiple of detector pixel size along t*/
+    Real_t mult_xyz;/*voxel size as a multiple of detector pixel size along r*/
 
 /*However, at finest resolution, delta_x = delta_y = delta_z*/ 
     Real_t BeamWidth; /*Beamwidth of the detector response*/
@@ -124,15 +131,10 @@
     Real_t Elec_C; /*parameter c of qGGMRF prior model*/
 
    int32_t NHICD_Iterations; /*percentage of voxel lines selected in NHICD*/
- } ScannedObject;
 
-  /*Structure to store a single column(A_i) of the A-matrix*/
-  typedef struct
-  {
-      Real_t* values; /*Store the non zero entries*/
-      uint8_t count; /*The number of non zero values present in the column*/
-      int32_t *index; /*This maps each value to its location in the column.*/
-  } AMatrixCol;
+   AMatrixCol *VoxelLineResp_X, *VoxelLineResp_Y;
+   
+ } ScannedObject;
 
   typedef struct
   {
@@ -154,7 +156,7 @@ typedef struct
   {
     int32_t NumIter; /*Maximum number of iterations that the ICD can be run. Normally, ICD converges before completing all the iterations and exits*/
     Real_t StopThreshold; /*ICD exits after the average update of the voxels becomes less than this threshold. Its specified in units of HU.*/
-    Real_t RotCenter; /*Center of rotation of the object as measured on the detector in units of pixels*/ 
+    /*Real_t RotCenter;*/ /*Center of rotation of the object as measured on the detector in units of pixels*/ 
     Real_t radius_obj;	/*Radius of the object within which the voxels are updated*/
     
     Real_t Mag_Sigma_Q[3]; /*The parameter sigma_s raised to power of q*/
@@ -179,16 +181,19 @@ typedef struct
     uint8_t Write2Tiff; /*If set, tiff files are written*/
     uint8_t no_NHICD; /*If set, reconstruction goes not use NHICD*/
     uint8_t WritePerIter; /*If set, object and projection offset are written to bin and tiff files after every ICD iteration*/
-    int32_t num_z_blocks; /*z axis slices are split to num_z_blocks which are then used for multithreading*/
-    int32_t prevnum_z_blocks; /*z axis slices are split to num_z_blocks which are then used for multithreading*/
-    int32_t** x_NHICD_select; 
+
+    int32_t* x_NHICD_select; 
 	/*x_NHICD_select and y_NHICD_select as pair 
 	determines the voxels lines which are updated in a iteration of NHICD*/
-    int32_t** y_NHICD_select;
-    int32_t** x_rand_select;
-    int32_t** y_rand_select;
-    int32_t* UpdateSelectNum; /*Number of voxels selected for HICD updates*/
-    int32_t* NHICDSelectNum; /*Number of voxels selected for NHICD updates*/
+    int32_t* y_NHICD_select;
+    int32_t* z_NHICD_select;
+
+    int32_t* x_rand_select;
+    int32_t* y_rand_select;
+    int32_t* z_rand_select;
+
+    int32_t UpdateSelectNum;
+    int32_t NHICDSelectNum;
 
     int32_t node_num; /*Number of nodes used*/
     int32_t node_rank; /*Rank of node*/

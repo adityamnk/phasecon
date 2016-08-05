@@ -125,46 +125,69 @@ uint32_t RandomizedPartition(Real_arr_t* A, uint32_t p, uint32_t r)
 	return Partition(A, p, r);
 }
 
-void ComputeVSC (ScannedObject* ScannedObjectPtr, Real_arr_t** magUpdateMap, Real_arr_t** filtMagUpdateMap, Real_arr_t** filtMagUpdateMap_copy)
+void ComputeVSC (ScannedObject* ScannedObjectPtr, Real_arr_t*** magUpdateMap, Real_arr_t*** filtMagUpdateMap, Real_arr_t*** filtMagUpdateMap_copy)
 {
-	int32_t i, j, p, q;
+	int32_t i, j, k, p;
     	Real_t filter_op = 0;
-	Real_t HammingWindow[5][5] = {{0.0064, 0.0432, 0.0800, 0.0432, 0.0064},
-				  {0.0432, 0.2916, 0.5400, 0.2916, 0.0432},
-				  {0.0800, 0.5400, 1.0000, 0.5400, 0.0800},
-				  {0.0432, 0.2916, 0.5400, 0.2916, 0.0432},
-				  {0.0064, 0.0432, 0.0800, 0.0432, 0.0064}};    
+	Real_t HammingWindow[5] = {0.0800, 0.5400, 1.0000, 0.5400, 0.0800};
 
-           /*for (p = -2; p <= 2; p++)
-           for (q = -2; q <= 2; q++)
-		printf("p = %d, q = %d, val = %f\n", p, q, HammingWindow[p+2][q+2]);*/
-    	for (i = 0; i < ScannedObjectPtr->N_y; i++)
+    	for (i = 0; i < ScannedObjectPtr->N_z; i++)
+    	for (j = 0; j < ScannedObjectPtr->N_y; j++)
+	for (k = 0; k < ScannedObjectPtr->N_x; k++)
     	{
-		for (j = 0; j < ScannedObjectPtr->N_x; j++)
-        	{
-            		filter_op = 0;
-            		for (p = -2; p <= 2; p++)
-        /*    		for (p = 0; p <= 0; p++)*/
-            		{
-                		for (q = -2; q <= 2; q++)
-          /*      		for (q = 0; q <= 0; q++)*/
-                		{
-                    			if(i + p >= 0 && i + p < ScannedObjectPtr->N_y && j + q >= 0 && j + q < ScannedObjectPtr->N_x)
-                    			{
-                				filter_op += HammingWindow[p + 2][q + 2] * magUpdateMap[i + p][j + q];
-                    			}
-                		}
-            		}
-        		filtMagUpdateMap[i][j] = filter_op;
-			filtMagUpdateMap_copy[i][j] = filter_op;
-		}
+            	filter_op = 0;
+            	for (p = -2; p <= 2; p++)
+            	{
+                    	if(i + p >= 0 && i + p < ScannedObjectPtr->N_z)
+                    	{
+                		filter_op += HammingWindow[p + 2] * magUpdateMap[i + p][j][k];
+                    	}
+            	}
+        	filtMagUpdateMap[i][j][k] = filter_op;
     	}
+    	
+	for (i = 0; i < ScannedObjectPtr->N_z; i++)
+    	for (j = 0; j < ScannedObjectPtr->N_y; j++)
+	for (k = 0; k < ScannedObjectPtr->N_x; k++)
+    	{
+            	filter_op = 0;
+            	for (p = -2; p <= 2; p++)
+            	{
+                    	if(j + p >= 0 && j + p < ScannedObjectPtr->N_y)
+                    	{
+                		filter_op += HammingWindow[p + 2] * filtMagUpdateMap[i][j+p][k];
+                    	}
+            	}
+		filtMagUpdateMap_copy[i][j][k] = filter_op;
+	}
+
+	for (i = 0; i < ScannedObjectPtr->N_z; i++)
+    	for (j = 0; j < ScannedObjectPtr->N_y; j++)
+	for (k = 0; k < ScannedObjectPtr->N_x; k++)
+    	{
+            	filter_op = 0;
+            	for (p = -2; p <= 2; p++)
+            	{
+                    	if(k + p >= 0 && k + p < ScannedObjectPtr->N_x)
+                    	{
+                		filter_op += HammingWindow[p + 2] * filtMagUpdateMap_copy[i][j][k+p];
+                    	}
+            	}
+		filtMagUpdateMap[i][j][k] = filter_op;
+	}
+	
+	for (i = 0; i < ScannedObjectPtr->N_z; i++)
+    	for (j = 0; j < ScannedObjectPtr->N_y; j++)
+	for (k = 0; k < ScannedObjectPtr->N_x; k++)
+    	{
+		filtMagUpdateMap_copy[i][j][k] = filtMagUpdateMap[i][j][k];
+	}
 }
 
 int32_t VSC_based_Voxel_Line_Select (ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t*** MagUpdateMap)
 {
 	Real_t thresh;
-	int32_t j, k, idx = 0, block;
+	int32_t i, j, k, idx = 0, block;
 	/*Real_t avg = 0;*/
 /*	char filename[] = "updatemap";
 	char magname[] = "magupmap";
@@ -172,36 +195,35 @@ int32_t VSC_based_Voxel_Line_Select (ScannedObject* ScannedObjectPtr, TomoInputs
 	int dim[4];
 	Real_t*** updatemap = (Real_t***)multialloc(sizeof(Real_t), 3, ScannedObjectPtr->N_time, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);*/
 	
-	Real_arr_t** filtMagUpdateMap = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
-	Real_arr_t** filtMagUpdateMap_copy = (Real_arr_t**)multialloc(sizeof(Real_arr_t), 2, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+	Real_arr_t*** filtMagUpdateMap = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
+	Real_arr_t*** filtMagUpdateMap_copy = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ScannedObjectPtr->N_z, ScannedObjectPtr->N_y, ScannedObjectPtr->N_x);
 
-	for (block = 0; block < TomoInputsPtr->num_z_blocks; block++)
-	{
-		idx = 0;
-		TomoInputsPtr->NHICDSelectNum[block] = floor(TomoInputsPtr->UpdateSelectNum[block]/ScannedObjectPtr->NHICD_Iterations);	
+	idx = 0;
+	TomoInputsPtr->NHICDSelectNum = floor(TomoInputsPtr->UpdateSelectNum/ScannedObjectPtr->NHICD_Iterations);	
 		/*avg = 0;*/
-		ComputeVSC (ScannedObjectPtr, MagUpdateMap[block], filtMagUpdateMap, filtMagUpdateMap_copy);
-		thresh = RandomizedSelect(&(filtMagUpdateMap[0][0]), 0, ScannedObjectPtr->N_x*ScannedObjectPtr->N_y - 1, ScannedObjectPtr->N_x*ScannedObjectPtr->N_y - TomoInputsPtr->NHICDSelectNum[block]);
-		for (j = 0; j < ScannedObjectPtr->N_y; j++)
-			for (k = 0; k < ScannedObjectPtr->N_x; k++)
-			{
-				/*updatemap[i][j][k]=0;*/
-				if (filtMagUpdateMap_copy[j][k] > thresh)
-				{
-					TomoInputsPtr->x_NHICD_select[block][idx] = k;
-					TomoInputsPtr->y_NHICD_select[block][idx] = j;
-					/*updatemap[i][j][k] = 1.0;*/
-					/*avg += filtMagUpdateMap[j][k];*/
-					idx++;
-				}
-			}
+	ComputeVSC (ScannedObjectPtr, MagUpdateMap, filtMagUpdateMap, filtMagUpdateMap_copy);
+	thresh = RandomizedSelect(&(filtMagUpdateMap[0][0][0]), 0, ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x - 1, ScannedObjectPtr->N_z*ScannedObjectPtr->N_y*ScannedObjectPtr->N_x - TomoInputsPtr->NHICDSelectNum);
+	
+	for (i = 0; i < ScannedObjectPtr->N_z; i++)
+	for (j = 0; j < ScannedObjectPtr->N_y; j++)
+	for (k = 0; k < ScannedObjectPtr->N_x; k++)
+	{
+		if (filtMagUpdateMap_copy[i][j][k] > thresh)
+		{
+			TomoInputsPtr->z_NHICD_select[idx] = i;
+			TomoInputsPtr->y_NHICD_select[idx] = j;
+			TomoInputsPtr->x_NHICD_select[idx] = k;
+			/*updatemap[i][j][k] = 1.0;*/
+			/*avg += filtMagUpdateMap[j][k];*/
+			idx++;
+		}
+	}
 		
 /*		if (idx != TomoInputsPtr->NHICDSelectNum[i][block])
 			fprintf(stderr, "WARNING: VSC_based_Voxel_Line_Select: Number of elements = %d above threshold does not match required = %d\n", idx, TomoInputsPtr->NHICDSelectNum[i][block]);*/
-		TomoInputsPtr->NHICDSelectNum[block] = idx;
+	TomoInputsPtr->NHICDSelectNum = idx;
 /*		randomize_list_in_place (TomoInputsPtr->x_rand_select[i], TomoInputsPtr->y_rand_select[i], idx);*/
 /*		printf ("VSC_based_Voxel_Line_Select: The number of lines in time %d is %d, average is %f, threshold is %f\n", i, idx, avg/idx, thresh);*/	
-	}	
 	
 /*	dim[0] = 1; dim[1] = ScannedObjectPtr->N_time; dim[2] = ScannedObjectPtr->N_y; dim[3] = ScannedObjectPtr->N_x; 
 	WriteMultiDimArray2Tiff (filename, dim, 0, 1, 2, 3, &(updatemap[0][0][0]), 0, TomoInputsPtr->debug_file_ptr);
@@ -209,8 +231,8 @@ int32_t VSC_based_Voxel_Line_Select (ScannedObject* ScannedObjectPtr, TomoInputs
 	WriteMultiDimArray2Tiff (magname, dim, 0, 1, 2, 3, &(MagUpdateMap[0][0][0]), 0, TomoInputsPtr->debug_file_ptr);
 	multifree(updatemap, 3);*/
 	
-	multifree(filtMagUpdateMap, 2);
-	multifree(filtMagUpdateMap_copy, 2);
+	multifree(filtMagUpdateMap, 3);
+	multifree(filtMagUpdateMap_copy, 3);
 	return (0);
 } 
 

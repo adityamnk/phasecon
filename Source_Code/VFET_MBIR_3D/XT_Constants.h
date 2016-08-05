@@ -123,8 +123,8 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define COST_CONVG_THRESHOLD 0.1
 #define NO_NHICD 0
 #define WRITE_EVERY_ITER 0
-#define MIN_XY_RECON_RES 16
-#define MAX_MULTRES_NUM 4
+#define MIN_XYZ_RECON_RES 8
+#define MAX_MULTRES_NUM 3
 #define MIN_ROWS_PER_NODE 2
 #define MIN_PROJECTION_ROWS 4
 

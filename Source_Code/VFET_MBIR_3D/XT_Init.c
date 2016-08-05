@@ -67,7 +67,7 @@ void initFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr)
 	uint8_t i,j,k;
 	Real_t temp1,sum=0,prior_const=0;
 /*	prior_const = ObjPtr->delta_xy*ObjPtr->delta_xy*ObjPtr->delta_xy*ObjPtr->delta_Rtime;*/
-	prior_const = ObjPtr->mult_xy*ObjPtr->mult_xy*ObjPtr->mult_xy;
+	prior_const = ObjPtr->mult_xyz*ObjPtr->mult_xyz*ObjPtr->mult_xyz;
 /*Filter coefficients of neighboring pixels are inversely proportional to the distance from the center pixel*/
 	
 	for (i=0; i<3; i++)
@@ -131,41 +131,10 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 {
 	int32_t i, j, k, idx_i, idx_j, idx_k, idx;
 	Real_t dist, delta, magxr, magyr, magzr, magxi, magyi, magzi;
-#ifdef VFET_ELEC_RECON
-	Real_t distelec, h0_elec, elecr, eleci;
-	h0_elec = 0;
-
-	delta = ObjPtr->delta_xy/(2.0*CROSSPROD_IMP_WIDTH+1);
-	/*h0_mag = 0;*/ 
-	for (i = -CROSSPROD_IMP_WIDTH; i <= CROSSPROD_IMP_WIDTH; i++)
-	for (j = -CROSSPROD_IMP_WIDTH; j <= CROSSPROD_IMP_WIDTH; j++)
-	for (k = -CROSSPROD_IMP_WIDTH; k <= CROSSPROD_IMP_WIDTH; k++)
-	{
-		/*distmag = pow(sqrt((Real_t)(i*i + j*j + k*k)), 3);*/
-		distelec = sqrt((Real_t)(i*i + j*j + k*k));
-		if (i != 0 || j != 0 || k != 0)
-		{
-			/*h0_mag += ((Real_t)i)/distmag;*/
-			h0_elec += 1.0/distelec;
-		}
-		else
-		{
-			/*h0_mag += 0;*/
-			h0_elec += 1.0;
-		}
-	}
-	/*h0_mag *= delta;*/
-	h0_elec *= delta*delta;
-	fprintf(InpPtr->debug_file_ptr, "initCrossProdFilter: Zero'th impulse function value for elec charge denstiy is %e\n", h0_elec);
-#endif
-
 
 	magxr = 0; magyr = 0; magzr = 0;
 	magxi = 0; magyi = 0; magzi = 0; 
-#ifdef VFET_ELEC_RECON
-	eleci = 0;
-	elecr = 0;
-#endif
+	
 	for (i = ObjPtr->N_z/2 - 1; i >= -ObjPtr->N_z/2 + 1; i--)
 	for (j = ObjPtr->N_y/2 - 1; j >= -ObjPtr->N_y/2 + 1; j--)
 	for (k = ObjPtr->N_x/2 - 1; k >= -ObjPtr->N_x/2 + 1; k--)
@@ -179,31 +148,21 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 		if (i != 0 || j != 0 || k != 0)
 		{
 			dist = pow(sqrt((Real_t)(i*i + j*j + k*k)), 3);
-			fftarr->fftforw_magarr[0][idx][0] = ObjPtr->delta_xy*((Real_t)i)/dist;
-			fftarr->fftforw_magarr[1][idx][0] = ObjPtr->delta_xy*((Real_t)j)/dist;
-			fftarr->fftforw_magarr[2][idx][0] = ObjPtr->delta_xy*((Real_t)k)/dist;
+			fftarr->fftforw_magarr[0][idx][0] = ObjPtr->delta_x*((Real_t)i)/dist;
+			fftarr->fftforw_magarr[1][idx][0] = -ObjPtr->delta_y*((Real_t)j)/dist;
+			fftarr->fftforw_magarr[2][idx][0] = ObjPtr->delta_z*((Real_t)k)/dist;
 		
-#ifdef VFET_ELEC_RECON
-			dist = sqrt((Real_t)(i*i + j*j + k*k));
-			fftarr->fftforw_elecarr[idx][0] = ObjPtr->delta_xy*ObjPtr->delta_xy/dist;
-#endif
 		}
 		else
 		{
 			fftarr->fftforw_magarr[0][idx][0] = 0;
 			fftarr->fftforw_magarr[1][idx][0] = 0;
 			fftarr->fftforw_magarr[2][idx][0] = 0;
-#ifdef VFET_ELEC_RECON
-			fftarr->fftforw_elecarr[idx][0] = h0_elec;
-#endif
 		}
 		
 		fftarr->fftforw_magarr[0][idx][1] = 0;
 		fftarr->fftforw_magarr[1][idx][1] = 0;
 		fftarr->fftforw_magarr[2][idx][1] = 0;
-#ifdef VFET_ELEC_RECON
-		fftarr->fftforw_elecarr[idx][1] = 0;
-#endif
 		
 /*		printf("Space i = %d, j = %d, k = %d, idx_i = %d, idx_j = %d, idx_k = %d, idx = %d, fft (mag,elec) = ((%e,%e),(%e,%e),(%e,%e),(%e,%e))\n", i, j, k, idx_i, idx_j, idx_k, idx, fftarr->fftforw_magarr[0][idx][0], fftarr->fftforw_magarr[0][idx][1], fftarr->fftforw_magarr[1][idx][0], fftarr->fftforw_magarr[1][idx][1], fftarr->fftforw_magarr[2][idx][0], fftarr->fftforw_magarr[2][idx][1], fftarr->fftforw_elecarr[idx][0], fftarr->fftforw_elecarr[idx][1]);*/
 		
@@ -215,10 +174,6 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 		magyi += fabs(fftarr->fftforw_magarr[1][idx][1]);	
 		magxi += fabs(fftarr->fftforw_magarr[2][idx][1]);	
 		
-#ifdef VFET_ELEC_RECON
-		elecr += fabs(fftarr->fftforw_elecarr[idx][0]);	
-		eleci += fabs(fftarr->fftforw_elecarr[idx][1]);	
-#endif
 	}
 	
 	magxr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
@@ -231,26 +186,13 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 	
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of space domain Green's function filters are (magxr, magxi), (magyr, magyi), (magzr, magzi) = (%e,%e),(%e,%e),(%e,%e)\n", magxr, magxi, magyr, magyi, magzr, magzi);
 	
-#ifdef VFET_ELEC_RECON
-	elecr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
-	eleci /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
-
-	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of space domain Green's function filters are (elecr, eleci) = (%e,%e)\n", elecr, eleci);
-#endif
-	
 	fftw_execute(fftarr->fftforw_magplan[0]);
 	fftw_execute(fftarr->fftforw_magplan[1]);
 	fftw_execute(fftarr->fftforw_magplan[2]);
-#ifdef VFET_ELEC_RECON
-	fftw_execute(fftarr->fftforw_elecplan);
-#endif
 
 	magxr = 0; magyr = 0; magzr = 0;
 	magxi = 0; magyi = 0; magzi = 0;
-#ifdef VFET_ELEC_RECON
-	eleci = 0;
-	elecr = 0;
-#endif
+	
 	for (i = 0; i < fftarr->z_num; i++)
 	for (j = 0; j < fftarr->y_num; j++)
 	for (k = 0; k < fftarr->x_num; k++)
@@ -265,11 +207,6 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 		ObjPtr->MagFilt[i][j][k][2*1+1] = fftarr->fftforw_magarr[1][idx][1];	
 		ObjPtr->MagFilt[i][j][k][2*2+1] = fftarr->fftforw_magarr[2][idx][1];	
 
-#ifdef VFET_ELEC_RECON
-		ObjPtr->ElecFilt[i][j][k][0] = fftarr->fftforw_elecarr[idx][0];	
-		ObjPtr->ElecFilt[i][j][k][1] = fftarr->fftforw_elecarr[idx][1];
-#endif
-
 /*		printf("Freq i = %d, j = %d, k = %d, idx = %d, fft (mag,elec) = (%e,%e,%e,%e)\n", i, j, k, idx, fftarr->fftforw_magarr[0][idx][0], fftarr->fftforw_magarr[1][idx][0], fftarr->fftforw_magarr[2][idx][0], fftarr->fftforw_elecarr[idx][0]);*/
 
 		magzr += fabs(fftarr->fftforw_magarr[0][idx][0]);	
@@ -279,10 +216,6 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 		magzi += fabs(fftarr->fftforw_magarr[0][idx][1]);	
 		magyi += fabs(fftarr->fftforw_magarr[1][idx][1]);	
 		magxi += fabs(fftarr->fftforw_magarr[2][idx][1]);	
-#ifdef VFET_ELEC_RECON
-		elecr += fabs(fftarr->fftforw_elecarr[idx][0]);	
-		eleci += fabs(fftarr->fftforw_elecarr[idx][1]);
-#endif
 		
 /*		magzr += fabs(ObjPtr->MagFilt[i][j][k][0][0]);	
 		magyr += fabs(ObjPtr->MagFilt[i][j][k][1][0]);	
@@ -305,17 +238,7 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 	
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of freq domain Green's function filters are (magxr, magxi), (magyr, magyi), (magzr, magzi) = (%e,%e),(%e,%e),(%e,%e)\n", magxr, magxi, magyr, magyi, magzr, magzi);
 
-#ifdef VFET_ELEC_RECON
-	elecr /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
-	eleci /= (fftarr->z_num*fftarr->y_num*fftarr->x_num);
-
-	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average of freq domain Green's function filters are (elecr, eleci) = (%e,%e)\n", elecr, eleci);
-#endif
-	
 	Write2Bin ("mag_freq_resp", fftarr->z_num, fftarr->y_num, fftarr->x_num, 6, sizeof(Real_arr_t), &(ObjPtr->MagFilt[0][0][0][0]), InpPtr->debug_file_ptr);
-#ifdef VFET_ELEC_RECON
-	Write2Bin ("elec_freq_resp", fftarr->z_num, fftarr->y_num, fftarr->x_num, 2, sizeof(Real_arr_t), &(ObjPtr->ElecFilt[0][0][0][0]), InpPtr->debug_file_ptr);
-#endif
 
 	/*int dimTiff[4];
     	if (InpPtr->Write2Tiff == 1)
@@ -331,7 +254,7 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 
 /*Initializes the variables in the three major structures used throughout the code -
 Sinogram, ScannedObject, TomoInputs. It also allocates memory for several variables.*/
-int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, int32_t mult_idx, int32_t mult_xy[], int32_t mult_z[], float *data_unflip_x, float *data_flip_x, float *data_unflip_y, float *data_flip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid, Real_t rot_center, Real_t mag_sigma, Real_t mag_c, Real_t elec_sigma, Real_t elec_c, Real_t convg_thresh, Real_t admm_mu)
+int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, int32_t mult_idx, int32_t mult_xyz[], float *data_unflip_x, float *data_unflip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t x_widnum, int32_t y_widnum, int32_t z_widnum, Real_t vox_wid, Real_t qggmrf_sigma, Real_t qggmrf_c, Real_t convg_thresh, Real_t admm_mu, int32_t admm_maxiters)
 {
 	int flag = 0, i;
 
@@ -340,32 +263,23 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	MPI_Comm_rank(MPI_COMM_WORLD, &(InpPtr->node_rank));*/
 	InpPtr->node_num = 1; InpPtr->node_rank = 0;
 
-	ObjPtr->Mag_Sigma[0] = mag_sigma;
-	ObjPtr->Mag_Sigma[1] = mag_sigma;
-	ObjPtr->Mag_Sigma[2] = mag_sigma;
-	ObjPtr->Mag_C[0] = mag_c;
-	ObjPtr->Mag_C[1] = mag_c;
-	ObjPtr->Mag_C[2] = mag_c;
+	ObjPtr->Mag_Sigma[0] = qggmrf_sigma;
+	ObjPtr->Mag_Sigma[1] = qggmrf_sigma;
+	ObjPtr->Mag_Sigma[2] = qggmrf_sigma;
+	ObjPtr->Mag_C[0] = qggmrf_c;
+	ObjPtr->Mag_C[1] = qggmrf_c;
+	ObjPtr->Mag_C[2] = qggmrf_c;
 
-#ifdef VFET_ELEC_RECON
-	ObjPtr->Elec_Sigma = elec_sigma;
-	ObjPtr->Elec_C = elec_c;
-#endif
-	
 	InpPtr->Weight = 1;
 	
-	ObjPtr->mult_xy = mult_xy[mult_idx];
-	ObjPtr->mult_z = mult_z[mult_idx];		
+	ObjPtr->mult_xyz = mult_xyz[mult_idx];
 	SinoPtr->Length_R = vox_wid*proj_cols;
 	SinoPtr->Length_T = vox_wid*proj_rows;
 	InpPtr->StopThreshold = convg_thresh;
-	InpPtr->RotCenter = rot_center;
 	InpPtr->alpha = OVER_RELAXATION_FACTOR;
 	if (mult_idx == 0)
 		InpPtr->initICD = 0;
-	else if (mult_z[mult_idx] == mult_z[mult_idx-1]) 
-		InpPtr->initICD = 2;
-	else if (mult_z[mult_idx-1]/mult_z[mult_idx] == 2)
+	else if (mult_xyz[mult_idx-1]/mult_xyz[mult_idx] == 2)
 		InpPtr->initICD = 3;
 	else
 		sentinel(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Multi-resolution scaling is not supported");
@@ -374,7 +288,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	SinoPtr->N_p = proj_num;	
 	SinoPtr->N_r = proj_cols;
 	InpPtr->cost_thresh = COST_CONVG_THRESHOLD;	
-	InpPtr->radius_obj = vox_wid*proj_cols;	
+/*	InpPtr->radius_obj = vox_wid*proj_cols;*/	
 	SinoPtr->total_t_slices = proj_rows;
 	InpPtr->no_NHICD = NO_NHICD;	
 	InpPtr->WritePerIter = WRITE_EVERY_ITER;
@@ -392,134 +306,85 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	SinoPtr->N_t = SinoPtr->total_t_slices/InpPtr->node_num;
 	
 	SinoPtr->Data_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-#ifdef VFET_ELEC_RECON
-	SinoPtr->Data_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-#endif
+
+	for (i = 0; i < SinoPtr->N_p; i++)
+	for (j = 0; j < SinoPtr->N_r; j++)
+	for (k = 0; k < SinoPtr->N_t; k++)
+	{
+		idx = i*SinoPtr->N_t*SinoPtr->N_r + j*SinoPtr->N_t + k;
+		SinoPtr->Data_Unflip_x[i][j][k] = data_unflip_x[idx];
+	}
 
 #ifdef VFET_TWO_AXES
 	SinoPtr->Data_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-	#ifdef VFET_ELEC_RECON
-		SinoPtr->Data_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-	#endif
 
 	for (i = 0; i < SinoPtr->N_p; i++)
 	for (j = 0; j < SinoPtr->N_r; j++)
 	for (k = 0; k < SinoPtr->N_t; k++)
 	{
 		idx = i*SinoPtr->N_t*SinoPtr->N_r + k*SinoPtr->N_r + j;
-	#ifdef VFET_ELEC_RECON
 		SinoPtr->Data_Unflip_y[i][j][k] = data_unflip_y[idx];
-		SinoPtr->Data_Flip_y[i][j][k] = data_flip_y[idx];
-	#else
-		SinoPtr->Data_Unflip_y[i][j][k] = (data_unflip_y[idx] - data_flip_y[idx])/2;
-	#endif
 	}
 #endif
 	
-	for (i = 0; i < SinoPtr->N_p; i++)
-	for (j = 0; j < SinoPtr->N_r; j++)
-	for (k = 0; k < SinoPtr->N_t; k++)
-	{
-		idx = i*SinoPtr->N_t*SinoPtr->N_r + j*SinoPtr->N_t + k;
-#ifdef VFET_ELEC_RECON
-		SinoPtr->Data_Unflip_x[i][j][k] = data_unflip_x[idx];
-		SinoPtr->Data_Flip_x[i][j][k] = data_flip_x[idx];
-#else
-		SinoPtr->Data_Unflip_x[i][j][k] = (data_unflip_x[idx] - data_flip_x[idx])/2;
-#endif
-	}
-
 	int dimTiff[4];
     	dimTiff[0] = 1; dimTiff[1] = SinoPtr->N_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
     	if (InpPtr->Write2Tiff == 1)
 	{
     		if (WriteMultiDimArray2Tiff (DATA_UNFLIP_X_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Unflip_x[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
-#ifdef VFET_ELEC_RECON
-    		if (WriteMultiDimArray2Tiff (DATA_FLIP_X_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Flip_x[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
-#endif
 #ifdef VFET_TWO_AXES
     		if (WriteMultiDimArray2Tiff (DATA_UNFLIP_Y_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Unflip_y[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
-	#ifdef VFET_ELEC_RECON
-    		if (WriteMultiDimArray2Tiff (DATA_FLIP_Y_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Flip_y[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
-	#endif
 #endif
 	}	
 	
 	SinoPtr->delta_r = SinoPtr->Length_R/(SinoPtr->N_r);
 	SinoPtr->delta_t = SinoPtr->Length_T/(SinoPtr->N_t);
-	SinoPtr->R0 = -InpPtr->RotCenter*SinoPtr->delta_r;
-	SinoPtr->RMax = (SinoPtr->N_r-InpPtr->RotCenter)*SinoPtr->delta_r;
+	SinoPtr->R0 = -SinoPtr->Length_R/2.0;
+	SinoPtr->RMax = SinoPtr->Length_R/2.0;
 	SinoPtr->T0 = -SinoPtr->Length_T/2.0;
 	SinoPtr->TMax = SinoPtr->Length_T/2.0;
 	
 	/*Initializing parameters of the object to be reconstructed*/
-	ObjPtr->Length_X = SinoPtr->Length_R;
-    	ObjPtr->Length_Y = SinoPtr->Length_R;
-	ObjPtr->Length_Z = SinoPtr->Length_T;
-    	ObjPtr->N_x = (int32_t)(SinoPtr->N_r/ObjPtr->mult_xy);
-	ObjPtr->N_y = (int32_t)(SinoPtr->N_r/ObjPtr->mult_xy);
-	ObjPtr->N_z = (int32_t)(SinoPtr->N_t/ObjPtr->mult_z);	
-	ObjPtr->delta_xy = ObjPtr->mult_xy*SinoPtr->delta_r;
-	ObjPtr->delta_z = ObjPtr->mult_z*SinoPtr->delta_t;
-	SinoPtr->z_overlap_num = ObjPtr->mult_z;
+	ObjPtr->Length_X = x_widnum*vox_wid;
+    	ObjPtr->Length_Y = y_widnum*vox_wid;
+	ObjPtr->Length_Z = z_widnum*vox_wid;
+    	ObjPtr->N_x = (int32_t)(x_widnum/ObjPtr->mult_xyz);
+	ObjPtr->N_y = (int32_t)(y_widnum/ObjPtr->mult_xyz);
+	ObjPtr->N_z = (int32_t)(z_widnum/ObjPtr->mult_xyz);	
+	ObjPtr->delta_x = ObjPtr->Length_X/ObjPtr->N_x;
+	ObjPtr->delta_y = ObjPtr->Length_Y/ObjPtr->N_y;/*Subsequent code assumes delta_x = delta_y*/
+	ObjPtr->delta_z = ObjPtr->Length_Z/ObjPtr->N_z;
+	SinoPtr->z_overlap_num = ObjPtr->mult_xyz;
 
-	if (ObjPtr->delta_xy != ObjPtr->delta_z)
-		check_warn (InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Voxel width in x-y plane is not equal to that along z-axis. The spatial invariance of prior does not hold.\n");
-
-	ObjPtr->x0 = SinoPtr->R0;
-    	ObjPtr->z0 = SinoPtr->T0;
-    	ObjPtr->y0 = -ObjPtr->Length_Y/2.0;
+	ObjPtr->x0 = -ObjPtr->Length_X/2.0;
+	ObjPtr->y0 = -ObjPtr->Length_Y/2.0;
+	ObjPtr->z0 = -ObjPtr->Length_Z/2.0;
     	ObjPtr->BeamWidth = SinoPtr->delta_r; /*Weighting of the projections at different points of the detector*/
 
 	ObjPtr->MagPotentials = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
 	ObjPtr->Magnetization = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
     	ObjPtr->MagPotDual = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
-
-#ifdef VFET_ELEC_RECON	
-	ObjPtr->ChargeDensity = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
-	ObjPtr->ElecPotentials = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
-    	ObjPtr->ElecPotDual = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
-#endif
+    	ObjPtr->MagPotUpdateMap = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
 
 	/*OffsetR is stepsize of the distance between center of voxel of the object and the detector pixel, at which projections are computed*/
-	SinoPtr->OffsetR = (ObjPtr->delta_xy/sqrt(2.0)+SinoPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
+	SinoPtr->OffsetR = (ObjPtr->delta_x/sqrt(2.0)+SinoPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
 	SinoPtr->OffsetT = ((ObjPtr->delta_z/2) + SinoPtr->delta_t/2)/DETECTOR_RESPONSE_BINS;
 
 	InpPtr->num_threads = omp_get_max_threads();
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Maximum number of openmp threads is %d\n", InpPtr->num_threads);
 	if (InpPtr->num_threads <= 1)
 		check_warn(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "The maximum number of threads is less than or equal to 1.\n");	
-	InpPtr->num_z_blocks = InpPtr->num_threads;
-	if (InpPtr->num_z_blocks < 2)
-		InpPtr->num_z_blocks = 2;
-	else if (InpPtr->num_z_blocks > ObjPtr->N_z)
-		InpPtr->num_z_blocks = ObjPtr->N_z;
-	InpPtr->num_z_blocks = (InpPtr->num_z_blocks/2)*2; /*Round down to the nearest even integer*/
 	
-	InpPtr->prevnum_z_blocks = InpPtr->num_threads;
-	if (InpPtr->prevnum_z_blocks < 2)
-		InpPtr->prevnum_z_blocks = 2;
-	else 
-	{
-		if (InpPtr->initICD == 3 && InpPtr->prevnum_z_blocks > ObjPtr->N_z/2)
-			InpPtr->prevnum_z_blocks = ObjPtr->N_z/2;
-		else if (InpPtr->prevnum_z_blocks > ObjPtr->N_z)
-			InpPtr->prevnum_z_blocks = ObjPtr->N_z;
-	}
-	InpPtr->prevnum_z_blocks = (InpPtr->prevnum_z_blocks/2)*2; /*Round down to the nearest even integer*/
-
 /*	InpPtr->BoundaryFlag = (uint8_t***)multialloc(sizeof(uint8_t), 3, 3, 3, 3);*/
-        InpPtr->x_rand_select = (int32_t**)multialloc(sizeof(int32_t), 2, InpPtr->num_z_blocks, ObjPtr->N_y*ObjPtr->N_x);
-        InpPtr->y_rand_select = (int32_t**)multialloc(sizeof(int32_t), 2, InpPtr->num_z_blocks, ObjPtr->N_y*ObjPtr->N_x);
-        InpPtr->x_NHICD_select = (int32_t**)multialloc(sizeof(int32_t), 2, InpPtr->num_z_blocks, ObjPtr->N_y*ObjPtr->N_x);
-        InpPtr->y_NHICD_select = (int32_t**)multialloc(sizeof(int32_t), 2, InpPtr->num_z_blocks, ObjPtr->N_y*ObjPtr->N_x);
-        InpPtr->UpdateSelectNum = (int32_t*)multialloc(sizeof(int32_t), 1, InpPtr->num_z_blocks);
-        InpPtr->NHICDSelectNum = (int32_t*)multialloc(sizeof(int32_t), 1, InpPtr->num_z_blocks);
+        InpPtr->x_rand_select = (int32_t*)multialloc(sizeof(int32_t), 1, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
+        InpPtr->y_rand_select = (int32_t*)multialloc(sizeof(int32_t), 1, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
+        InpPtr->z_rand_select = (int32_t*)multialloc(sizeof(int32_t), 1, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
+
+        InpPtr->x_NHICD_select = (int32_t*)multialloc(sizeof(int32_t), 1, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
+        InpPtr->y_NHICD_select = (int32_t*)multialloc(sizeof(int32_t), 1, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
+        InpPtr->z_NHICD_select = (int32_t*)multialloc(sizeof(int32_t), 1, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
 
 	ObjPtr->NHICD_Iterations = 10;
-
-	check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Number of z blocks is %d\n", InpPtr->num_z_blocks);
-	check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Number of z blocks in previous multi-resolution stage is %d\n", InpPtr->prevnum_z_blocks);
 
 	SinoPtr->ViewPtr = (Real_arr_t*)get_spc(proj_num, sizeof(Real_arr_t));
 	for (i = 0; i < proj_num; i++)
@@ -528,14 +393,10 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	/*TomoInputs holds the input parameters and some miscellaneous variables*/
 	for (i = 0; i < 3; i++)
 	{
-		InpPtr->Mag_Sigma_Q[i] = pow((ObjPtr->Mag_Sigma[i]*ObjPtr->mult_xy),MRF_Q);
-		InpPtr->Mag_Sigma_Q_P[i] = pow(ObjPtr->Mag_Sigma[i]*ObjPtr->mult_xy,MRF_Q-MRF_P);	
+		InpPtr->Mag_Sigma_Q[i] = pow((ObjPtr->Mag_Sigma[i]*ObjPtr->mult_xyz),MRF_Q);
+		InpPtr->Mag_Sigma_Q_P[i] = pow(ObjPtr->Mag_Sigma[i]*ObjPtr->mult_xyz,MRF_Q-MRF_P);	
 	}
 
-#ifdef VFET_ELEC_RECON
-	InpPtr->Elec_Sigma_Q = pow((ObjPtr->Elec_Sigma*ObjPtr->mult_xy),MRF_Q);
-	InpPtr->Elec_Sigma_Q_P = pow(ObjPtr->Elec_Sigma*ObjPtr->mult_xy,MRF_Q-MRF_P);
-#endif	
 	initFilter (ObjPtr, InpPtr);
 	
 	calculateSinCos (SinoPtr, InpPtr);
@@ -545,7 +406,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "The ADMM mu is %f.\n", InpPtr->ADMM_mu);
 		
 	InpPtr->NumIter = MAX_NUM_ITERATIONS;
-	InpPtr->Head_MaxIter = 30;
+	InpPtr->Head_MaxIter = admm_maxiters;
 	InpPtr->DensUpdate_MaxIter = 100;
 	
 	/*InpPtr->NumIter = 2;
@@ -557,16 +418,16 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 
 #ifdef INIT_GROUND_TRUTH_PHANTOM
 /*	ObjPtr->ElecPotGndTruth = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, PHANTOM_Z_SIZE, PHANTOM_Y_SIZE, PHANTOM_X_SIZE);*/
-	ObjPtr->MagPotGndTruth = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, PHANTOM_Z_SIZE, PHANTOM_Y_SIZE, PHANTOM_X_SIZE, 3);
-	size = PHANTOM_Z_SIZE*PHANTOM_Y_SIZE*PHANTOM_X_SIZE;
+	ObjPtr->MagPotGndTruth = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, PHANTOM_Z_SIZE, PHANTOM_XY_SIZE, PHANTOM_XY_SIZE, 3);
+	int32_t size = PHANTOM_Z_SIZE*PHANTOM_XY_SIZE*PHANTOM_XY_SIZE;
 /*	if (read_SharedBinFile_At (PHANTOM_ELECOBJECT_FILENAME, &(ObjPtr->ElecPotGndTruth[0][0][0]), InpPtr->node_rank*size, size, InpPtr->debug_file_ptr)) flag = -1;*/
-	if (read_SharedBinFile_At (PHANTOM_MAGDENSITY_FILENAME, &(ObjPtr->MagPotGndTruth[0][0][0][0]), InpPtr->node_rank*size*3, size*3, InpPtr->debug_file_ptr)) flag = -1;
+	Read4mBin (PHANTOM_MAGDENSITY_FILENAME, PHANTOM_Z_SIZE, PHANTOM_XY_SIZE, PHANTOM_XY_SIZE, 3, sizeof(Real_arr_t), &(ObjPtr->MagPotGndTruth[0][0][0][0]), InpPtr->debug_file_ptr);
 #endif
 
 	check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Initialized the structures, Sinogram and ScannedObject\n");
 	
-	check_error(SinoPtr->N_t % (int32_t)ObjPtr->mult_z != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot do reconstruction since mult_z = %d does not divide %d\n", (int32_t)ObjPtr->mult_z, SinoPtr->N_t);
-	check_error(SinoPtr->N_r % (int32_t)ObjPtr->mult_xy != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot do reconstruction since mult_xy = %d does not divide %d\n", (int32_t)ObjPtr->mult_xy, SinoPtr->N_r);
+	check_error(SinoPtr->N_t % (int32_t)ObjPtr->mult_xyz != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot do reconstruction since mult_xyz = %d does not divide N_t = %d\n", (int32_t)ObjPtr->mult_xyz, SinoPtr->N_t);
+	check_error(SinoPtr->N_r % (int32_t)ObjPtr->mult_xyz != 0, InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot do reconstruction since mult_xyz = %d does not divide N_r = %d\n", (int32_t)ObjPtr->mult_xyz, SinoPtr->N_r);
 
 	InpPtr->MagPhaseMultiple = 1;
 	InpPtr->ElecPhaseMultiple = 1;
@@ -579,12 +440,12 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Mag and Elec pre multipliers to the phase are %e and %e\n.", InpPtr->MagPhaseMultiple, InpPtr->ElecPhaseMultiple);
 
-	fftptr->z_num = 2*ObjPtr->N_z;
-	fftptr->y_num = 2*ObjPtr->N_y;
-	fftptr->x_num = 2*ObjPtr->N_x;
-	fftptr->x0 = ObjPtr->N_x/2;
-	fftptr->y0 = ObjPtr->N_y/2;
-	fftptr->z0 = ObjPtr->N_z/2;
+	fftptr->z_num = ObjPtr->N_z;
+	fftptr->y_num = ObjPtr->N_y;
+	fftptr->x_num = ObjPtr->N_x;
+	fftptr->x0 = 0;
+	fftptr->y0 = 0;
+	fftptr->z0 = 0;
 	
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Initializing FFT arrays and plans.\n");
 	
@@ -602,15 +463,6 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	
 	ObjPtr->MagFilt = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, fftptr->z_num, fftptr->y_num, fftptr->x_num, 6);	
 	
-#ifdef VFET_ELEC_RECON
-	fftptr->fftforw_elecarr = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*fftptr->z_num*fftptr->y_num*fftptr->x_num);
-	fftptr->fftforw_elecplan = fftw_plan_dft_3d(fftptr->z_num, fftptr->y_num, fftptr->x_num, fftptr->fftforw_elecarr, fftptr->fftforw_elecarr, FFTW_FORWARD, FFTW_ESTIMATE);
-	fftptr->fftback_elecarr = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*fftptr->z_num*fftptr->y_num*fftptr->x_num);
-	fftptr->fftback_elecplan = fftw_plan_dft_3d(fftptr->z_num, fftptr->y_num, fftptr->x_num, fftptr->fftback_elecarr, fftptr->fftback_elecarr, FFTW_BACKWARD, FFTW_ESTIMATE);
-	
-	ObjPtr->ElecFilt = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, fftptr->z_num, fftptr->y_num, fftptr->x_num, 2);	
-#endif
-
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Done initializing FFT arrays and plans.\n");
 	
 	/*compute cross product filters*/
@@ -644,19 +496,8 @@ void freeMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr, FF
 	multifree(ObjPtr->MagPotentials,4);
 	multifree(ObjPtr->Magnetization,4);
 	multifree(ObjPtr->MagPotDual,4);
+	multifree(ObjPtr->MagPotUpdateMap, 3);
 
-#ifdef VFET_ELEC_RECON
-	fftw_destroy_plan(fftptr->fftforw_elecplan);
-	fftw_destroy_plan(fftptr->fftback_elecplan);
-	fftw_free(fftptr->fftforw_elecarr); 
-	fftw_free(fftptr->fftback_elecarr);
-
-	multifree(ObjPtr->ElecFilt, 4);
-	
-	multifree(ObjPtr->ElecPotentials,3);
-	multifree(ObjPtr->ChargeDensity,3);
-	multifree(ObjPtr->ElecPotDual,3);
-#endif
 #ifdef INIT_GROUND_TRUTH_PHANTOM
 	multifree(ObjPtr->MagPotGndTruth,4);
 /*	multifree(ObjPtr->ElecPotGndTruth,3);*/
@@ -674,12 +515,12 @@ void freeMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr, FF
 	#endif
 #endif
 	
-	if (InpPtr->x_rand_select) multifree(InpPtr->x_rand_select,2);
-	if (InpPtr->y_rand_select) multifree(InpPtr->y_rand_select,2);
-	if (InpPtr->x_NHICD_select) multifree(InpPtr->x_NHICD_select,2);
-	if (InpPtr->y_NHICD_select) multifree(InpPtr->y_NHICD_select,2);
-	if (InpPtr->UpdateSelectNum) multifree(InpPtr->UpdateSelectNum,1);
-	if (InpPtr->NHICDSelectNum) multifree(InpPtr->NHICDSelectNum,1);
+	if (InpPtr->x_rand_select) multifree(InpPtr->x_rand_select,1);
+	if (InpPtr->y_rand_select) multifree(InpPtr->y_rand_select,1);
+	if (InpPtr->z_rand_select) multifree(InpPtr->z_rand_select,1);
+	if (InpPtr->x_NHICD_select) multifree(InpPtr->x_NHICD_select,1);
+	if (InpPtr->y_NHICD_select) multifree(InpPtr->y_NHICD_select,1);
+	if (InpPtr->z_NHICD_select) multifree(InpPtr->z_NHICD_select,1);
 	if (SinoPtr->cosine_x) free(SinoPtr->cosine_x);
 	if (SinoPtr->sine_x) free(SinoPtr->sine_x);
 	if (SinoPtr->cosine_y) free(SinoPtr->cosine_y);
@@ -687,7 +528,7 @@ void freeMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr, FF
 }
 
 
-int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid, Real_t rot_center)
+int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid)
 {
 	int i;
 	
@@ -699,7 +540,6 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 	
 	SinoPtr->Length_R = vox_wid*proj_cols;
 	SinoPtr->Length_T = vox_wid*proj_rows;
-	InpPtr->RotCenter = rot_center;
 		
 	InpPtr->Write2Tiff = ENABLE_TIFF_WRITES;
 	SinoPtr->N_p = proj_num;	
@@ -711,32 +551,31 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 	
 	SinoPtr->delta_r = SinoPtr->Length_R/(SinoPtr->N_r);
 	SinoPtr->delta_t = SinoPtr->Length_T/(SinoPtr->N_t);
-	SinoPtr->R0 = -InpPtr->RotCenter*SinoPtr->delta_r;
-	SinoPtr->RMax = (SinoPtr->N_r-InpPtr->RotCenter)*SinoPtr->delta_r;
+	SinoPtr->R0 = -SinoPtr->Length_R/2.0;
+	SinoPtr->RMax = SinoPtr->Length_R/2.0;
 	SinoPtr->T0 = -SinoPtr->Length_T/2.0;
 	SinoPtr->TMax = SinoPtr->Length_T/2.0;
 	
 	/*Initializing parameters of the object to be reconstructed*/
-	ObjPtr->Length_X = SinoPtr->Length_R;
-    	ObjPtr->Length_Y = SinoPtr->Length_R;
-	ObjPtr->Length_Z = SinoPtr->Length_T;
+	ObjPtr->delta_x = vox_wid/(PHANTOM_XY_SIZE/proj_cols);
+	ObjPtr->delta_y = vox_wid/(PHANTOM_XY_SIZE/proj_cols);
+	ObjPtr->delta_z = vox_wid/(PHANTOM_XY_SIZE/proj_cols);
+
+	ObjPtr->Length_X = PHANTOM_XY_SIZE*ObjPtr->delta_x;
+    	ObjPtr->Length_Y = PHANTOM_XY_SIZE*ObjPtr->delta_y;
+	ObjPtr->Length_Z = PHANTOM_Z_SIZE*ObjPtr->delta_z;
 	
     	ObjPtr->N_x = (int32_t)(PHANTOM_XY_SIZE);
 	ObjPtr->N_y = (int32_t)(PHANTOM_XY_SIZE);
 	ObjPtr->N_z = (int32_t)(PHANTOM_Z_SIZE);	
-	ObjPtr->delta_xy = SinoPtr->Length_R/PHANTOM_XY_SIZE;
-	ObjPtr->delta_z = SinoPtr->Length_T/PHANTOM_Z_SIZE*InpPtr->node_num;
 
-	if (ObjPtr->delta_xy != ObjPtr->delta_z)
-		check_warn (InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Voxel width in x-y plane is not equal to that along z-axis. The spatial invariance of prior does not hold.\n");
-
-	ObjPtr->x0 = SinoPtr->R0;
-    	ObjPtr->z0 = SinoPtr->T0;
-    	ObjPtr->y0 = -ObjPtr->Length_Y/2.0;
+	ObjPtr->x0 = -ObjPtr->Length_X/2.0;
+	ObjPtr->y0 = -ObjPtr->Length_Y/2.0;
+	ObjPtr->z0 = -ObjPtr->Length_Z/2.0;
     	ObjPtr->BeamWidth = SinoPtr->delta_r; /*Weighting of the projections at different points of the detector*/
 /*	ObjPtr->Object = (Real_t****)multialloc(sizeof(Real_t), 4, ObjPtr->N_time, ObjPtr->N_y, ObjPtr->N_x, ObjPtr->N_z);*/
 	/*OffsetR is stepsize of the distance between center of voxel of the object and the detector pixel, at which projections are computed*/
-	SinoPtr->OffsetR = (ObjPtr->delta_xy/sqrt(2.0) + SinoPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
+	SinoPtr->OffsetR = (ObjPtr->delta_x/sqrt(2.0) + SinoPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
 	SinoPtr->OffsetT = ((ObjPtr->delta_z/2) + SinoPtr->delta_t/2)/DETECTOR_RESPONSE_BINS;
 
 	InpPtr->num_threads = omp_get_max_threads();
@@ -763,12 +602,12 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 	InpPtr->MagPhaseMultiple = 1;
 	InpPtr->ElecPhaseMultiple = 1;
 	
-	fftptr->z_num = 2*ObjPtr->N_z;
-	fftptr->y_num = 2*ObjPtr->N_y;
-	fftptr->x_num = 2*ObjPtr->N_x;
-	fftptr->x0 = ObjPtr->N_x/2;
-	fftptr->y0 = ObjPtr->N_y/2;
-	fftptr->z0 = ObjPtr->N_z/2;
+	fftptr->z_num = ObjPtr->N_z;
+	fftptr->y_num = ObjPtr->N_y;
+	fftptr->x_num = ObjPtr->N_x;
+	fftptr->x0 = 0;
+	fftptr->y0 = 0;
+	fftptr->z0 = 0;
 	
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Initializing FFT arrays and plans.\n");
 	
@@ -784,13 +623,7 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 		fftptr->fftback_magplan[i] = fftw_plan_dft_3d(fftptr->z_num, fftptr->y_num, fftptr->x_num, fftptr->fftback_magarr[i], fftptr->fftback_magarr[i], FFTW_BACKWARD, FFTW_ESTIMATE);
 	}
 	
-	fftptr->fftforw_elecarr = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*fftptr->z_num*fftptr->y_num*fftptr->x_num);
-	fftptr->fftforw_elecplan = fftw_plan_dft_3d(fftptr->z_num, fftptr->y_num, fftptr->x_num, fftptr->fftforw_elecarr, fftptr->fftforw_elecarr, FFTW_FORWARD, FFTW_ESTIMATE);
-	fftptr->fftback_elecarr = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*fftptr->z_num*fftptr->y_num*fftptr->x_num);
-	fftptr->fftback_elecplan = fftw_plan_dft_3d(fftptr->z_num, fftptr->y_num, fftptr->x_num, fftptr->fftback_elecarr, fftptr->fftback_elecarr, FFTW_BACKWARD, FFTW_ESTIMATE);
-	
 	ObjPtr->MagFilt = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, fftptr->z_num, fftptr->y_num, fftptr->x_num, 6);	
-	ObjPtr->ElecFilt = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, fftptr->z_num, fftptr->y_num, fftptr->x_num, 2);	
 
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Done initializing FFT arrays and plans.\n");
 	
@@ -821,13 +654,6 @@ void freePhantomMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* Inp
 	free(fftptr->fftback_magplan);
 
 	multifree(ObjPtr->MagFilt, 4);
-
-	fftw_destroy_plan(fftptr->fftforw_elecplan);
-	fftw_destroy_plan(fftptr->fftback_elecplan);
-	fftw_free(fftptr->fftforw_elecarr); 
-	fftw_free(fftptr->fftback_elecarr);
-	
-	multifree(ObjPtr->ElecFilt, 4);
 
 /*	int32_t i;
 	for (i=0; i<ObjPtr->N_time; i++)

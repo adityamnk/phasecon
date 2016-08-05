@@ -44,7 +44,7 @@
 
 /* 'calculateVoxelProfile' computes the voxel profile as a function of angle and detector index. Here we assume that we have PROFILE_RESOULUTION number of detector bins. Note that these bins are virtual and is not the actual resolution of the detector. All distance computations are normalized.
 'VoxProfile' will contain the voxel profile*/
-void calculateVoxelProfile(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_arr_t** VoxProfile)
+void calculateVoxelProfile(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, Real_arr_t** VoxProfile)
 {
 	Real_t angle,MaxValLineIntegral=0;
 	Real_t temp,dist1,dist2,LeftCorner,LeftNear,RightNear,RightCorner,t;
@@ -54,9 +54,9 @@ void calculateVoxelProfile(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPt
 	Real_t checksum=0;
 	int32_t i, j;
 
-	for (i=0;i<(int32_t)SinogramPtr->N_p;i++)
+	for (i=0;i<(int32_t)SinoPtr->N_p;i++)
 	{
-		angle = SinogramPtr->ViewPtr[i];
+		angle = SinoPtr->ViewPtr[i];
 		while(angle > M_PI_2)
 			angle -= M_PI_2;
 
@@ -65,13 +65,13 @@ void calculateVoxelProfile(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPt
 
 		if(angle <= M_PI_4)
 		{
-			/*MaxValLineIntegral = ScannedObjectPtr->delta_xy/cos(angle)/SinogramPtr->delta_t;*/
-			MaxValLineIntegral = ScannedObjectPtr->delta_xy/cos(angle);
+			/*MaxValLineIntegral = ObjPtr->delta_xy/cos(angle)/SinoPtr->delta_t;*/
+			MaxValLineIntegral = ObjPtr->delta_x/cos(angle);
 		}
 		else
 		{
-			/*MaxValLineIntegral = ScannedObjectPtr->delta_xy/cos(M_PI_2-angle)/SinogramPtr->delta_t;*/
-			MaxValLineIntegral = ScannedObjectPtr->delta_xy/cos(M_PI_2-angle);
+			/*MaxValLineIntegral = ObjPtr->delta_xy/cos(M_PI_2-angle)/SinoPtr->delta_t;*/
+			MaxValLineIntegral = ObjPtr->delta_x/cos(M_PI_2-angle);
 		}
 /*MaxValLineIntegral gives the line integral through a voxel at a given angle*/
 /*Divide by delta_t because it will be appropriately scaled by VoxelLineResponse*/
@@ -99,13 +99,13 @@ void calculateVoxelProfile(Sinogram* SinogramPtr, ScannedObject* ScannedObjectPt
 		}
 	}
 
-	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "MaxValLineIntegral = %f\n", MaxValLineIntegral);
-	check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Calculated Voxel Profile with Check sum = %f\n",checksum);
+	check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "MaxValLineIntegral = %f\n", MaxValLineIntegral);
+	check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Calculated Voxel Profile with Check sum = %f\n",checksum);
 }
 
 /*The response of a single detector bin is not uniform all over its area. In general, the response is maximum at its center and goes down as we move away from the center. In this code, we assume that the response follows the Hamming Window type response.
 BeamProfile contains the beam profile*/
-void initializeBeamProfile(ScannedObject* ScannedObjectPtr, TomoInputs* TomoInputsPtr, Real_t *BeamProfile)
+void initializeBeamProfile(ScannedObject* ObjPtr, TomoInputs* InpPtr, Real_t *BeamProfile)
 {
   int32_t i;
  Real_t sum=0;
@@ -121,46 +121,46 @@ void initializeBeamProfile(ScannedObject* ScannedObjectPtr, TomoInputs* TomoInpu
   {
     BeamProfile[i]/=sum;
   }
-  check_debug(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "Generated Beam Profile.\n");
+  check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Generated Beam Profile.\n");
 }
 
 /*'DetectorResponseProfile' computes the detector response as a function of the distance between the center of the voxel and the center of the detector bin. This response is computed for all the angles of rotation. Note that the response is the same irrespective of whether the voxel is to the right or the left of the center of the detector bin as long as it is at the same distance. Also, the distance is quantized to DETECTOR_RESPONSE_BINS number of bins.
 H_r - Detector response along r - axis
 H_t - Detector response along t - axis*/
-void DetectorResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr)
+void DetectorResponseProfile (Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr)
 {
   Real_t r,sum=0,rmin,ProfileCenterR,TempConst;
-  Real_t r0 = -(ScannedObjectPtr->BeamWidth)/2;
-  Real_t StepSize = (ScannedObjectPtr->BeamWidth)/BEAM_RESOLUTION;
+  Real_t r0 = -(ObjPtr->BeamWidth)/2;
+  Real_t StepSize = (ObjPtr->BeamWidth)/BEAM_RESOLUTION;
   int32_t i,k,p,ProfileIndex;
   Real_arr_t** VoxProfile;
   Real_t* BeamProfile;
   char filename[100]="VoxelProfile";
   int dimTiff[4];  
 
-  Real_arr_t** H_r = SinogramPtr->DetectorResponse;
-  VoxProfile = (Real_arr_t**)multialloc(sizeof(Real_arr_t),2,SinogramPtr->N_p,PROFILE_RESOLUTION);
-  calculateVoxelProfile(SinogramPtr, ScannedObjectPtr, TomoInputsPtr, VoxProfile);
+  Real_arr_t** H_r = SinoPtr->DetectorResponse;
+  VoxProfile = (Real_arr_t**)multialloc(sizeof(Real_arr_t),2,SinoPtr->N_p,PROFILE_RESOLUTION);
+  calculateVoxelProfile(SinoPtr, ObjPtr, InpPtr, VoxProfile);
   
   dimTiff[0] = 1;
   dimTiff[1] = 1;
-  dimTiff[2] = SinogramPtr->N_p;
+  dimTiff[2] = SinoPtr->N_p;
   dimTiff[3] = PROFILE_RESOLUTION;
-  sprintf(filename, "%s_n%d", filename, TomoInputsPtr->node_rank);
-  if (TomoInputsPtr->Write2Tiff == 1)
-  WriteMultiDimArray2Tiff (filename, dimTiff, 0, 1, 2, 3, &(VoxProfile[0][0]), 0, 0, 1, TomoInputsPtr->debug_file_ptr);
+  sprintf(filename, "%s_n%d", filename, InpPtr->node_rank);
+  if (InpPtr->Write2Tiff == 1)
+  WriteMultiDimArray2Tiff (filename, dimTiff, 0, 1, 2, 3, &(VoxProfile[0][0]), 0, 0, 1, InpPtr->debug_file_ptr);
 
   BeamProfile=(Real_t*)get_spc(BEAM_RESOLUTION,sizeof(Real_t));
-  initializeBeamProfile(ScannedObjectPtr, TomoInputsPtr, BeamProfile);
+  initializeBeamProfile(ObjPtr, InpPtr, BeamProfile);
 
-  TempConst=(PROFILE_RESOLUTION)/(2*ScannedObjectPtr->delta_xy);
+  TempConst=(PROFILE_RESOLUTION)/(2*ObjPtr->delta_x);
 
-  for(k = 0 ; k < (int32_t) SinogramPtr->N_p; k++)
+  for(k = 0 ; k < (int32_t) SinoPtr->N_p; k++)
   {
     for (i = 0; i < DETECTOR_RESPONSE_BINS; i++) 
     {
-      ProfileCenterR = i*SinogramPtr->OffsetR;
-      rmin = ProfileCenterR - ScannedObjectPtr->delta_xy;
+      ProfileCenterR = i*SinoPtr->OffsetR;
+      rmin = ProfileCenterR - ObjPtr->delta_x;
         
 	sum = 0;
         for (p=0; p < BEAM_RESOLUTION; p++)
@@ -179,24 +179,24 @@ void DetectorResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjec
 	multifree(VoxProfile,2);
 }
 
-void ZLineResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPtr, TomoInputs* TomoInputsPtr)
+void ZLineResponseProfile (Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr)
 {
     int32_t i;
     Real_t ProfileCenterT;
-    Real_arr_t* H_t = SinogramPtr->ZLineResponse;    
+    Real_arr_t* H_t = SinoPtr->ZLineResponse;    
 
     for (i = 0; i < DETECTOR_RESPONSE_BINS; i++)
     {
-      ProfileCenterT = i * SinogramPtr->OffsetT;
-      if(ScannedObjectPtr->delta_z >= SinogramPtr->delta_t)
+      ProfileCenterT = i * SinoPtr->OffsetT;
+      if(ObjPtr->delta_z >= SinoPtr->delta_t)
       {
-        if(ProfileCenterT <= ((ScannedObjectPtr->delta_z/2) - (SinogramPtr->delta_t/2)))
+        if(ProfileCenterT <= ((ObjPtr->delta_z/2) - (SinoPtr->delta_t/2)))
         {
-          H_t[i] = SinogramPtr->delta_t;
+          H_t[i] = SinoPtr->delta_t;
         }
         else
         {
-          H_t[i] = -ProfileCenterT + (ScannedObjectPtr->delta_z / 2) + SinogramPtr->delta_t / 2;
+          H_t[i] = -ProfileCenterT + (ObjPtr->delta_z / 2) + SinoPtr->delta_t / 2;
         }
         if(H_t[i] < 0)
         {
@@ -205,13 +205,13 @@ void ZLineResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPt
       }
       else
       {
-        if(ProfileCenterT <= SinogramPtr->delta_t/2 - ScannedObjectPtr->delta_z/2)
+        if(ProfileCenterT <= SinoPtr->delta_t/2 - ObjPtr->delta_z/2)
         {
-          H_t[i] = ScannedObjectPtr->delta_z;
+          H_t[i] = ObjPtr->delta_z;
         }
         else
         {
-          H_t[i] = -ProfileCenterT + (ScannedObjectPtr->delta_z/2) + SinogramPtr->delta_t/2;
+          H_t[i] = -ProfileCenterT + (ObjPtr->delta_z/2) + SinoPtr->delta_t/2;
         }
 
         if(H_t[i] < 0)
@@ -220,15 +220,14 @@ void ZLineResponseProfile (Sinogram* SinogramPtr, ScannedObject *ScannedObjectPt
         }
 
       }
-      H_t[i] = H_t[i]/SinogramPtr->delta_t;
+      H_t[i] = H_t[i]/SinoPtr->delta_t;
     }
 	H_t[DETECTOR_RESPONSE_BINS] = 0;
   }
 
 /*Generates the voxel line response from H_t*/
-void storeVoxelLineResponse(AMatrixCol* VoxelLineResponse, ScannedObject* ScannedObjectPtr, Sinogram* SinogramPtr)
+void storeVoxelLineResponse(AMatrixCol* VoxelLineResponse, Sinogram* SinoPtr, Real_t z0, Real_t delta_z, int32_t N_z)
 {
-  
   Real_t ProfileThickness = 0.0;
   Real_t y = 0.0;
   Real_t t = 0.0;
@@ -238,44 +237,44 @@ void storeVoxelLineResponse(AMatrixCol* VoxelLineResponse, ScannedObject* Scanne
   Real_t center_t,delta_t;
   int32_t index_delta_t;
   Real_t w3,w4;
-  Real_arr_t* H_t = SinogramPtr->ZLineResponse;
+  Real_arr_t* H_t = SinoPtr->ZLineResponse;
 
   /*Storing the response along t-direction for each voxel line*/
-  for (i = 0; i < (int32_t)ScannedObjectPtr->N_z; i++)
+  for (i = 0; i < N_z; i++)
   {
     VoxelLineResponse[i].count = 0;
     
-    y = ((Real_t)i + 0.5) * ScannedObjectPtr->delta_z + ScannedObjectPtr->z0;
+    y = ((Real_t)i + 0.5) * delta_z + z0;
     t = y;
-    tmin = (t - ScannedObjectPtr->delta_z / 2) > SinogramPtr->T0 ? t - ScannedObjectPtr->delta_z / 2 : SinogramPtr->T0;
-    tmax = (t + ScannedObjectPtr->delta_z / 2) <= SinogramPtr->TMax ? t + ScannedObjectPtr->delta_z / 2 : SinogramPtr->TMax;
+    tmin = (t - delta_z / 2) > SinoPtr->T0 ? t - delta_z / 2 : SinoPtr->T0;
+    tmax = (t + delta_z / 2) <= SinoPtr->TMax ? t + delta_z / 2 : SinoPtr->TMax;
 
-    slice_index_min = (int32_t)(floor((tmin - SinogramPtr->T0) / SinogramPtr->delta_t));
-    slice_index_max = (int32_t)(floor((tmax - SinogramPtr->T0) / SinogramPtr->delta_t));
+    slice_index_min = (int32_t)(floor((tmin - SinoPtr->T0) / SinoPtr->delta_t));
+    slice_index_max = (int32_t)(floor((tmax - SinoPtr->T0) / SinoPtr->delta_t));
 
     if(slice_index_min < 0)
     {
       slice_index_min = 0;
     }
-    if(slice_index_max >= SinogramPtr->N_t)
+    if(slice_index_max >= SinoPtr->N_t)
     {
-      slice_index_max = SinogramPtr->N_t - 1;
+      slice_index_max = SinoPtr->N_t - 1;
     }
 
     /*printf("%d %d\n",slice_index_min,slice_index_max);*/
 
     for (i_t = slice_index_min; i_t <= slice_index_max; i_t++)
     {
-      center_t = ((Real_t)i_t + 0.5) * SinogramPtr->delta_t + SinogramPtr->T0;
+      center_t = ((Real_t)i_t + 0.5) * SinoPtr->delta_t + SinoPtr->T0;
       delta_t = fabs(center_t - t);
-      index_delta_t = (int32_t)(floor(delta_t / SinogramPtr->OffsetT));
+      index_delta_t = (int32_t)(floor(delta_t / SinoPtr->OffsetT));
       if(index_delta_t < DETECTOR_RESPONSE_BINS)
       {
-        w3 = delta_t - (Real_t)(index_delta_t) * SinogramPtr->OffsetT;
-        w4 = ((Real_t)index_delta_t + 1) * SinogramPtr->OffsetT - delta_t;
-        ProfileThickness = (w4 / SinogramPtr->OffsetT) * H_t[index_delta_t]+ (w3 / SinogramPtr->OffsetT) * H_t[index_delta_t+1];
-    /*  ProfileThickness = (w4 / OffsetT) * detectorResponse->d[0][uint16_t(floor(SinogramPtr->N_theta/2))][index_delta_t]
-        + (w3 / OffsetT) * detectorResponse->d[0][uint16_t(floor(SinogramPtr->N_theta/2))][index_delta_t + 1 < DETECTOR_RESPONSE_BINS ? index_delta_t + 1 : DETECTOR_RESPONSE_BINS - 1];*/
+        w3 = delta_t - (Real_t)(index_delta_t) * SinoPtr->OffsetT;
+        w4 = ((Real_t)index_delta_t + 1) * SinoPtr->OffsetT - delta_t;
+        ProfileThickness = (w4 / SinoPtr->OffsetT) * H_t[index_delta_t]+ (w3 / SinoPtr->OffsetT) * H_t[index_delta_t+1];
+    /*  ProfileThickness = (w4 / OffsetT) * detectorResponse->d[0][uint16_t(floor(SinoPtr->N_theta/2))][index_delta_t]
+        + (w3 / OffsetT) * detectorResponse->d[0][uint16_t(floor(SinoPtr->N_theta/2))][index_delta_t + 1 < DETECTOR_RESPONSE_BINS ? index_delta_t + 1 : DETECTOR_RESPONSE_BINS - 1];*/
     }
       else
       {
