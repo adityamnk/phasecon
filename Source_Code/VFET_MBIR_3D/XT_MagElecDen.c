@@ -57,7 +57,8 @@ void reconstruct_magnetization (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTSt
 	{
 		compute_mag_gradstep(ObjPtr, InpPtr, fftptr, grad_mag, &alpha_mag);
 		
-		MagUpdate_x = 0; MagUpdate_y = 0; MagUpdate_z = 0; MagSum_x = 0; MagSum_y = 0; MagSum_z = 0;
+		/*MagUpdate_x = 0; MagUpdate_y = 0; MagUpdate_z = 0; MagSum_x = 0; MagSum_y = 0; MagSum_z = 0;*/
+		MagUpdate = 0; MagSum = 0;
 		for (i = 0; i < ObjPtr->N_z; i++)
 		for (j = 0; j < ObjPtr->N_y; j++)
 		for (k = 0; k < ObjPtr->N_x; k++)
