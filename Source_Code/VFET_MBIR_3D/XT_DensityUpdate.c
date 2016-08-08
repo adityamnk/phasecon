@@ -239,18 +239,28 @@ void compute_mag_gradstep(ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 
 	 	for (p = 0; p < 3; p++)
 	 	{
+#ifdef CIRC_BOUND_COND
+		idxp = (i + p - 1 + ObjPtr->N_z) % ObjPtr->N_z;
+#else
 		idxp = i + p - 1;
-		if (idxp >= 0 && idxp < ObjPtr->N_z)
-		{
+		if (idxp >= 0 && idxp < ObjPtr->N_z){
+#endif
 	 		for (q = 0; q < 3; q++)
          		{
+#ifdef CIRC_BOUND_COND
+	 		idxq = (j + q - 1 + ObjPtr->N_y) % ObjPtr->N_y;
+#else
 	 		idxq = j + q - 1;
-               		if(idxq >= 0 && idxq < ObjPtr->N_y)
-         		{
+               		if(idxq >= 0 && idxq < ObjPtr->N_y){
+#endif
 				for (r = 0; r < 3; r++)
 				{
+#ifdef CIRC_BOUND_COND
+		    		idxr = (k + r - 1 + ObjPtr->N_x) % ObjPtr->N_x;
+#else
 		    		idxr = k + r - 1;
                     		if(idxr >= 0 && idxr < ObjPtr->N_x){
+#endif
       					Delta0_Mag[0] = (VMag[0] - ObjPtr->Magnetization[idxp][idxq][idxr][0]);
       					Delta0_Mag[1] = (VMag[1] - ObjPtr->Magnetization[idxp][idxq][idxr][1]);
       					Delta0_Mag[2] = (VMag[2] - ObjPtr->Magnetization[idxp][idxq][idxr][2]);
@@ -271,22 +281,40 @@ void compute_mag_gradstep(ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
       					grad_mag[i][j][k][1] += temp_mag[p][q][r][1]*Delta0_Mag[1];
       					grad_mag[i][j][k][2] += temp_mag[p][q][r][2]*Delta0_Mag[2];
       				
+#ifndef CIRC_BOUND_COND
 				}
+#endif
                			}
+#ifndef CIRC_BOUND_COND
 			}
+#endif
 			}
+#ifndef CIRC_BOUND_COND
 		}
+#endif
 		}
 
 	 	for (p = 0; p < 3; p++){
+#ifdef CIRC_BOUND_COND
+		idxp = (i + p - 1 + ObjPtr->N_z) % ObjPtr->N_z;
+#else
 		idxp = i + p - 1;
 		if (idxp >= 0 && idxp < ObjPtr->N_z){
+#endif
 	 		for (q = 0; q < 3; q++){
+#ifdef CIRC_BOUND_COND
+	 		idxq = (j + q - 1 + ObjPtr->N_y) % ObjPtr->N_y;
+#else
 	 		idxq = j + q - 1;
                		if(idxq >= 0 && idxq < ObjPtr->N_y){
+#endif
 				for (r = 0; r < 3; r++){
+#ifdef CIRC_BOUND_COND
+		    		idxr = (k + r - 1 + ObjPtr->N_x) % ObjPtr->N_x;
+#else
 		    		idxr = k + r - 1;
                     		if(idxr >= 0 && idxr < ObjPtr->N_x){
+#endif
 					if (p != 1 || q != 1 || r != 1)
 					{
 						NeighAlphaMag[i][j][k][0] += grad_mag[i][j][k][0]*temp_mag[p][q][r][0];
@@ -297,11 +325,17 @@ void compute_mag_gradstep(ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 						NeighAlphaMag[idxp][idxq][idxr][1] += -grad_mag[i][j][k][1]*temp_mag[p][q][r][1];
 						NeighAlphaMag[idxp][idxq][idxr][2] += -grad_mag[i][j][k][2]*temp_mag[p][q][r][2];
 					}
+#ifndef CIRC_BOUND_COND
 				}
+#endif
+				}
+#ifndef CIRC_BOUND_COND
 			}
+#endif
 			}
+#ifndef CIRC_BOUND_COND
 		}
-		}
+#endif
 		}
 						
 		gradmagavg[0] += fabs(grad_mag[i][j][k][0]);		

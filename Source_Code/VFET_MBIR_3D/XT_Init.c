@@ -130,14 +130,14 @@ void calculateSinCos(Sinogram* SinoPtr, TomoInputs* InpPtr)
 void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftarr)
 {
 	int32_t i, j, k, idx_i, idx_j, idx_k, idx;
-	Real_t dist, delta, magxr, magyr, magzr, magxi, magyi, magzi;
+	Real_t win, delta, magxr, magyr, magzr, magxi, magyi, magzi;
 
 	magxr = 0; magyr = 0; magzr = 0;
 	magxi = 0; magyi = 0; magzi = 0; 
 	
-	for (i = ObjPtr->N_z/2 - 1; i >= -ObjPtr->N_z/2 + 1; i--)
-	for (j = ObjPtr->N_y/2 - 1; j >= -ObjPtr->N_y/2 + 1; j--)
-	for (k = ObjPtr->N_x/2 - 1; k >= -ObjPtr->N_x/2 + 1; k--)
+	for (i = fftarr->z_num/2 - 1; i >= -fftarr->z_num/2; i--)
+	for (j = fftarr->y_num/2 - 1; j >= -fftarr->y_num/2; j--)
+	for (k = fftarr->x_num/2 - 1; k >= -fftarr->x_num/2; k--)
 	{
 		idx_i = (i + fftarr->z_num) % (fftarr->z_num);
 		idx_j = (j + fftarr->y_num) % (fftarr->y_num);
@@ -147,10 +147,15 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 	
 		if (i != 0 || j != 0 || k != 0)
 		{
-			dist = pow(sqrt((Real_t)(i*i + j*j + k*k)), 3);
-			fftarr->fftforw_magarr[0][idx][0] = ObjPtr->delta_x*((Real_t)i)/dist;
-			fftarr->fftforw_magarr[1][idx][0] = -ObjPtr->delta_y*((Real_t)j)/dist;
-			fftarr->fftforw_magarr[2][idx][0] = ObjPtr->delta_z*((Real_t)k)/dist;
+			win = (0.54 + 0.46*cos(2*M_PI*i/(fftarr->z_num - 1)));
+			win *= (0.54 + 0.46*cos(2*M_PI*j/(fftarr->y_num - 1)));
+			win *= (0.54 + 0.46*cos(2*M_PI*k/(fftarr->x_num - 1)));
+		
+			win /= pow(sqrt((Real_t)(i*i + j*j + k*k)), 3);
+
+			fftarr->fftforw_magarr[0][idx][0] = ObjPtr->delta_x*((Real_t)i)*win;
+			fftarr->fftforw_magarr[1][idx][0] = -ObjPtr->delta_y*((Real_t)j)*win;
+			fftarr->fftforw_magarr[2][idx][0] = ObjPtr->delta_z*((Real_t)k)*win;
 		
 		}
 		else
