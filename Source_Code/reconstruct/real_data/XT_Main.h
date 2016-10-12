@@ -6,7 +6,8 @@
 #define DATA_FLIP_X_FILENAME "data_flip_x"
 #define DATA_UNFLIP_Y_FILENAME "data_unflip_y"
 #define DATA_FLIP_Y_FILENAME "data_flip_y"
-#define PROJ_ANGLES_FILENAME "proj_angles"
+#define PROJ_ANGLES_X_FILENAME "proj_angles_x"
+#define PROJ_ANGLES_Y_FILENAME "proj_angles_y"
 
 #ifndef M_PI
 #define M_PI           3.14159265358979323846  /* pi */

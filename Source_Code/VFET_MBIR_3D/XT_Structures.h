@@ -61,11 +61,13 @@
    Real_arr_t ***ErrorSino_Unflip_y;
    Real_arr_t ***ErrorSino_Flip_y; 
 
-    Real_arr_t** DetectorResponse;/*response of the detector as a function of distance between the voxel center and center of detector element*/
+    Real_arr_t** DetectorResponse_x;/*response of the detector as a function of distance between the voxel center and center of detector element (for tilt across x-axis)*/
+    Real_arr_t** DetectorResponse_y;/*response of the detector as a function of distance between the voxel center and center of detector element (for tilt across y-axis)*/
     Real_arr_t* ZLineResponse;
     int32_t N_r;/*Number of detector elements in r direction (parallel to x-axis)*/
     int32_t N_t;/*Number of detector elements in t direction to be reconstructed (parallel to z axis)*/
-    int32_t N_p;/*Total number of projections used in reconstruction*/
+    int32_t Nx_p;/*Total number of projections used in reconstruction*/
+    int32_t Ny_p;/*Total number of projections used in reconstruction*/
     int32_t total_t_slices;/*Total number of slices in t-direction*/
     Real_t delta_r;/*Distance between successive measurements along r (or detector pixel width along t)*/
     Real_t delta_t;/*Distance between successive measurements along t (or detector pixel width along t)*/
@@ -77,7 +79,8 @@
     Real_t Length_T; /*Length of the detector along the t-dimension*/
     Real_t OffsetR; /*increments of distance between the center of the voxel and the midpoint of the detector along r axis */
     Real_t OffsetT; /*increments of distance between the center of the voxel and the midpoint of the detector along t axis*/
-    Real_arr_t *ViewPtr; /*contains the values of projection angles*/
+    Real_arr_t *ViewPtr_x; /*contains the values of projection angles*/
+    Real_arr_t *ViewPtr_y; /*contains the values of projection angles*/
 
     int32_t z_overlap_num;
 

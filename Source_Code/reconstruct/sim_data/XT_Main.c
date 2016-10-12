@@ -7,16 +7,16 @@
 #include "vfetmbir4d.h"
 
 /*Function prototype definitions which will be defined later in the file.*/
-void read_data (float **data_unflip_x, float **data_unflip_y, float **proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, FILE* debug_file_ptr);
-void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, int32_t *x_widnum, int32_t *y_widnum, int32_t *z_widnum, float *vox_wid, float *qggmrf_sigma, float *qggmrf_c, float *convg_thresh, float *admm_mu, int32_t *admm_maxiters, uint8_t *restart, FILE* debug_msg_ptr);
+void read_data (float **data_unflip_x, float **data_unflip_y, float **proj_angles_x, float **proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, float vox_wid, FILE* debug_file_ptr);
+void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_x_num, int32_t *proj_y_num, int32_t *x_widnum, int32_t *y_widnum, int32_t *z_widnum, float *vox_wid, float *qggmrf_sigma, float *qggmrf_c, float *convg_thresh, float *admm_mu, int32_t *admm_maxiters, uint8_t *restart, FILE* debug_msg_ptr);
 
 /*The main function which reads the command line arguments, reads the data,
   and does the reconstruction.*/
 int main(int argc, char **argv)
 {
 	uint8_t restart;
-	int32_t proj_rows, proj_cols, proj_num, nodes_num, nodes_rank, admm_maxiters, x_widnum, y_widnum, z_widnum;
-	float *magobject, *elecobject, *data_unflip_x, *data_unflip_y, *proj_angles, vox_wid, qggmrf_sigma, qggmrf_c, elec_sigma, elec_c, convg_thresh, admm_mu;
+	int32_t proj_rows, proj_cols, proj_x_num, proj_y_num, nodes_num, nodes_rank, admm_maxiters, x_widnum, y_widnum, z_widnum;
+	float *magobject, *elecobject, *data_unflip_x, *data_unflip_y, *proj_angles_x, *proj_angles_y, vox_wid, qggmrf_sigma, qggmrf_c, elec_sigma, elec_c, convg_thresh, admm_mu;
 	FILE *debug_msg_ptr;
 
 	/*initialize MPI process.*/	
@@ -30,25 +30,26 @@ int main(int argc, char **argv)
 	debug_msg_ptr = fopen("debug.log", "w");
 	debug_msg_ptr = stdout;	
 	/*Read the command line arguments to determine the reconstruction parameters*/
-	read_command_line_args (argc, argv, &proj_rows, &proj_cols, &proj_num, &x_widnum, &y_widnum, &z_widnum, &vox_wid, &qggmrf_sigma, &qggmrf_c, &convg_thresh, &admm_mu, &admm_maxiters, &restart, debug_msg_ptr);
-	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Number of nodes is %d and command line input argument values are proj_rows = %d, proj_cols = %d, proj_num = %d, x_widnum = %d, y_widnum = %d, z_widnum = %d, vox_wid = %e, qggmrf_sigma = %e, qggmrf_c = %e, convg_thresh = %e, admm mu = %e, admm maxiters = %d, restart = %d\n", nodes_num, proj_rows, proj_cols, proj_num, x_widnum, y_widnum, z_widnum, vox_wid, qggmrf_sigma, qggmrf_c, convg_thresh, admm_mu, admm_maxiters, restart);	
+	read_command_line_args (argc, argv, &proj_rows, &proj_cols, &proj_x_num, &proj_y_num, &x_widnum, &y_widnum, &z_widnum, &vox_wid, &qggmrf_sigma, &qggmrf_c, &convg_thresh, &admm_mu, &admm_maxiters, &restart, debug_msg_ptr);
+	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Number of nodes is %d and command line input argument values are proj_rows = %d, proj_cols = %d, proj_x_num = %d, proj_y_num = %d, x_widnum = %d, y_widnum = %d, z_widnum = %d, vox_wid = %e, qggmrf_sigma = %e, qggmrf_c = %e, convg_thresh = %e, admm mu = %e, admm maxiters = %d, restart = %d\n", nodes_num, proj_rows, proj_cols, proj_x_num, proj_y_num, x_widnum, y_widnum, z_widnum, vox_wid, qggmrf_sigma, qggmrf_c, convg_thresh, admm_mu, admm_maxiters, restart);	
 	
 	/*Allocate memory for data arrays used for reconstruction.*/
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Allocating memory for data ....\n");
 
 	/*Read data*/
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Reading data ....\n");
-	read_data (&data_unflip_x, &data_unflip_y, &proj_angles, proj_rows, proj_cols, proj_num, vox_wid, debug_msg_ptr);
+	read_data (&data_unflip_x, &data_unflip_y, &proj_angles_x, &proj_angles_y, proj_rows, proj_cols, proj_x_num, proj_y_num, vox_wid, debug_msg_ptr);
 	
 	if (nodes_rank == 0) fprintf(debug_msg_ptr, "main: Reconstructing the data ....\n");
 	/*Run the reconstruction*/
-	vfet_reconstruct (&magobject, data_unflip_x, data_unflip_y, proj_angles, proj_rows, proj_cols, proj_num, x_widnum, y_widnum, z_widnum, vox_wid, qggmrf_sigma, qggmrf_c, convg_thresh, admm_mu, admm_maxiters, restart, debug_msg_ptr);
+	vfet_reconstruct (&magobject, data_unflip_x, data_unflip_y, proj_angles_x, proj_angles_y, proj_rows, proj_cols, proj_x_num, proj_y_num, x_widnum, y_widnum, z_widnum, vox_wid, qggmrf_sigma, qggmrf_c, convg_thresh, admm_mu, admm_maxiters, restart, debug_msg_ptr);
 	/*free(magobject);
 	free(elecobject);*/
 	
 	free(data_unflip_x);
 	free(data_unflip_y);
-	free(proj_angles);
+	free(proj_angles_x);
+	free(proj_angles_y);
 
 	fclose (debug_msg_ptr); 
 	/*MPI_Finalize();*/
@@ -110,47 +111,65 @@ void write_BinFile (char filename[100], float* data, size_t size, FILE* debug_fi
 	fclose(fp);
 }
 
-void read_data (float **data_unflip_x, float **data_unflip_y, float **proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, float vox_wid, FILE* debug_file_ptr)
+void read_data (float **data_unflip_x, float **data_unflip_y, float **proj_angles_x, float **proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, float vox_wid, FILE* debug_file_ptr)
 {
 	char data_unflip_x_filename[] = DATA_UNFLIP_X_FILENAME;
 	char data_unflip_y_filename[] = DATA_UNFLIP_Y_FILENAME;
-	char proj_angles_filename[] = PROJ_ANGLES_FILENAME;
+	char proj_angles_x_filename[] = PROJ_ANGLES_X_FILENAME;
+	char proj_angles_y_filename[] = PROJ_ANGLES_Y_FILENAME;
 	int32_t offset, size;
 	int32_t i, idx, rank, num_nodes;
 
 /*	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &num_nodes);*/
 	rank = 0; num_nodes = 1;
-	*proj_angles = (float*)calloc (proj_num, sizeof(float));
+	*proj_angles_x = (float*)calloc (proj_x_num, sizeof(float));
+	*proj_angles_y = (float*)calloc (proj_y_num, sizeof(float));
 	
-	*data_unflip_x = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
-	*data_unflip_y = (float*)calloc ((proj_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
+	*data_unflip_x = (float*)calloc ((proj_x_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
+	*data_unflip_y = (float*)calloc ((proj_y_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 
 	idx = 0;	
-	for (i = -(proj_num-1); i <= (proj_num-1); i=i+2)
+	for (i = -(proj_x_num-1); i <= (proj_x_num-1); i=i+2)
 	{
-		(*proj_angles)[idx] = M_PI*((float)(i))/180;
+		(*proj_angles_x)[idx] = M_PI*((float)(i))/180;
 		idx++;
 	}
 	
-	vfettomo_forward_project (data_unflip_x, data_unflip_y, *proj_angles, proj_rows, proj_cols, proj_num, vox_wid, debug_file_ptr);
+	idx = 0;	
+	for (i = -(proj_y_num-1); i <= (proj_y_num-1); i=i+2)
+	{
+		(*proj_angles_y)[idx] = M_PI*((float)(i))/180;
+		idx++;
+	}
 	
-        size = proj_rows*proj_cols*proj_num;
-	write_BinFile (proj_angles_filename, *proj_angles, proj_num, debug_file_ptr);
+	vfettomo_forward_project (data_unflip_x, data_unflip_y, *proj_angles_x, *proj_angles_y, proj_rows, proj_cols, proj_x_num, proj_y_num, vox_wid, debug_file_ptr);
+	
+        size = proj_rows*proj_cols*proj_x_num;
+	write_BinFile (proj_angles_x_filename, *proj_angles_x, proj_x_num, debug_file_ptr);
+        size = proj_rows*proj_cols*proj_y_num;
+	write_BinFile (proj_angles_y_filename, *proj_angles_y, proj_y_num, debug_file_ptr);
+
 	write_BinFile (data_unflip_x_filename, *data_unflip_x, size, debug_file_ptr);
 	write_BinFile (data_unflip_y_filename, *data_unflip_y, size, debug_file_ptr);
 	
-/*	read_BinFile (proj_angles_filename, *proj_angles, 0, proj_num, debug_file_ptr);
+/*	read_BinFile (proj_angles_x_filename, *proj_angles_x, 0, proj_x_num, debug_file_ptr);
+	read_BinFile (proj_angles_y_filename, *proj_angles_y, 0, proj_y_num, debug_file_ptr);
 	size = proj_rows*proj_cols/num_nodes;
-	for (i = 0; i < proj_num; i++)
+	for (i = 0; i < proj_x_num; i++)
 	{
 		offset = i*proj_rows*proj_cols + rank*size;
 		read_BinFile (data_unflip_x_filename, *data_unflip_x + i*size, offset, size, debug_file_ptr);
+	}
+
+	for (i = 0; i < proj_y_num; i++)
+	{
+		offset = i*proj_rows*proj_cols + rank*size;
 		read_BinFile (data_unflip_y_filename, *data_unflip_y + i*size, offset, size, debug_file_ptr);
 	}*/
 }
 
-void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_num, int32_t *x_widnum, int32_t *y_widnum, int32_t *z_widnum, float *vox_wid, float *qggmrf_sigma, float *qggmrf_c, float *convg_thresh, float *admm_mu, int32_t *admm_maxiters, uint8_t *restart, FILE* debug_msg_ptr)
+void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int32_t *proj_cols, int32_t *proj_x_num, int32_t *proj_y_num, int32_t *x_widnum, int32_t *y_widnum, int32_t *z_widnum, float *vox_wid, float *qggmrf_sigma, float *qggmrf_c, float *convg_thresh, float *admm_mu, int32_t *admm_maxiters, uint8_t *restart, FILE* debug_msg_ptr)
 /*Function which parses the command line input to the C code and initializes several variables.*/
 {
 	int32_t option_index;
@@ -159,7 +178,7 @@ void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int3
         {
                {"proj_rows",  required_argument, 0, 'a'}, /*Number of columns in the projection image. Typically, it is the number of detector bins in the cross-axial direction.*/
                {"proj_cols",  required_argument, 0, 'b'}, /*Number of rows (or slices) in the projection image. Typically, it is the number of detector bins in the axial direction.*/
-               {"proj_num",  required_argument, 0, 'c'}, /*Total number of 2D projections used for reconstruction.*/
+               {"proj_x_num",  required_argument, 0, 'c'}, /*Total number of 2D projections used for reconstruction.*/
                {"vox_wid",  required_argument, 0, 'd'}, /*Side length of a cubic voxel in inverse units of linear attenuation coefficient of the object. 
 		For example, if units of "vox_wid" is mm, then attenuation coefficient will have units of mm^-1, and vice versa.
 		Note that attenuation coefficient is what we are trying to reconstruct.*/
@@ -176,20 +195,21 @@ void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int3
                {"x_widnum",    required_argument, 0, 'k'}, /*number of pixels to reconstruct in x-axis direction*/
                {"y_widnum",    required_argument, 0, 'l'}, /*number of pixels to reconstruct in y-axis direction*/
                {"z_widnum",    required_argument, 0, 'm'}, /*number of pixels to reconstruct in z-axis direction*/
+               {"proj_y_num",  required_argument, 0, 'n'}, /*Total number of 2D projections used for reconstruction.*/
 		{0, 0, 0, 0}
          };
 
 	*restart = 0;
 	while(1)
 	{		
-	   c = getopt_long (argc, argv, "a:b:c:d:e:f:g:h:i:jk:l:m:", long_options, &option_index);
+	   c = getopt_long (argc, argv, "a:b:c:d:e:f:g:h:i:jk:l:m:n:", long_options, &option_index);
            /* Detect the end of the options. */
           if (c == -1) break;
 	  switch (c) { 
 		case  0 : fprintf(debug_msg_ptr, "ERROR: read_command_line_args: Argument not recognized\n");		break;
 		case 'a': *proj_rows = (int32_t)atoi(optarg);			break;
 		case 'b': *proj_cols = (int32_t)atoi(optarg);			break;
-		case 'c': *proj_num = (int32_t)atoi(optarg);			break;
+		case 'c': *proj_x_num = (int32_t)atoi(optarg);			break;
 		case 'd': *vox_wid = (float)atof(optarg);			break;
 		case 'e': *qggmrf_sigma = (float)atof(optarg);			break;
 		case 'f': *qggmrf_c = (float)atof(optarg);				break;
@@ -200,6 +220,7 @@ void read_command_line_args (int32_t argc, char **argv, int32_t *proj_rows, int3
 		case 'k': *x_widnum = (int32_t)atoi(optarg);			break;
 		case 'l': *y_widnum = (int32_t)atoi(optarg);			break;
 		case 'm': *z_widnum = (int32_t)atoi(optarg);			break;
+		case 'n': *proj_y_num = (int32_t)atoi(optarg);			break;
 		case '?': fprintf(debug_msg_ptr, "ERROR: read_command_line_args: Cannot recognize argument %s\n",optarg); break;
 		}
 	}

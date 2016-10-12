@@ -73,8 +73,8 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	Real_arr_t**** magobject = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
 	Real_arr_t**** magpot = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
 
-  	memset(data_unflip_x, 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(float));
-  	memset(data_unflip_y, 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(float));
+  	memset(data_unflip_x, 0, SinoPtr->Nx_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(float));
+  	memset(data_unflip_y, 0, SinoPtr->Ny_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(float));
 /*	Real_arr_t*** realmagobject = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
 	Real_arr_t*** realelecobject = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x);
 */
@@ -82,10 +82,13 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	/*AvgNumXElements over estimates the total number of entries in a single column of A matrix when indexed by both voxel and angle*/
   	AvgNumXElements = (uint8_t)ceil(3*ObjPtr->delta_x/(SinoPtr->delta_r) + 2);
   	AvgNumYElements = (uint8_t)ceil(3*ObjPtr->delta_y/(SinoPtr->delta_r) + 2);
-	SinoPtr->DetectorResponse = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinoPtr->N_p, DETECTOR_RESPONSE_BINS+1);
+	SinoPtr->DetectorResponse_x = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinoPtr->Nx_p, DETECTOR_RESPONSE_BINS+1);
+	SinoPtr->DetectorResponse_y = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinoPtr->Ny_p, DETECTOR_RESPONSE_BINS+1);
 	SinoPtr->ZLineResponse = (Real_arr_t *)get_spc(DETECTOR_RESPONSE_BINS + 1, sizeof(Real_arr_t));
 	DetectorResponseProfile (SinoPtr, ObjPtr, InpPtr);
 	ZLineResponseProfile (SinoPtr, ObjPtr, InpPtr);
+
+	printf("I am here 1\n");
 	
   	AvgNumElements = (uint8_t)((ObjPtr->delta_x/SinoPtr->delta_t) + 2);
 	AMatrixCol* VoxelLineResp_X = (AMatrixCol*)get_spc(ObjPtr->N_x, sizeof(AMatrixCol));
@@ -95,6 +98,7 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	}
 	storeVoxelLineResponse(VoxelLineResp_X, SinoPtr, ObjPtr->x0, ObjPtr->delta_x, ObjPtr->N_x);
   	
+	printf("I am here 2\n");
 	AvgNumElements = (uint8_t)((ObjPtr->delta_y/SinoPtr->delta_t) + 2);
 	AMatrixCol* VoxelLineResp_Y = (AMatrixCol*)get_spc(ObjPtr->N_y, sizeof(AMatrixCol));
 	for (t = 0; t < ObjPtr->N_y; t++){
@@ -128,13 +132,15 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	}
 	fclose(fp);	
 	
+	printf("I am here 3\n");
   	compute_magcrossprodtran (magobject, magpot, ObjPtr->MagFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
 
 	Write2Bin (PHANTOM_MAGDENSITY_FILENAME, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3, sizeof(Real_arr_t), &(magobject[0][0][0][0]), InpPtr->debug_file_ptr);
 	Write2Bin (PHANTOM_MAGVECPOT_FILENAME, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3, sizeof(Real_arr_t), &(magpot[0][0][0][0]), InpPtr->debug_file_ptr);
 	
+	printf("I am here 4\n");
   	#pragma omp parallel for private(i,j,k,slice,idx,val,m,n,data_idx)
-	for (i=0; i<SinoPtr->N_p; i++){
+	for (i=0; i<SinoPtr->Nx_p; i++){
 		AMatrixCol AMatrix;
   		AMatrix.values = (Real_t*)get_spc((int32_t)AvgNumXElements,sizeof(Real_t));
   		AMatrix.index  = (int32_t*)get_spc((int32_t)AvgNumXElements,sizeof(int32_t));
@@ -143,7 +149,7 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		for (k=0; k<ObjPtr->N_y; k++){	
 			detdist_r = (ObjPtr->y0 + ((Real_t)k+0.5)*ObjPtr->delta_y)*SinoPtr->cosine_x[i];
 			detdist_r += -(ObjPtr->z0 + ((Real_t)j+0.5)*ObjPtr->delta_z)*SinoPtr->sine_x[i];
-			calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[i], &(AMatrix), detdist_r);
+			calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse_x[i], &(AMatrix), detdist_r);
 		
                 	for (slice=0; slice<ObjPtr->N_x; slice++){
 	     	          	for (m=0; m<AMatrix.count; m++){
@@ -159,12 +165,19 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 				}
 			}
 	  	 }
-		
+	}
+	
+  	#pragma omp parallel for private(i,j,k,slice,idx,val,m,n,data_idx)
+	for (i=0; i<SinoPtr->Ny_p; i++){
+		AMatrixCol AMatrix;
+  		AMatrix.values = (Real_t*)get_spc((int32_t)AvgNumXElements,sizeof(Real_t));
+  		AMatrix.index  = (int32_t*)get_spc((int32_t)AvgNumXElements,sizeof(int32_t));
+
 		for (j=0; j<ObjPtr->N_z; j++)
 		for (k=0; k<ObjPtr->N_x; k++){	
 			detdist_r = (ObjPtr->x0 + ((Real_t)k+0.5)*ObjPtr->delta_x)*SinoPtr->cosine_y[i];
 			detdist_r += -(ObjPtr->z0 + ((Real_t)j+0.5)*ObjPtr->delta_z)*SinoPtr->sine_y[i];
-          		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[i], &(AMatrix), detdist_r);
+          		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse_y[i], &(AMatrix), detdist_r);
 	   	    	
                 	for (slice=0; slice<ObjPtr->N_y; slice++){
 	     	          	for (m=0; m<AMatrix.count; m++){
@@ -185,17 +198,18 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		free(AMatrix.index);
 	}
 
+	printf("I am here 5\n");
 	if (InpPtr->Write2Tiff == 1)
 	{
-		Real_arr_t* tifarray = (Real_arr_t*)get_spc(SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r, sizeof(Real_arr_t));
+		Real_arr_t* tifarray = (Real_arr_t*)get_spc(SinoPtr->Nx_p*SinoPtr->N_t*SinoPtr->N_r, sizeof(Real_arr_t));
 		
-		size = SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r;
-		dimTiff[0] = 1; dimTiff[1] = SinoPtr->N_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
-
+		size = SinoPtr->Nx_p*SinoPtr->N_t*SinoPtr->N_r;
+		dimTiff[0] = 1; dimTiff[1] = SinoPtr->Nx_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
 		for (i = 0; i < size; i++) tifarray[i] = data_unflip_x[i];
 		WriteMultiDimArray2Tiff ("sim_data_x", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, InpPtr->debug_file_ptr);
 
-		dimTiff[0] = 1; dimTiff[1] = SinoPtr->N_p; dimTiff[2] = SinoPtr->N_t; dimTiff[3] = SinoPtr->N_r;
+		size = SinoPtr->Ny_p*SinoPtr->N_t*SinoPtr->N_r;
+		dimTiff[0] = 1; dimTiff[1] = SinoPtr->Ny_p; dimTiff[2] = SinoPtr->N_t; dimTiff[3] = SinoPtr->N_r;
 		for (i = 0; i < size; i++) tifarray[i] = data_unflip_y[i];
 		WriteMultiDimArray2Tiff ("sim_data_y", dimTiff, 0, 1, 2, 3, tifarray, 0, 0, 1, InpPtr->debug_file_ptr);
 		
@@ -232,7 +246,8 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	}
         free(VoxelLineResp_Y);
 	
-	multifree(SinoPtr->DetectorResponse,2);
+	multifree(SinoPtr->DetectorResponse_x,2);
+	multifree(SinoPtr->DetectorResponse_y,2);
 	free(SinoPtr->ZLineResponse);
 	multifree(magobject,4);
 	multifree(magpot,4);

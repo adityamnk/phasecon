@@ -44,7 +44,7 @@
 
 /* 'calculateVoxelProfile' computes the voxel profile as a function of angle and detector index. Here we assume that we have PROFILE_RESOULUTION number of detector bins. Note that these bins are virtual and is not the actual resolution of the detector. All distance computations are normalized.
 'VoxProfile' will contain the voxel profile*/
-void calculateVoxelProfile(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, Real_arr_t** VoxProfile)
+void calculateVoxelProfile(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, Real_arr_t** VoxProfile, Real_arr_t *ViewPtr, int32_t N_p)
 {
 	Real_t angle,MaxValLineIntegral=0;
 	Real_t temp,dist1,dist2,LeftCorner,LeftNear,RightNear,RightCorner,t;
@@ -54,9 +54,9 @@ void calculateVoxelProfile(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs*
 	Real_t checksum=0;
 	int32_t i, j;
 
-	for (i=0;i<(int32_t)SinoPtr->N_p;i++)
+	for (i=0;i<N_p;i++)
 	{
-		angle = SinoPtr->ViewPtr[i];
+		angle = ViewPtr[i];
 		while(angle > M_PI_2)
 			angle -= M_PI_2;
 
@@ -133,29 +133,37 @@ void DetectorResponseProfile (Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInpu
   Real_t r0 = -(ObjPtr->BeamWidth)/2;
   Real_t StepSize = (ObjPtr->BeamWidth)/BEAM_RESOLUTION;
   int32_t i,k,p,ProfileIndex;
-  Real_arr_t** VoxProfile;
+  Real_arr_t **VoxProfile_x, **VoxProfile_y;
   Real_t* BeamProfile;
-  char filename[100]="VoxelProfile";
+  char filename_x[100]="VoxelProfile_x";
+  char filename_y[100]="VoxelProfile_y";
+  char filename[100];
   int dimTiff[4];  
 
-  Real_arr_t** H_r = SinoPtr->DetectorResponse;
-  VoxProfile = (Real_arr_t**)multialloc(sizeof(Real_arr_t),2,SinoPtr->N_p,PROFILE_RESOLUTION);
-  calculateVoxelProfile(SinoPtr, ObjPtr, InpPtr, VoxProfile);
+  Real_arr_t** Hx_r = SinoPtr->DetectorResponse_x;
+  Real_arr_t** Hy_r = SinoPtr->DetectorResponse_y;
+  VoxProfile_x = (Real_arr_t**)multialloc(sizeof(Real_arr_t),2,SinoPtr->Nx_p,PROFILE_RESOLUTION);
+  calculateVoxelProfile(SinoPtr, ObjPtr, InpPtr, VoxProfile_x, SinoPtr->ViewPtr_x, SinoPtr->Nx_p);
+  VoxProfile_y = (Real_arr_t**)multialloc(sizeof(Real_arr_t),2,SinoPtr->Ny_p,PROFILE_RESOLUTION);
+  calculateVoxelProfile(SinoPtr, ObjPtr, InpPtr, VoxProfile_y, SinoPtr->ViewPtr_y, SinoPtr->Ny_p);
   
-  dimTiff[0] = 1;
-  dimTiff[1] = 1;
-  dimTiff[2] = SinoPtr->N_p;
+  dimTiff[0] = 1; dimTiff[1] = 1;
+  dimTiff[2] = SinoPtr->Nx_p;
   dimTiff[3] = PROFILE_RESOLUTION;
-  sprintf(filename, "%s_n%d", filename, InpPtr->node_rank);
+  sprintf(filename, "%s_n%d", filename_x, InpPtr->node_rank);
   if (InpPtr->Write2Tiff == 1)
-  WriteMultiDimArray2Tiff (filename, dimTiff, 0, 1, 2, 3, &(VoxProfile[0][0]), 0, 0, 1, InpPtr->debug_file_ptr);
+  WriteMultiDimArray2Tiff (filename, dimTiff, 0, 1, 2, 3, &(VoxProfile_x[0][0]), 0, 0, 1, InpPtr->debug_file_ptr);
+  dimTiff[2] = SinoPtr->Ny_p;
+  sprintf(filename, "%s_n%d", filename_y, InpPtr->node_rank);
+  if (InpPtr->Write2Tiff == 1)
+  WriteMultiDimArray2Tiff (filename, dimTiff, 0, 1, 2, 3, &(VoxProfile_y[0][0]), 0, 0, 1, InpPtr->debug_file_ptr);
 
   BeamProfile=(Real_t*)get_spc(BEAM_RESOLUTION,sizeof(Real_t));
   initializeBeamProfile(ObjPtr, InpPtr, BeamProfile);
 
   TempConst=(PROFILE_RESOLUTION)/(2*ObjPtr->delta_x);
 
-  for(k = 0 ; k < (int32_t) SinoPtr->N_p; k++)
+  for(k = 0 ; k < (int32_t) SinoPtr->Nx_p; k++)
   {
     for (i = 0; i < DETECTOR_RESPONSE_BINS; i++) 
     {
@@ -169,14 +177,37 @@ void DetectorResponseProfile (Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInpu
 
           ProfileIndex = (int32_t)floor((r - rmin) * TempConst);
           if(ProfileIndex >= 0 && ProfileIndex <= PROFILE_RESOLUTION-1)
-         	 sum += (VoxProfile[k][ProfileIndex] * BeamProfile[p]);
+         	 sum += (VoxProfile_x[k][ProfileIndex] * BeamProfile[p]);
         }
-        H_r[k][i] = sum;
+        Hx_r[k][i] = sum;
       }
-      H_r[k][i] = 0.0;
+      Hx_r[k][i] = 0.0;
     }
+  
+  for(k = 0 ; k < (int32_t) SinoPtr->Ny_p; k++)
+  {
+    for (i = 0; i < DETECTOR_RESPONSE_BINS; i++) 
+    {
+      ProfileCenterR = i*SinoPtr->OffsetR;
+      rmin = ProfileCenterR - ObjPtr->delta_x;
+        
+	sum = 0;
+        for (p=0; p < BEAM_RESOLUTION; p++)
+        {
+          r = r0 + p*StepSize;
+
+          ProfileIndex = (int32_t)floor((r - rmin) * TempConst);
+          if(ProfileIndex >= 0 && ProfileIndex <= PROFILE_RESOLUTION-1)
+         	 sum += (VoxProfile_y[k][ProfileIndex] * BeamProfile[p]);
+        }
+        Hy_r[k][i] = sum;
+      }
+      Hy_r[k][i] = 0.0;
+    }
+
 	free(BeamProfile);
-	multifree(VoxProfile,2);
+	multifree(VoxProfile_x,2);
+	multifree(VoxProfile_y,2);
 }
 
 void ZLineResponseProfile (Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr)

@@ -99,7 +99,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define COST_FILENAME "cost"
 #define ORIG_COST_FILENAME "orig_cost"
 
-#define MRF_P 1.2
+#define MRF_P 2.0
 #define MRF_Q 2.0
 
 #ifndef M_PI

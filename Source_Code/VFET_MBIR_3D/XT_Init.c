@@ -111,17 +111,21 @@ void calculateSinCos(Sinogram* SinoPtr, TomoInputs* InpPtr)
 {
   int32_t i;
 
-  SinoPtr->cosine_x=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
-  SinoPtr->sine_x=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
-  SinoPtr->cosine_y=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
-  SinoPtr->sine_y=(Real_t*)get_spc(SinoPtr->N_p, sizeof(Real_t));
+  SinoPtr->cosine_x=(Real_t*)get_spc(SinoPtr->Nx_p, sizeof(Real_t));
+  SinoPtr->sine_x=(Real_t*)get_spc(SinoPtr->Nx_p, sizeof(Real_t));
+  SinoPtr->cosine_y=(Real_t*)get_spc(SinoPtr->Ny_p, sizeof(Real_t));
+  SinoPtr->sine_y=(Real_t*)get_spc(SinoPtr->Ny_p, sizeof(Real_t));
 
-  for(i=0;i<SinoPtr->N_p;i++)
+  for(i=0;i<SinoPtr->Nx_p;i++)
   {
-    SinoPtr->cosine_x[i]=cos(-SinoPtr->ViewPtr[i]);
-    SinoPtr->sine_x[i]=sin(-SinoPtr->ViewPtr[i]);
-    SinoPtr->cosine_y[i]=cos(SinoPtr->ViewPtr[i]);
-    SinoPtr->sine_y[i]=sin(SinoPtr->ViewPtr[i]);
+    SinoPtr->cosine_x[i]=cos(-SinoPtr->ViewPtr_x[i]);
+    SinoPtr->sine_x[i]=sin(-SinoPtr->ViewPtr_x[i]);
+  }
+
+  for(i=0;i<SinoPtr->Ny_p;i++)
+  {
+    SinoPtr->cosine_y[i]=cos(SinoPtr->ViewPtr_y[i]);
+    SinoPtr->sine_y[i]=sin(SinoPtr->ViewPtr_y[i]);
   }
   check_debug(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "calculateSinCos: Calculated sines and cosines of angles of rotation\n");
 }
@@ -259,7 +263,7 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 
 /*Initializes the variables in the three major structures used throughout the code -
 Sinogram, ScannedObject, TomoInputs. It also allocates memory for several variables.*/
-int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, int32_t mult_idx, int32_t mult_xyz[], float *data_unflip_x, float *data_unflip_y, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, int32_t x_widnum, int32_t y_widnum, int32_t z_widnum, Real_t vox_wid, Real_t qggmrf_sigma, Real_t qggmrf_c, Real_t convg_thresh, Real_t admm_mu, int32_t admm_maxiters)
+int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, int32_t mult_idx, int32_t mult_xyz[], float *data_unflip_x, float *data_unflip_y, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, int32_t x_widnum, int32_t y_widnum, int32_t z_widnum, Real_t vox_wid, Real_t qggmrf_sigma, Real_t qggmrf_c, Real_t convg_thresh, Real_t admm_mu, int32_t admm_maxiters)
 {
 	int flag = 0, i;
 
@@ -290,7 +294,8 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		sentinel(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Multi-resolution scaling is not supported");
 		
 	InpPtr->Write2Tiff = ENABLE_TIFF_WRITES;
-	SinoPtr->N_p = proj_num;	
+	SinoPtr->Nx_p = proj_x_num;	
+	SinoPtr->Ny_p = proj_y_num;	
 	SinoPtr->N_r = proj_cols;
 	InpPtr->cost_thresh = COST_CONVG_THRESHOLD;	
 /*	InpPtr->radius_obj = vox_wid*proj_cols;*/	
@@ -310,9 +315,9 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	SinoPtr->Length_T = SinoPtr->Length_T/InpPtr->node_num;
 	SinoPtr->N_t = SinoPtr->total_t_slices/InpPtr->node_num;
 	
-	SinoPtr->Data_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+	SinoPtr->Data_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Nx_p, SinoPtr->N_r, SinoPtr->N_t);
 
-	for (i = 0; i < SinoPtr->N_p; i++)
+	for (i = 0; i < SinoPtr->Nx_p; i++)
 	for (j = 0; j < SinoPtr->N_r; j++)
 	for (k = 0; k < SinoPtr->N_t; k++)
 	{
@@ -321,9 +326,9 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	}
 
 #ifdef VFET_TWO_AXES
-	SinoPtr->Data_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+	SinoPtr->Data_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Ny_p, SinoPtr->N_r, SinoPtr->N_t);
 
-	for (i = 0; i < SinoPtr->N_p; i++)
+	for (i = 0; i < SinoPtr->Ny_p; i++)
 	for (j = 0; j < SinoPtr->N_r; j++)
 	for (k = 0; k < SinoPtr->N_t; k++)
 	{
@@ -333,11 +338,12 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 #endif
 	
 	int dimTiff[4];
-    	dimTiff[0] = 1; dimTiff[1] = SinoPtr->N_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
     	if (InpPtr->Write2Tiff == 1)
 	{
+    		dimTiff[0] = 1; dimTiff[1] = SinoPtr->Nx_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
     		if (WriteMultiDimArray2Tiff (DATA_UNFLIP_X_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Unflip_x[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
 #ifdef VFET_TWO_AXES
+    		dimTiff[0] = 1; dimTiff[1] = SinoPtr->Ny_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
     		if (WriteMultiDimArray2Tiff (DATA_UNFLIP_Y_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->Data_Unflip_y[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
 #endif
 	}	
@@ -391,9 +397,12 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 
 	ObjPtr->NHICD_Iterations = 10;
 
-	SinoPtr->ViewPtr = (Real_arr_t*)get_spc(proj_num, sizeof(Real_arr_t));
-	for (i = 0; i < proj_num; i++)
-		SinoPtr->ViewPtr[i] = proj_angles[i];
+	SinoPtr->ViewPtr_x = (Real_arr_t*)get_spc(proj_x_num, sizeof(Real_arr_t));
+	SinoPtr->ViewPtr_y = (Real_arr_t*)get_spc(proj_y_num, sizeof(Real_arr_t));
+	for (i = 0; i < proj_x_num; i++)
+		SinoPtr->ViewPtr_x[i] = proj_angles_x[i];
+	for (i = 0; i < proj_y_num; i++)
+		SinoPtr->ViewPtr_y[i] = proj_angles_y[i];
 
 	/*TomoInputs holds the input parameters and some miscellaneous variables*/
 	for (i = 0; i < 3; i++)
@@ -409,6 +418,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	InpPtr->ADMM_mu = admm_mu;	
 
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "The ADMM mu is %f.\n", InpPtr->ADMM_mu);
+	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Sigma_Q is (%f,%f,%f) and Sigma_Q_P is (%f,%f,%f).\n", InpPtr->Mag_Sigma_Q[0], InpPtr->Mag_Sigma_Q[1], InpPtr->Mag_Sigma_Q[2], InpPtr->Mag_Sigma_Q_P[0], InpPtr->Mag_Sigma_Q_P[1], InpPtr->Mag_Sigma_Q_P[2]);
 		
 	InpPtr->NumIter = MAX_NUM_ITERATIONS;
 	InpPtr->Head_MaxIter = admm_maxiters;
@@ -507,7 +517,8 @@ void freeMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr, FF
 	multifree(ObjPtr->MagPotGndTruth,4);
 /*	multifree(ObjPtr->ElecPotGndTruth,3);*/
 #endif
-	if (SinoPtr->ViewPtr) free(SinoPtr->ViewPtr);
+	if (SinoPtr->ViewPtr_x) free(SinoPtr->ViewPtr_x);
+	if (SinoPtr->ViewPtr_y) free(SinoPtr->ViewPtr_y);
 
 	if (SinoPtr->Data_Unflip_x) multifree(SinoPtr->Data_Unflip_x,3);
 #ifdef VFET_ELEC_RECON
@@ -533,9 +544,10 @@ void freeMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr, FF
 }
 
 
-int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, float *proj_angles, int32_t proj_rows, int32_t proj_cols, int32_t proj_num, Real_t vox_wid)
+int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, Real_t vox_wid)
 {
 	int i;
+	printf("I am here init 1\n");
 	
 	/*MPI_Comm_size(MPI_COMM_WORLD, &(InpPtr->node_num));
 	MPI_Comm_rank(MPI_COMM_WORLD, &(InpPtr->node_rank));*/
@@ -547,7 +559,8 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 	SinoPtr->Length_T = vox_wid*proj_rows;
 		
 	InpPtr->Write2Tiff = ENABLE_TIFF_WRITES;
-	SinoPtr->N_p = proj_num;	
+	SinoPtr->Nx_p = proj_x_num;	
+	SinoPtr->Ny_p = proj_y_num;	
 	SinoPtr->N_r = proj_cols;
 	SinoPtr->total_t_slices = proj_rows;
 
@@ -583,17 +596,28 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 	SinoPtr->OffsetR = (ObjPtr->delta_x/sqrt(2.0) + SinoPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
 	SinoPtr->OffsetT = ((ObjPtr->delta_z/2) + SinoPtr->delta_t/2)/DETECTOR_RESPONSE_BINS;
 
+	printf("I am here init 1.5\n");
 	InpPtr->num_threads = omp_get_max_threads();
+	printf("I am here init 2\n");
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Maximum number of openmp threads is %d\n", InpPtr->num_threads);
 	if (InpPtr->num_threads <= 1)
 		check_warn(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "The maximum number of threads is less than or equal to 1.\n");	
 	
-	SinoPtr->ViewPtr = (Real_arr_t*)get_spc(proj_num, sizeof(Real_arr_t));
+	SinoPtr->ViewPtr_x = (Real_arr_t*)get_spc(proj_x_num, sizeof(Real_arr_t));
+	SinoPtr->ViewPtr_y = (Real_arr_t*)get_spc(proj_y_num, sizeof(Real_arr_t));
+	printf("I am here init 3\n");
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Projection angles are - ");
-	for (i = 0; i < proj_num; i++)
+	for (i = 0; i < proj_x_num; i++)
 	{
-		SinoPtr->ViewPtr[i] = proj_angles[i];
-		check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "(%d,%f)", i, SinoPtr->ViewPtr[i]);
+		SinoPtr->ViewPtr_x[i] = proj_angles_x[i];
+		check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "(%d,%f)", i, SinoPtr->ViewPtr_x[i]);
+	}
+	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "\n");
+
+	for (i = 0; i < proj_y_num; i++)
+	{
+		SinoPtr->ViewPtr_y[i] = proj_angles_y[i];
+		check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "(%d,%f)", i, SinoPtr->ViewPtr_y[i]);
 	}
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "\n");
 
@@ -685,7 +709,8 @@ void freePhantomMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* Inp
 	if (InpPtr->UpdateSelectNum) multifree(InpPtr->UpdateSelectNum,2);
 	if (InpPtr->NHICDSelectNum) multifree(InpPtr->NHICDSelectNum,2);
 	if (InpPtr->Weight) multifree(InpPtr->Weight,3);	*/
-	if (SinoPtr->ViewPtr) free(SinoPtr->ViewPtr);
+	if (SinoPtr->ViewPtr_x) free(SinoPtr->ViewPtr_x);
+	if (SinoPtr->ViewPtr_y) free(SinoPtr->ViewPtr_y);
 	if (SinoPtr->cosine_x) free(SinoPtr->cosine_x);
 	if (SinoPtr->sine_x) free(SinoPtr->sine_x);
 	if (SinoPtr->cosine_y) free(SinoPtr->cosine_y);

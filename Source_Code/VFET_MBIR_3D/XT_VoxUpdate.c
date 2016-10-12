@@ -38,7 +38,7 @@ void compute_voxel_update_Atten (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoI
 	THETA2Mag[1][0] = 0.0; THETA2Mag[1][1] = 0.0; THETA2Mag[1][2] = 0.0;
 	THETA2Mag[2][0] = 0.0; THETA2Mag[2][1] = 0.0; THETA2Mag[2][2] = 0.0;
 
-	for (p = 0; p < SinoPtr->N_p; p++){
+	for (p = 0; p < SinoPtr->Nx_p; p++){
 		for (q = 0; q < AMatrixPtr_X[p].count; q++)
 		{
       		    	i_r = (AMatrixPtr_X[p].index[q]);
@@ -61,7 +61,7 @@ void compute_voxel_update_Atten (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoI
         }
 	THETA2Mag[1][0] = THETA2Mag[0][1];
 	
-	for (p = 0; p < SinoPtr->N_p; p++){
+	for (p = 0; p < SinoPtr->Ny_p; p++){
 		for (q = 0; q < AMatrixPtr_Y[p].count; q++)
 		{
       		    	i_r = (AMatrixPtr_Y[p].index[q]);
@@ -90,7 +90,7 @@ void compute_voxel_update_Atten (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoI
 
 	MagFunctionalSubstitutionConstPrior(&(ObjPtr->MagPotentials[slice][j_new][k_new][0]), THETA1Mag, THETA2Mag, ObjPtr, InpPtr, MagPrior);
 	
-	for (p = 0; p < SinoPtr->N_p; p++){
+	for (p = 0; p < SinoPtr->Nx_p; p++){
 		for (q = 0; q < AMatrixPtr_X[p].count; q++)
         	{
                	    	i_r = (AMatrixPtr_X[p].index[q]);
@@ -110,7 +110,7 @@ void compute_voxel_update_Atten (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoI
 		}
 	}
 	
-	for (p = 0; p < SinoPtr->N_p; p++){
+	for (p = 0; p < SinoPtr->Ny_p; p++){
 		for (q = 0; q < AMatrixPtr_Y[p].count; q++)
         	{
                	    	i_r = (AMatrixPtr_Y[p].index[q]);
@@ -135,7 +135,7 @@ void compute_voxel_update_Atten (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoI
 	ObjPtr->ErrorPotMag[slice][j_new][k_new][2] += (ObjPtr->MagPotentials[slice][j_new][k_new][2] - VMag[2]); 
 }
 
-Real_t updateVoxels (int32_t xyz_begin, int32_t xyz_end, int32_t* x_rand_select, int32_t* y_rand_select, int32_t* z_rand_select, Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, Real_arr_t*** ErrorSino_Unflip_x, Real_arr_t*** ErrorSino_Flip_x, Real_arr_t*** ErrorSino_Unflip_y, Real_arr_t*** ErrorSino_Flip_y, Real_arr_t** DetectorResponse_XY, int32_t Iter, Real_t ***MagUpdateMap, Real_t *MagPotUpdate, Real_t *MagPotSum, uint8_t** Mask)
+Real_t updateVoxels (int32_t xyz_begin, int32_t xyz_end, int32_t* x_rand_select, int32_t* y_rand_select, int32_t* z_rand_select, Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, Real_arr_t*** ErrorSino_Unflip_x, Real_arr_t*** ErrorSino_Flip_x, Real_arr_t*** ErrorSino_Unflip_y, Real_arr_t*** ErrorSino_Flip_y, Real_arr_t** DetectorResponse_X, Real_arr_t** DetectorResponse_Y, int32_t Iter, Real_t ***MagUpdateMap, Real_t *MagPotUpdate, Real_t *MagPotSum, uint8_t** Mask)
 {
   int32_t p,slice,j_new,k_new,index_xyz;
   Real_t VMag[3], MagPrior[3]; /*numavg_x, numavg_y;*/
@@ -143,15 +143,19 @@ Real_t updateVoxels (int32_t xyz_begin, int32_t xyz_end, int32_t* x_rand_select,
   Real_t VElec, ElecPrior, detdist_r;
 
    /*printf ("maxview = %d, size of AMatrixCol = %d\n",maxview,sizeof(AMatrixCol));*/
-  AMatrixCol* AMatrixPtr_X = (AMatrixCol*)get_spc(SinoPtr->N_p, sizeof(AMatrixCol));
-  AMatrixCol* AMatrixPtr_Y = (AMatrixCol*)get_spc(SinoPtr->N_p, sizeof(AMatrixCol));
+  AMatrixCol* AMatrixPtr_X = (AMatrixCol*)get_spc(SinoPtr->Nx_p, sizeof(AMatrixCol));
+  AMatrixCol* AMatrixPtr_Y = (AMatrixCol*)get_spc(SinoPtr->Ny_p, sizeof(AMatrixCol));
   uint8_t AvgNumXElements = (uint8_t)ceil(3*ObjPtr->delta_x/SinoPtr->delta_r);
   uint8_t AvgNumYElements = (uint8_t)ceil(3*ObjPtr->delta_y/SinoPtr->delta_r);
   
-  for (p = 0; p < SinoPtr->N_p; p++)
+  for (p = 0; p < SinoPtr->Nx_p; p++)
   {
   	AMatrixPtr_X[p].values = (Real_t*)get_spc(AvgNumXElements,sizeof(Real_t));
   	AMatrixPtr_X[p].index  = (int32_t*)get_spc(AvgNumXElements,sizeof(int32_t));
+  }
+
+  for (p = 0; p < SinoPtr->Ny_p; p++)
+  {
   	AMatrixPtr_Y[p].values = (Real_t*)get_spc(AvgNumYElements,sizeof(Real_t));
   	AMatrixPtr_Y[p].index  = (int32_t*)get_spc(AvgNumYElements,sizeof(int32_t));
   }  
@@ -169,17 +173,20 @@ Real_t updateVoxels (int32_t xyz_begin, int32_t xyz_end, int32_t* x_rand_select,
 		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, DetectorResponse_XY, &(AMatrixPtr_X[p]), j_new, k_new, p);
     	  }*/
 		/*numavg_x  = 0; numavg_y = 0;*/
-	  	for (p = 0; p < SinoPtr->N_p; p++)
+	  	for (p = 0; p < SinoPtr->Nx_p; p++)
     	  	{
 			/*calcAMatrixColumnforAngle(SinoPtr, ObjPtr, DetectorResponse_XY, &(AMatrixPtr_Y[p]), j_new, slice, p);*/
 			detdist_r = (ObjPtr->y0 + ((Real_t)j_new+0.5)*ObjPtr->delta_y)*SinoPtr->cosine_x[p];
 			detdist_r += -(ObjPtr->z0 + ((Real_t)slice+0.5)*ObjPtr->delta_z)*SinoPtr->sine_x[p];
-			calcAMatrixColumnforAngle(SinoPtr, ObjPtr, DetectorResponse_XY[p], &(AMatrixPtr_X[p]), detdist_r);
+			calcAMatrixColumnforAngle(SinoPtr, ObjPtr, DetectorResponse_X[p], &(AMatrixPtr_X[p]), detdist_r);
 	/*		numavg_x += (Real_t)AMatrixPtr_X[p].count;*/
-	
+		}	
+	  	
+		for (p = 0; p < SinoPtr->Ny_p; p++)
+		{
 			detdist_r = (ObjPtr->x0 + ((Real_t)k_new+0.5)*ObjPtr->delta_x)*SinoPtr->cosine_y[p];
 			detdist_r += -(ObjPtr->z0 + ((Real_t)slice+0.5)*ObjPtr->delta_z)*SinoPtr->sine_y[p];
-          		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, DetectorResponse_XY[p], &(AMatrixPtr_Y[p]), detdist_r);
+          		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, DetectorResponse_Y[p], &(AMatrixPtr_Y[p]), detdist_r);
 	/*		numavg_y += (Real_t)AMatrixPtr_Y[p].count;*/
 
 		}
@@ -206,10 +213,13 @@ Real_t updateVoxels (int32_t xyz_begin, int32_t xyz_end, int32_t* x_rand_select,
        }
 
     
-     for (p=0; p<SinoPtr->N_p; p++)
+     for (p=0; p<SinoPtr->Nx_p; p++)
      {
      	free(AMatrixPtr_X[p].values);
      	free(AMatrixPtr_X[p].index);
+     }
+     for (p=0; p<SinoPtr->Ny_p; p++)
+     {
      	free(AMatrixPtr_Y[p].values);
      	free(AMatrixPtr_Y[p].index);
      }

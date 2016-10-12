@@ -89,16 +89,16 @@ Real_t computeCost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr)
   AMatrixPtr_Y.values = (Real_t*)get_spc(AvgNumYElements, sizeof(Real_t));
   AMatrixPtr_Y.index = (int32_t*)get_spc(AvgNumYElements, sizeof(int32_t));
   
-  ErrSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  ErrSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  memset(&(ErrSino_Unflip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrSino_Unflip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  ErrSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Nx_p, SinoPtr->N_r, SinoPtr->N_t);
+  ErrSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Ny_p, SinoPtr->N_r, SinoPtr->N_t);
+  memset(&(ErrSino_Unflip_x[0][0][0]), 0, SinoPtr->Nx_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrSino_Unflip_y[0][0][0]), 0, SinoPtr->Ny_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
 
 #ifdef VFET_ELEC_RECON  
-  ErrSino_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  ErrSino_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  memset(&(ErrSino_Flip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrSino_Flip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  ErrSino_Flip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Nx_p, SinoPtr->N_r, SinoPtr->N_t);
+  ErrSino_Flip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Ny_p, SinoPtr->N_r, SinoPtr->N_t);
+  memset(&(ErrSino_Flip_x[0][0][0]), 0, SinoPtr->Nx_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrSino_Flip_y[0][0][0]), 0, SinoPtr->Ny_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
 #endif
   
 /*  #pragma omp parallel for private(j, k, sino_idx, slice)*/
@@ -106,17 +106,18 @@ Real_t computeCost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr)
     for (j=0; j<ObjPtr->N_y; j++)
     {
       for (k=0; k<ObjPtr->N_x; k++){
-        for (sino_idx=0; sino_idx < SinoPtr->N_p; sino_idx++){
+        for (sino_idx=0; sino_idx < SinoPtr->Nx_p; sino_idx++){
 		detdist_r = (ObjPtr->y0 + ((Real_t)j+0.5)*ObjPtr->delta_y)*SinoPtr->cosine_x[sino_idx];
 		detdist_r += -(ObjPtr->z0 + ((Real_t)slice+0.5)*ObjPtr->delta_z)*SinoPtr->sine_x[sino_idx];
-		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[sino_idx], &(AMatrixPtr_X), detdist_r);
-		
+		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse_x[sino_idx], &(AMatrixPtr_X), detdist_r);
+		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][1], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), &(ObjPtr->VoxelLineResp_X[k]), sino_idx, SinoPtr->cosine_x[sino_idx], SinoPtr->sine_x[sino_idx]);
+	}
+	
+        for (sino_idx=0; sino_idx < SinoPtr->Ny_p; sino_idx++){
 		detdist_r = (ObjPtr->x0 + ((Real_t)k+0.5)*ObjPtr->delta_x)*SinoPtr->cosine_y[sino_idx];
 		detdist_r += -(ObjPtr->z0 + ((Real_t)slice+0.5)*ObjPtr->delta_z)*SinoPtr->sine_y[sino_idx];
-          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[sino_idx], &(AMatrixPtr_Y), detdist_r);
+          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse_y[sino_idx], &(AMatrixPtr_Y), detdist_r);
             /*	printf("count = %d, idx = %d, val = %f\n", VoxelLineResponse[slice].count, VoxelLineResponse[slice].index[0], VoxelLineResponse[slice].values[0]);*/
-
-		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][1], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), &(ObjPtr->VoxelLineResp_X[k]), sino_idx, SinoPtr->cosine_x[sino_idx], SinoPtr->sine_x[sino_idx]);
 		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][2], ErrSino_Unflip_y, ErrSino_Flip_y, &(AMatrixPtr_Y), &(ObjPtr->VoxelLineResp_Y[j]), sino_idx, SinoPtr->cosine_y[sino_idx], SinoPtr->sine_y[sino_idx]);
 
           }
@@ -130,12 +131,19 @@ Real_t computeCost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr)
   free(AMatrixPtr_Y.index);
   
   #pragma omp parallel for private(j, k, temp) reduction(+:forward)
-  for (i = 0; i < SinoPtr->N_p; i++)
+  for (i = 0; i < SinoPtr->Nx_p; i++)
   for (j = 0; j < SinoPtr->N_r; j++)
   for (k = 0; k < SinoPtr->N_t; k++)
   {
     temp = (SinoPtr->Data_Unflip_x[i][j][k] - ErrSino_Unflip_x[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
+  }
+
+  #pragma omp parallel for private(j, k, temp) reduction(+:forward)
+  for (i = 0; i < SinoPtr->Ny_p; i++)
+  for (j = 0; j < SinoPtr->N_r; j++)
+  for (k = 0; k < SinoPtr->N_t; k++)
+  {
     temp = (SinoPtr->Data_Unflip_y[i][j][k] - ErrSino_Unflip_y[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
   }
@@ -184,12 +192,12 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
   AMatrixPtr_Y.values = (Real_t*)get_spc(AvgNumYElements, sizeof(Real_t));
   AMatrixPtr_Y.index = (int32_t*)get_spc(AvgNumYElements, sizeof(int32_t));
   
-  Real_arr_t*** ErrSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-  Real_arr_t*** ErrSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+  Real_arr_t*** ErrSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Nx_p, SinoPtr->N_r, SinoPtr->N_t);
+  Real_arr_t*** ErrSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Ny_p, SinoPtr->N_r, SinoPtr->N_t);
   Real_arr_t**** MagPotentials = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
 
-  memset(&(ErrSino_Unflip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrSino_Unflip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrSino_Unflip_x[0][0][0]), 0, SinoPtr->Nx_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrSino_Unflip_y[0][0][0]), 0, SinoPtr->Ny_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
   memset(&(MagPotentials[0][0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3*sizeof(Real_arr_t));
 
   compute_magcrossprodtran (ObjPtr->Magnetization, MagPotentials, ObjPtr->MagFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
@@ -199,18 +207,20 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
     for (j=0; j<ObjPtr->N_y; j++)
     {
       for (k=0; k<ObjPtr->N_x; k++){
-        for (sino_idx=0; sino_idx < SinoPtr->N_p; sino_idx++){
+        for (sino_idx=0; sino_idx < SinoPtr->Nx_p; sino_idx++){
 		detdist_r = (ObjPtr->y0 + ((Real_t)j+0.5)*ObjPtr->delta_y)*SinoPtr->cosine_x[sino_idx];
 		detdist_r += -(ObjPtr->z0 + ((Real_t)slice+0.5)*ObjPtr->delta_z)*SinoPtr->sine_x[sino_idx];
-		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[sino_idx], &(AMatrixPtr_X), detdist_r);
-		
+		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse_x[sino_idx], &(AMatrixPtr_X), detdist_r);
+		mag_forward_project_voxel (SinoPtr, InpPtr, MagPotentials[slice][j][k][0], MagPotentials[slice][j][k][1], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), &(ObjPtr->VoxelLineResp_X[k]), sino_idx, SinoPtr->cosine_x[sino_idx], SinoPtr->sine_x[sino_idx]);
+	}
+	
+        for (sino_idx=0; sino_idx < SinoPtr->Ny_p; sino_idx++){
 		detdist_r = (ObjPtr->x0 + ((Real_t)k+0.5)*ObjPtr->delta_x)*SinoPtr->cosine_y[sino_idx];
 		detdist_r += -(ObjPtr->z0 + ((Real_t)slice+0.5)*ObjPtr->delta_z)*SinoPtr->sine_y[sino_idx];
-          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[sino_idx], &(AMatrixPtr_Y), detdist_r);
+          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse_y[sino_idx], &(AMatrixPtr_Y), detdist_r);
           	
             /*	printf("count = %d, idx = %d, val = %f\n", VoxelLineResponse[slice].count, VoxelLineResponse[slice].index[0], VoxelLineResponse[slice].values[0]);*/
 
-		mag_forward_project_voxel (SinoPtr, InpPtr, MagPotentials[slice][j][k][0], MagPotentials[slice][j][k][1], ErrSino_Unflip_x, ErrSino_Flip_x, &(AMatrixPtr_X), &(ObjPtr->VoxelLineResp_X[k]), sino_idx, SinoPtr->cosine_x[sino_idx], SinoPtr->sine_x[sino_idx]);
 		mag_forward_project_voxel (SinoPtr, InpPtr, MagPotentials[slice][j][k][0], MagPotentials[slice][j][k][2], ErrSino_Unflip_y, ErrSino_Flip_y, &(AMatrixPtr_Y), &(ObjPtr->VoxelLineResp_Y[j]), sino_idx, SinoPtr->cosine_y[sino_idx], SinoPtr->sine_y[sino_idx]);
           }
         }
@@ -223,12 +233,19 @@ Real_t compute_orig_cost(Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* I
   free(AMatrixPtr_Y.index);
   
   #pragma omp parallel for private(j, k, temp) reduction(+:forward)
-  for (i = 0; i < SinoPtr->N_p; i++)
+  for (i = 0; i < SinoPtr->Nx_p; i++)
   for (j = 0; j < SinoPtr->N_r; j++)
   for (k = 0; k < SinoPtr->N_t; k++)
   {
     temp = (SinoPtr->Data_Unflip_x[i][j][k] - ErrSino_Unflip_x[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
+  }
+
+  #pragma omp parallel for private(j, k, temp) reduction(+:forward)
+  for (i = 0; i < SinoPtr->Ny_p; i++)
+  for (j = 0; j < SinoPtr->N_r; j++)
+  for (k = 0; k < SinoPtr->N_t; k++)
+  {
     temp = (SinoPtr->Data_Unflip_y[i][j][k] - ErrSino_Unflip_y[i][j][k]);
     forward += temp*temp*InpPtr->Weight;
   }
@@ -417,8 +434,8 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
   AMatrixPtr_Y.values = (Real_t*)get_spc(AvgNumYElements, sizeof(Real_t));
   AMatrixPtr_Y.index = (int32_t*)get_spc(AvgNumYElements, sizeof(int32_t));
   
-  memset(&(ErrorSino_Unflip_x[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
-  memset(&(ErrorSino_Unflip_y[0][0][0]), 0, SinoPtr->N_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrorSino_Unflip_x[0][0][0]), 0, SinoPtr->Nx_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
+  memset(&(ErrorSino_Unflip_y[0][0][0]), 0, SinoPtr->Ny_p*SinoPtr->N_t*SinoPtr->N_r*sizeof(Real_arr_t));
   memset(&(ObjPtr->MagPotentials[0][0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3*sizeof(Real_arr_t));
   memset(&(ObjPtr->ErrorPotMag[0][0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3*sizeof(Real_arr_t));
   memset(&(ObjPtr->MagPotDual[0][0][0][0]), 0, ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x*3*sizeof(Real_arr_t));
@@ -444,17 +461,17 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     for (j=0; j<ObjPtr->N_y; j++)
     {
       for (k=0; k<ObjPtr->N_x; k++){
-        for (sino_idx=0; sino_idx < SinoPtr->N_p; sino_idx++){
+        for (sino_idx=0; sino_idx < SinoPtr->Nx_p; sino_idx++){
 		detdist_r = (ObjPtr->y0 + ((Real_t)j+0.5)*ObjPtr->delta_y)*SinoPtr->cosine_x[sino_idx];
 		detdist_r += -(ObjPtr->z0 + ((Real_t)slice+0.5)*ObjPtr->delta_z)*SinoPtr->sine_x[sino_idx];
-		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[sino_idx], &(AMatrixPtr_X), detdist_r);
-		
+		calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse_x[sino_idx], &(AMatrixPtr_X), detdist_r);
+		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][1], ErrorSino_Unflip_x, ErrorSino_Flip_x, &(AMatrixPtr_X), &(ObjPtr->VoxelLineResp_X[k]), sino_idx, SinoPtr->cosine_x[sino_idx], SinoPtr->sine_x[sino_idx]);
+	}	
+        for (sino_idx=0; sino_idx < SinoPtr->Ny_p; sino_idx++){
 		detdist_r = (ObjPtr->x0 + ((Real_t)k+0.5)*ObjPtr->delta_x)*SinoPtr->cosine_y[sino_idx];
 		detdist_r += -(ObjPtr->z0 + ((Real_t)slice+0.5)*ObjPtr->delta_z)*SinoPtr->sine_y[sino_idx];
-          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse[sino_idx], &(AMatrixPtr_Y), detdist_r);
-    	      	
+          	calcAMatrixColumnforAngle(SinoPtr, ObjPtr, SinoPtr->DetectorResponse_y[sino_idx], &(AMatrixPtr_Y), detdist_r);
             /*	printf("count = %d, idx = %d, val = %f\n", VoxelLineResponse[slice].count, VoxelLineResponse[slice].index[0], VoxelLineResponse[slice].values[0]);*/
-		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][1], ErrorSino_Unflip_x, ErrorSino_Flip_x, &(AMatrixPtr_X), &(ObjPtr->VoxelLineResp_X[k]), sino_idx, SinoPtr->cosine_x[sino_idx], SinoPtr->sine_x[sino_idx]);
 		mag_forward_project_voxel (SinoPtr, InpPtr, ObjPtr->MagPotentials[slice][j][k][0], ObjPtr->MagPotentials[slice][j][k][2], ErrorSino_Unflip_y, ErrorSino_Flip_y, &(AMatrixPtr_Y), &(ObjPtr->VoxelLineResp_Y[j]), sino_idx, SinoPtr->cosine_y[sino_idx], SinoPtr->sine_y[sino_idx]);
           }
         }
@@ -463,16 +480,23 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
   
 
   #pragma omp parallel for private(j, k) reduction(+:unflipavg,flipavg)
-  for(i = 0; i < SinoPtr->N_p; i++)
+  for(i = 0; i < SinoPtr->Nx_p; i++)
   for(j = 0; j < SinoPtr->N_r; j++)
   for(k = 0; k < SinoPtr->N_t; k++)
   {
     	unflipavg += ErrorSino_Unflip_x[i][j][k];
-    	unflipavg += ErrorSino_Unflip_y[i][j][k];
 	ErrorSino_Unflip_x[i][j][k] = SinoPtr->Data_Unflip_x[i][j][k] - ErrorSino_Unflip_x[i][j][k];
+  }
+  
+  #pragma omp parallel for private(j, k) reduction(+:unflipavg,flipavg)
+  for(i = 0; i < SinoPtr->Ny_p; i++)
+  for(j = 0; j < SinoPtr->N_r; j++)
+  for(k = 0; k < SinoPtr->N_t; k++)
+  {
+    	unflipavg += ErrorSino_Unflip_y[i][j][k];
 	ErrorSino_Unflip_y[i][j][k] = SinoPtr->Data_Unflip_y[i][j][k] - ErrorSino_Unflip_y[i][j][k];
   }
-  unflipavg = unflipavg/(SinoPtr->N_r*SinoPtr->N_t*SinoPtr->N_p);
+  unflipavg = unflipavg/(SinoPtr->N_r*SinoPtr->N_t*(SinoPtr->Nx_p+SinoPtr->Ny_p));
   check_debug(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Average of unflipped component of forward projection in node %d is %f\n", InpPtr->node_rank, unflipavg);
 
   free(AMatrixPtr_X.values);
@@ -512,7 +536,7 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
         xyz_end = (j + 1)*floor(InpPtr->UpdateSelectNum/K) - 1;
         xyz_end = (j == K - 1) ? InpPtr->UpdateSelectNum - 1: xyz_end;
         /*	printf ("Loop 1 Start - j = %d, i = %d, idx = %d, z_start = %d, z_stop = %d, xy_start = %d, xy_end = %d\n", j, i, idx, z_start[i][idx], z_stop[i][idx], xy_start, xy_end);*/
-        updateVoxels (xyz_start, xyz_end, InpPtr->x_rand_select, InpPtr->y_rand_select, InpPtr->z_rand_select, SinoPtr, ObjPtr, InpPtr, SinoPtr->ErrorSino_Unflip_x, SinoPtr->ErrorSino_Flip_x, SinoPtr->ErrorSino_Unflip_y, SinoPtr->ErrorSino_Flip_y, SinoPtr->DetectorResponse, /*VoxelLineResponse,*/ Iter, ObjPtr->MagPotUpdateMap, &magpot_update, &magpot_sum, Mask);
+        updateVoxels (xyz_start, xyz_end, InpPtr->x_rand_select, InpPtr->y_rand_select, InpPtr->z_rand_select, SinoPtr, ObjPtr, InpPtr, SinoPtr->ErrorSino_Unflip_x, SinoPtr->ErrorSino_Flip_x, SinoPtr->ErrorSino_Unflip_y, SinoPtr->ErrorSino_Flip_y, SinoPtr->DetectorResponse_x, SinoPtr->DetectorResponse_y, /*VoxelLineResponse,*/ Iter, ObjPtr->MagPotUpdateMap, &magpot_update, &magpot_sum, Mask);
 
 	magpot_update_tot += magpot_update;
 	magpot_sum_tot += magpot_sum;
@@ -524,7 +548,7 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
       if (Iter > 1 && InpPtr->no_NHICD == 0)
       {
         /*#pragma omp parallel for private(block, idx)*/
-          updateVoxels (0, InpPtr->NHICDSelectNum-1, InpPtr->x_NHICD_select, InpPtr->y_NHICD_select, InpPtr->z_NHICD_select, SinoPtr, ObjPtr, InpPtr, SinoPtr->ErrorSino_Unflip_x, SinoPtr->ErrorSino_Flip_x, SinoPtr->ErrorSino_Unflip_y, SinoPtr->ErrorSino_Flip_y, SinoPtr->DetectorResponse, Iter, ObjPtr->MagPotUpdateMap, &magpot_update, &magpot_sum, Mask);  
+          updateVoxels (0, InpPtr->NHICDSelectNum-1, InpPtr->x_NHICD_select, InpPtr->y_NHICD_select, InpPtr->z_NHICD_select, SinoPtr, ObjPtr, InpPtr, SinoPtr->ErrorSino_Unflip_x, SinoPtr->ErrorSino_Flip_x, SinoPtr->ErrorSino_Unflip_y, SinoPtr->ErrorSino_Flip_y, SinoPtr->DetectorResponse_x, SinoPtr->DetectorResponse_y, Iter, ObjPtr->MagPotUpdateMap, &magpot_update, &magpot_sum, Mask);  
       }
     }
     
@@ -592,10 +616,11 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     
 /*    ObjPtr->MagPotUpdateMap = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, InpPtr->num_z_blocks, ObjPtr->N_y, ObjPtr->N_x);
     ObjPtr->ElecPotUpdateMap = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, InpPtr->num_z_blocks, ObjPtr->N_y, ObjPtr->N_x);*/
-    SinoPtr->DetectorResponse = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinoPtr->N_p, DETECTOR_RESPONSE_BINS + 1);
+    SinoPtr->DetectorResponse_x = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinoPtr->Nx_p, DETECTOR_RESPONSE_BINS + 1);
+    SinoPtr->DetectorResponse_y = (Real_arr_t **)multialloc(sizeof(Real_arr_t), 2, SinoPtr->Ny_p, DETECTOR_RESPONSE_BINS + 1);
 
-    SinoPtr->ErrorSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
-    SinoPtr->ErrorSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->N_p, SinoPtr->N_r, SinoPtr->N_t);
+    SinoPtr->ErrorSino_Unflip_x = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Nx_p, SinoPtr->N_r, SinoPtr->N_t);
+    SinoPtr->ErrorSino_Unflip_y = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, SinoPtr->Ny_p, SinoPtr->N_r, SinoPtr->N_t);
     ObjPtr->ErrorPotMag = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
    
     Mask = (uint8_t**)multialloc(sizeof(uint8_t), 2, ObjPtr->N_y, ObjPtr->N_x);
@@ -616,10 +641,16 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     }
     
     DetectorResponseProfile (SinoPtr, ObjPtr, InpPtr);
-    dimTiff[0] = 1; dimTiff[1] = 1; dimTiff[2] = SinoPtr->N_p; dimTiff[3] = DETECTOR_RESPONSE_BINS+1;
+
+    dimTiff[0] = 1; dimTiff[1] = 1; dimTiff[2] = SinoPtr->Nx_p; dimTiff[3] = DETECTOR_RESPONSE_BINS+1;
     sprintf(detect_file, "%s_n%d", detect_file, InpPtr->node_rank);
     if (InpPtr->Write2Tiff == 1)
-    	if (WriteMultiDimArray2Tiff (detect_file, dimTiff, 0, 1, 2, 3, &(SinoPtr->DetectorResponse[0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
+    	if (WriteMultiDimArray2Tiff (detect_file, dimTiff, 0, 1, 2, 3, &(SinoPtr->DetectorResponse_x[0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
+    
+    dimTiff[0] = 1; dimTiff[1] = 1; dimTiff[2] = SinoPtr->Ny_p; dimTiff[3] = DETECTOR_RESPONSE_BINS+1;
+    sprintf(detect_file, "%s_n%d", detect_file, InpPtr->node_rank);
+    if (InpPtr->Write2Tiff == 1)
+    	if (WriteMultiDimArray2Tiff (detect_file, dimTiff, 0, 1, 2, 3, &(SinoPtr->DetectorResponse_y[0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
     start = time(NULL);
     
     if (initObject(SinoPtr, ObjPtr, InpPtr)) goto error;
@@ -727,10 +758,11 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     if (write_SharedBinFile_At (MagPotUpdateMapFile, &(ObjPtr->MagPotUpdateMap[0][0][0]), InpPtr->node_rank*size, size, InpPtr->debug_file_ptr)) goto error;
     if (write_SharedBinFile_At (ElecPotUpdateMapFile, &(ObjPtr->ElecPotUpdateMap[0][0][0]), InpPtr->node_rank*size, size, InpPtr->debug_file_ptr)) goto error;*/
     
-    dimTiff[0] = 1; dimTiff[1] = SinoPtr->N_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
     if (InpPtr->Write2Tiff == 1)
     {
+    	dimTiff[0] = 1; dimTiff[1] = SinoPtr->Nx_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
     	if (WriteMultiDimArray2Tiff (ERRORSINO_UNFLIP_X_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->ErrorSino_Unflip_x[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
+    	dimTiff[0] = 1; dimTiff[1] = SinoPtr->Ny_p; dimTiff[2] = SinoPtr->N_r; dimTiff[3] = SinoPtr->N_t;
     	if (WriteMultiDimArray2Tiff (ERRORSINO_UNFLIP_Y_FILENAME, dimTiff, 0, 1, 2, 3, &(SinoPtr->ErrorSino_Unflip_y[0][0][0]), 0, 0, 1, InpPtr->debug_file_ptr)) goto error;
     }
 
@@ -738,7 +770,8 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     multifree(SinoPtr->ErrorSino_Unflip_y, 3);
     multifree(ObjPtr->ErrorPotMag, 4);
 
-    multifree(SinoPtr->DetectorResponse, 2);
+    multifree(SinoPtr->DetectorResponse_x, 2);
+    multifree(SinoPtr->DetectorResponse_y, 2);
     multifree(Mask, 2);
 	
     for (t = 0; t < ObjPtr->N_x; t++){
@@ -767,7 +800,8 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 error:
     multifree(SinoPtr->ErrorSino_Unflip_x, 3);
     multifree(SinoPtr->ErrorSino_Flip_x, 3);
-    multifree(SinoPtr->DetectorResponse,2);
+    multifree(SinoPtr->DetectorResponse_x,2);
+    multifree(SinoPtr->DetectorResponse_y,2);
     multifree(Mask,2);
    /* multifree(ObjPtr->MagPotUpdateMap, 3);
     multifree(ObjPtr->ElecPotUpdateMap, 3);*/
