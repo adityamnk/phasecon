@@ -263,7 +263,7 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 
 /*Initializes the variables in the three major structures used throughout the code -
 Sinogram, ScannedObject, TomoInputs. It also allocates memory for several variables.*/
-int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, int32_t mult_idx, int32_t mult_xyz[], float *data_unflip_x, float *data_unflip_y, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, int32_t x_widnum, int32_t y_widnum, int32_t z_widnum, Real_t vox_wid, Real_t qggmrf_sigma, Real_t qggmrf_c, Real_t convg_thresh, Real_t admm_mu, int32_t admm_maxiters)
+int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, int32_t mult_idx, int32_t mult_xyz[], float *data_unflip_x, float *data_unflip_y, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, int32_t x_widnum, int32_t y_widnum, int32_t z_widnum, Real_t vox_wid, Real_t qggmrf_sigma, Real_t qggmrf_c, Real_t convg_thresh, Real_t admm_mu, int32_t admm_maxiters, float data_var)
 {
 	int flag = 0, i;
 
@@ -279,7 +279,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	ObjPtr->Mag_C[1] = qggmrf_c;
 	ObjPtr->Mag_C[2] = qggmrf_c;
 
-	InpPtr->Weight = 1;
+	InpPtr->Weight = data_var;
 	
 	ObjPtr->mult_xyz = mult_xyz[mult_idx];
 	SinoPtr->Length_R = vox_wid*proj_cols;
