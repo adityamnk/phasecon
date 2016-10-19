@@ -158,7 +158,7 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 			win /= pow(sqrt((Real_t)(i*i + j*j + k*k)), 3);
 
 			fftarr->fftforw_magarr[0][idx][0] = ObjPtr->delta_x*((Real_t)i)*win;
-			fftarr->fftforw_magarr[1][idx][0] = -ObjPtr->delta_y*((Real_t)j)*win;
+			fftarr->fftforw_magarr[1][idx][0] = ObjPtr->delta_y*((Real_t)j)*win;
 			fftarr->fftforw_magarr[2][idx][0] = ObjPtr->delta_z*((Real_t)k)*win;
 		
 		}
@@ -279,7 +279,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	ObjPtr->Mag_C[1] = qggmrf_c;
 	ObjPtr->Mag_C[2] = qggmrf_c;
 
-	InpPtr->Weight = data_var;
+	InpPtr->Weight = 1.0/data_var;
 	
 	ObjPtr->mult_xyz = mult_xyz[mult_idx];
 	SinoPtr->Length_R = vox_wid*proj_cols;
@@ -544,17 +544,17 @@ void freeMemory(Sinogram* SinoPtr, ScannedObject *ObjPtr, TomoInputs* InpPtr, FF
 }
 
 
-int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, Real_t vox_wid)
+int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, float vox_wid, float data_var)
 {
 	int i;
-	printf("I am here init 1\n");
 	
 	/*MPI_Comm_size(MPI_COMM_WORLD, &(InpPtr->node_num));
 	MPI_Comm_rank(MPI_COMM_WORLD, &(InpPtr->node_rank));*/
 
 	InpPtr->node_num = 1;
 	InpPtr->node_rank = 0;
-	
+
+	InpPtr->Weight = 1.0/data_var;	
 	SinoPtr->Length_R = vox_wid*proj_cols;
 	SinoPtr->Length_T = vox_wid*proj_rows;
 		
@@ -596,16 +596,13 @@ int32_t initPhantomStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInp
 	SinoPtr->OffsetR = (ObjPtr->delta_x/sqrt(2.0) + SinoPtr->delta_r/2.0)/DETECTOR_RESPONSE_BINS;
 	SinoPtr->OffsetT = ((ObjPtr->delta_z/2) + SinoPtr->delta_t/2)/DETECTOR_RESPONSE_BINS;
 
-	printf("I am here init 1.5\n");
 	InpPtr->num_threads = omp_get_max_threads();
-	printf("I am here init 2\n");
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Maximum number of openmp threads is %d\n", InpPtr->num_threads);
 	if (InpPtr->num_threads <= 1)
 		check_warn(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "The maximum number of threads is less than or equal to 1.\n");	
 	
 	SinoPtr->ViewPtr_x = (Real_arr_t*)get_spc(proj_x_num, sizeof(Real_arr_t));
 	SinoPtr->ViewPtr_y = (Real_arr_t*)get_spc(proj_y_num, sizeof(Real_arr_t));
-	printf("I am here init 3\n");
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Projection angles are - ");
 	for (i = 0; i < proj_x_num; i++)
 	{

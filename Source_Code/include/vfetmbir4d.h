@@ -33,6 +33,6 @@
 
 #ifndef VFET_MBIR4D_H_
 int vfet_reconstruct (float **magobject, float *data_unflip_x, float *data_unflip_y, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, int32_t x_widnum, int32_t y_widnum, int32_t z_widnum, float vox_wid, float qggmrf_sigma, float qggmrf_c, float convg_thresh, float admm_mu, int32_t admm_maxiters, float data_var, uint8_t restart, FILE *debug_msg_ptr);
-int vfettomo_forward_project (float **data_unflip_x, float **data_unflip_y, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_num_x, int32_t proj_num_y, float vox_wid, FILE *debug_msg_ptr);
+int vfettomo_forward_project (float **data_unflip_x, float **data_unflip_y, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_num_x, int32_t proj_num_y, float vox_wid, float data_var, FILE *debug_msg_ptr);
 #define VFET_MBIR4D_H_
 #endif

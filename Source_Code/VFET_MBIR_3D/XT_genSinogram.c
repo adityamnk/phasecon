@@ -55,6 +55,7 @@
 #include "XT_FresnelTran.h"
 #include "XT_MPIIO.h"
 #include "XT_DensityUpdate.h"
+#include "randlib.h"
 
 /*generates projection data from phantom*/
 int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* fftptr, float *data_unflip_x, float* data_unflip_y)
@@ -88,8 +89,6 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	DetectorResponseProfile (SinoPtr, ObjPtr, InpPtr);
 	ZLineResponseProfile (SinoPtr, ObjPtr, InpPtr);
 
-	printf("I am here 1\n");
-	
   	AvgNumElements = (uint8_t)((ObjPtr->delta_x/SinoPtr->delta_t) + 2);
 	AMatrixCol* VoxelLineResp_X = (AMatrixCol*)get_spc(ObjPtr->N_x, sizeof(AMatrixCol));
 	for (t = 0; t < ObjPtr->N_x; t++){
@@ -98,7 +97,6 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	}
 	storeVoxelLineResponse(VoxelLineResp_X, SinoPtr, ObjPtr->x0, ObjPtr->delta_x, ObjPtr->N_x);
   	
-	printf("I am here 2\n");
 	AvgNumElements = (uint8_t)((ObjPtr->delta_y/SinoPtr->delta_t) + 2);
 	AMatrixCol* VoxelLineResp_Y = (AMatrixCol*)get_spc(ObjPtr->N_y, sizeof(AMatrixCol));
 	for (t = 0; t < ObjPtr->N_y; t++){
@@ -132,13 +130,11 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	}
 	fclose(fp);	
 	
-	printf("I am here 3\n");
   	compute_magcrossprodtran (magobject, magpot, ObjPtr->MagFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 1);
 
 	Write2Bin (PHANTOM_MAGDENSITY_FILENAME, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3, sizeof(Real_arr_t), &(magobject[0][0][0][0]), InpPtr->debug_file_ptr);
 	Write2Bin (PHANTOM_MAGVECPOT_FILENAME, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3, sizeof(Real_arr_t), &(magpot[0][0][0][0]), InpPtr->debug_file_ptr);
 	
-	printf("I am here 4\n");
   	#pragma omp parallel for private(i,j,k,slice,idx,val,m,n,data_idx)
 	for (i=0; i<SinoPtr->Nx_p; i++){
 		AMatrixCol AMatrix;
@@ -198,7 +194,16 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		free(AMatrix.index);
 	}
 
-	printf("I am here 5\n");
+	for (i=0; i<SinoPtr->Nx_p*SinoPtr->N_r*SinoPtr->N_t; i++){
+		data_unflip_x[i] += sqrt(1.0/InpPtr->Weight)*normal();
+	/*	printf("weight = %f, const = %f, noise = %e\n", InpPtr->Weight, sqrt(1.0/InpPtr->Weight), normal());*/
+	}
+
+	
+	for (i=0; i<SinoPtr->Ny_p*SinoPtr->N_r*SinoPtr->N_t; i++){
+		data_unflip_y[i] += sqrt(1.0/InpPtr->Weight)*normal();
+	}
+
 	if (InpPtr->Write2Tiff == 1)
 	{
 		Real_arr_t* tifarray = (Real_arr_t*)get_spc(SinoPtr->Nx_p*SinoPtr->N_t*SinoPtr->N_r, sizeof(Real_arr_t));

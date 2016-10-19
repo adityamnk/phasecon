@@ -194,7 +194,7 @@ error:
 }
 
 
-int vfettomo_forward_project (float **data_unflip_x, float **data_unflip_y, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, float vox_wid, FILE *debug_msg_ptr)
+int vfettomo_forward_project (float **data_unflip_x, float **data_unflip_y, float *proj_angles_x, float *proj_angles_y, int32_t proj_rows, int32_t proj_cols, int32_t proj_x_num, int32_t proj_y_num, float vox_wid, float data_var, FILE *debug_msg_ptr)
 {
 	time_t start;	
 	int32_t flag, num_nodes, rank;
@@ -218,7 +218,7 @@ int vfettomo_forward_project (float **data_unflip_x, float **data_unflip_y, floa
 	check_error(proj_rows/num_nodes % 2 != 0 || proj_rows/num_nodes < MIN_ROWS_PER_NODE, rank==0, debug_msg_ptr, "The number of projection rows divided by the number of nodes should be an even number greater than or equal to %d.\n", MIN_ROWS_PER_NODE);
 
 	TomoInputsPtr->debug_file_ptr = debug_msg_ptr;
-	if (initPhantomStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr, proj_angles_x, proj_angles_y, proj_rows, proj_cols, proj_x_num, proj_y_num, vox_wid)) {goto error;}
+	if (initPhantomStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr, proj_angles_x, proj_angles_y, proj_rows, proj_cols, proj_x_num, proj_y_num, vox_wid, data_var)) {goto error;}
 
 #ifdef EXTRA_DEBUG_MESSAGES
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "SinogramPtr numerical variable values are N_r = %d, N_t = %d, Nx_p = %d, Ny_p = %d, total_t_slices = %d, delta_r = %f, delta_t = %f, R0 = %f, RMax = %f, T0 = %f, TMax = %f, Length_R = %f, Length_T = %f, OffsetR = %f, OffsetT = %f, z_overlap_num = %d\n", SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->Nx_p, SinogramPtr->Ny_p, SinogramPtr->total_t_slices, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->R0, SinogramPtr->RMax, SinogramPtr->T0, SinogramPtr->TMax, SinogramPtr->Length_R, SinogramPtr->Length_T, SinogramPtr->OffsetR, SinogramPtr->OffsetT, SinogramPtr->z_overlap_num);	
