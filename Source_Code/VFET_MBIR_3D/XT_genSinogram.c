@@ -66,7 +66,7 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
   	uint8_t AvgNumXElements, AvgNumYElements, AvgNumElements;
 	char phantom_file[1000];
 	int dimTiff[4];
-	Real_t val, MagPhaseMultiple, detdist_r;
+	Real_t val, MagPhaseMultiple, detdist_r, sigpwr;
 	Real_arr_t *objptr;
 
 	MagPhaseMultiple = InpPtr->MagPhaseMultiple; 
@@ -194,15 +194,22 @@ int32_t ForwardProject (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 		free(AMatrix.index);
 	}
 
+	sigpwr = 0;
 	for (i=0; i<SinoPtr->Nx_p*SinoPtr->N_r*SinoPtr->N_t; i++){
+		sigpwr += data_unflip_x[i]*data_unflip_x[i]; 
 		data_unflip_x[i] += sqrt(1.0/InpPtr->Weight)*normal();
 	/*	printf("weight = %f, const = %f, noise = %e\n", InpPtr->Weight, sqrt(1.0/InpPtr->Weight), normal());*/
 	}
 
 	
 	for (i=0; i<SinoPtr->Ny_p*SinoPtr->N_r*SinoPtr->N_t; i++){
+		sigpwr += data_unflip_y[i]*data_unflip_y[i]; 
 		data_unflip_y[i] += sqrt(1.0/InpPtr->Weight)*normal();
 	}
+
+	sigpwr /= (SinoPtr->N_r*SinoPtr->N_t*(SinoPtr->Nx_p+SinoPtr->Ny_p));
+  	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Added noise to data ........\n");
+  	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Average signal power = %e, noise variance = %e, SNR = %e\n", sigpwr, 1.0/InpPtr->Weight, sigpwr/(1.0/InpPtr->Weight));
 
 	if (InpPtr->Write2Tiff == 1)
 	{

@@ -429,7 +429,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	InpPtr->DensUpdate_MaxIter = 2;*/
 	
 	InpPtr->Head_threshold = 1;
-	InpPtr->DensUpdate_thresh = convg_thresh;
+	InpPtr->DensUpdate_thresh = convg_thresh/5;
 
 #ifdef INIT_GROUND_TRUTH_PHANTOM
 /*	ObjPtr->ElecPotGndTruth = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, PHANTOM_Z_SIZE, PHANTOM_Y_SIZE, PHANTOM_X_SIZE);*/
