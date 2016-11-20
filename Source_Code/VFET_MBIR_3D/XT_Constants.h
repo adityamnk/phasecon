@@ -83,7 +83,7 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define MAGVECPOT_FILENAME "magvecpot"
 #define ELECPOT_FILENAME "elecpot"
 
-#define PHANTOM_MAGDENSITY_FILENAME "MagDensPhantom"
+#define PHANTOM_MAGDENSITY_FILENAME "MagDensPhantom_pad"
 #define PHANTOM_ELECDENSITY_FILENAME "ElecDensPhantom"
 #define PHANTOM_MAGVECPOT_FILENAME "MagVecPotPhantom"
 #define PHANTOM_ELECPOT_FILENAME "ElecPotPhantom"
@@ -114,11 +114,13 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define M_PI_4         0.785398163397448309615660845819875721  /* pi/4 */
 #endif
 
+#define RES_INC_FACT 10
+
 #define PROFILE_RESOLUTION 1536
 #define BEAM_RESOLUTION 256
 #define DETECTOR_RESPONSE_BINS 256
 
-#define MAX_NUM_ITERATIONS 1000
+#define MAX_NUM_ITERATIONS 200
 #define OVER_RELAXATION_FACTOR 1.0
 #define ENABLE_TIFF_WRITES 1 /*To disable generating tiff images use '0'*/
 #define COST_CONVG_THRESHOLD 0.1

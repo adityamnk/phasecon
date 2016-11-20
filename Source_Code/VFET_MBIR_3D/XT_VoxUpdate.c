@@ -206,8 +206,8 @@ Real_t updateVoxels (int32_t xyz_begin, int32_t xyz_end, int32_t* x_rand_select,
 		compute_voxel_update_Atten (SinoPtr, ObjPtr, InpPtr, ErrorSino_Unflip_x, ErrorSino_Flip_x, ErrorSino_Unflip_y, ErrorSino_Flip_y, AMatrixPtr_X, AMatrixPtr_Y, MagPrior, ElecPrior, slice, j_new, k_new);
 
 		(MagUpdateMap[slice][j_new][k_new]) = sqrt(pow(ObjPtr->MagPotentials[slice][j_new][k_new][0] - VMag[0],2) + pow(ObjPtr->MagPotentials[slice][j_new][k_new][1] - VMag[1],2) + pow(ObjPtr->MagPotentials[slice][j_new][k_new][2] - VMag[2],2));
-		(*MagPotUpdate) += MagUpdateMap[slice][j_new][k_new]; 
-		(*MagPotSum) += sqrt(pow(ObjPtr->MagPotentials[slice][j_new][k_new][0],2) + pow(ObjPtr->MagPotentials[slice][j_new][k_new][1],2) + pow(ObjPtr->MagPotentials[slice][j_new][k_new][2],2)); 
+		(*MagPotUpdate) += (MagUpdateMap[slice][j_new][k_new]*MagUpdateMap[slice][j_new][k_new]); 
+		(*MagPotSum) += (pow(ObjPtr->MagPotentials[slice][j_new][k_new][0],2) + pow(ObjPtr->MagPotentials[slice][j_new][k_new][1],2) + pow(ObjPtr->MagPotentials[slice][j_new][k_new][2],2)); 
 
        	     /*}*/
        }

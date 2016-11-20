@@ -67,8 +67,8 @@ void reconstruct_magnetization (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTSt
 			ObjPtr->Magnetization[i][j][k][1] -= alpha_mag*grad_mag[i][j][k][1];			
 			ObjPtr->Magnetization[i][j][k][2] -= alpha_mag*grad_mag[i][j][k][2];			
 		
-			MagUpdate += sqrt(pow(alpha_mag*grad_mag[i][j][k][0],2)+pow(alpha_mag*grad_mag[i][j][k][1],2)+pow(alpha_mag*grad_mag[i][j][k][2],2));
-			MagSum += sqrt(pow(ObjPtr->Magnetization[i][j][k][0],2)+pow(ObjPtr->Magnetization[i][j][k][1],2)+pow(ObjPtr->Magnetization[i][j][k][2],2)); 
+			MagUpdate += (pow(alpha_mag*grad_mag[i][j][k][0],2)+pow(alpha_mag*grad_mag[i][j][k][1],2)+pow(alpha_mag*grad_mag[i][j][k][2],2));
+			MagSum += (pow(ObjPtr->Magnetization[i][j][k][0],2)+pow(ObjPtr->Magnetization[i][j][k][1],2)+pow(ObjPtr->Magnetization[i][j][k][2],2)); 
 			
 			/*MagUpdate_x += fabs(alpha_mag*grad_mag[i][j][k][2]);
 			MagUpdate_y += fabs(alpha_mag*grad_mag[i][j][k][1]);
@@ -79,7 +79,7 @@ void reconstruct_magnetization (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTSt
 			MagSum_z += fabs(ObjPtr->Magnetization[i][j][k][0]);*/
 		}
 
-		MagUpdate = MagUpdate*100/(MagSum + EPSILON_ERROR);
+		MagUpdate = sqrt(MagUpdate)*100/(sqrt(MagSum) + EPSILON_ERROR);
 		/*MagUpdate_x = MagUpdate_x*100/(MagSum_x + EPSILON_ERROR);
 		MagUpdate_y = MagUpdate_y*100/(MagSum_y + EPSILON_ERROR);
 		MagUpdate_z = MagUpdate_z*100/(MagSum_z + EPSILON_ERROR);*/

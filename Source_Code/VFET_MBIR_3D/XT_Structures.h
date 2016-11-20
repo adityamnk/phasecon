@@ -210,6 +210,8 @@ typedef struct
 
     int32_t num_threads;
     Real_t ADMM_mu;
+    Real_t ADMM_mu_incfact;
+    Real_t ADMM_thresh;
 
     int32_t Head_MaxIter; 
     int32_t DensUpdate_MaxIter;

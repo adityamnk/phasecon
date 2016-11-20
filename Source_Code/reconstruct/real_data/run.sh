@@ -6,6 +6,6 @@ module load valgrind
 export PARALLEL=1
 export OMP_NUM_THREADS=32
 
-./XT_Main --proj_rows 256 --proj_cols 256 --proj_x_num 101 --proj_y_num 101 --vox_wid 6 --qggmrf_sigma 0.00001 --qggmrf_c 0.000001 --convg_thresh 0.01 --admm_mu 100000000000 --admm_maxiters 20 --x_widnum 512 --y_widnum 512 --z_widnum 64 --data_variance 0.000146 
+./XT_Main --proj_rows 256 --proj_cols 256 --proj_x_num 101 --proj_y_num 101 --vox_wid 6 --qggmrf_sigma 0.000005 --qggmrf_c 0.000001 --convg_thresh 0.5 --admm_mu 5000000000 --admm_maxiters 100 --x_widnum 512 --y_widnum 512 --z_widnum 256 --data_variance 0.000146 
 
 checkjob -v $PBS_JOBID

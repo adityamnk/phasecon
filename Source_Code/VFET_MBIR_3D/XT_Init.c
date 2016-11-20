@@ -284,7 +284,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	ObjPtr->mult_xyz = mult_xyz[mult_idx];
 	SinoPtr->Length_R = vox_wid*proj_cols;
 	SinoPtr->Length_T = vox_wid*proj_rows;
-	InpPtr->StopThreshold = convg_thresh;
+	InpPtr->StopThreshold = convg_thresh/(ObjPtr->mult_xyz);
 	InpPtr->alpha = OVER_RELAXATION_FACTOR;
 	if (mult_idx == 0)
 		InpPtr->initICD = 0;
@@ -415,21 +415,23 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	
 	calculateSinCos (SinoPtr, InpPtr);
 	
-	InpPtr->ADMM_mu = admm_mu;	
+/*	InpPtr->ADMM_mu = admm_mu;	
+	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "The ADMM mu is %f.\n", InpPtr->ADMM_mu);*/
 
-	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "The ADMM mu is %f.\n", InpPtr->ADMM_mu);
 	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Sigma_Q is (%f,%f,%f) and Sigma_Q_P is (%f,%f,%f).\n", InpPtr->Mag_Sigma_Q[0], InpPtr->Mag_Sigma_Q[1], InpPtr->Mag_Sigma_Q[2], InpPtr->Mag_Sigma_Q_P[0], InpPtr->Mag_Sigma_Q_P[1], InpPtr->Mag_Sigma_Q_P[2]);
 		
 	InpPtr->NumIter = MAX_NUM_ITERATIONS;
 	InpPtr->Head_MaxIter = admm_maxiters;
-	InpPtr->DensUpdate_MaxIter = 100;
+	InpPtr->DensUpdate_MaxIter = MAX_NUM_ITERATIONS;
 	
 	/*InpPtr->NumIter = 2;
 	InpPtr->Head_MaxIter = 2;
 	InpPtr->DensUpdate_MaxIter = 2;*/
 	
 	InpPtr->Head_threshold = 1;
-	InpPtr->DensUpdate_thresh = convg_thresh/5;
+	InpPtr->DensUpdate_thresh = convg_thresh/(ObjPtr->mult_xyz);
+	InpPtr->ADMM_thresh = convg_thresh;
+	InpPtr->ADMM_mu_incfact = 2*ObjPtr->mult_xyz;
 
 #ifdef INIT_GROUND_TRUTH_PHANTOM
 /*	ObjPtr->ElecPotGndTruth = (Real_arr_t***)multialloc(sizeof(Real_arr_t), 3, PHANTOM_Z_SIZE, PHANTOM_Y_SIZE, PHANTOM_X_SIZE);*/

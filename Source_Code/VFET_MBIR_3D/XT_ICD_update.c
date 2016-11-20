@@ -562,7 +562,7 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     multifree(offset_denominator,2);*/
 /*    avg_update_percentage = 100*tempUpdate/vox_mag;*/
 
-    magpot_update = 100*magpot_update_tot/magpot_sum_tot;
+    magpot_update = 100*sqrt(magpot_update_tot/magpot_sum_tot);
     check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Percentage average magnitude of voxel updates of (Magnetic) potential is (%e).\n", magpot_update);
    
     if (magpot_update < InpPtr->StopThreshold)
@@ -581,7 +581,8 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     Real_t cost, cost_0_iter, cost_last_iter, percentage_change_in_cost = 0, orig_cost_last = 0, orig_cost = 0;
     char costfile[100] = COST_FILENAME, origcostfile[100] = ORIG_COST_FILENAME;
     #endif
-    Real_t x, y, DualMag[3], DualElec, mag_primal_res = 0, elec_primal_res = 0;
+    Real_t x, y, DualMag[3], DualElec, mag_primal_res = 0, elec_primal_res = 0, mag_dual_res = 0, z_change = 0, z_abs = 0;
+    Real_arr_t ****MagPotTemp; /*Used to compute dual residual*/
     int32_t t, i, j, flag = 0, Iter, k, HeadIter;
     int dimTiff[4];
     time_t start;
@@ -590,6 +591,7 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     char ElecPotUpdateMapFile[100] = ELECPOT_UPDATE_MAP_FILENAME;*/
     uint8_t **Mask;
 
+    MagPotTemp = (Real_arr_t****)multialloc(sizeof(Real_arr_t), 4, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, 3);
     SinoPtr->ZLineResponse = (Real_arr_t *)get_spc(DETECTOR_RESPONSE_BINS + 1, sizeof(Real_arr_t));
     ZLineResponseProfile (SinoPtr, ObjPtr, InpPtr);
     
@@ -668,6 +670,15 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 
     for (HeadIter = 1; HeadIter <= InpPtr->Head_MaxIter; HeadIter++)
     {
+	    for (i = 0; i < ObjPtr->N_z; i++)
+	    for (j = 0; j < ObjPtr->N_y; j++)
+	    for (k = 0; k < ObjPtr->N_x; k++)
+	    {
+		MagPotTemp[i][j][k][0] = ObjPtr->MagPotentials[i][j][k][0];
+		MagPotTemp[i][j][k][1] = ObjPtr->MagPotentials[i][j][k][1];
+		MagPotTemp[i][j][k][2] = ObjPtr->MagPotentials[i][j][k][2];
+	    }
+
 	    reconstruct_magnetization(ObjPtr, InpPtr, fftptr);
 
 #ifndef NO_COST_CALCULATE
@@ -712,7 +723,28 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
       			check_warn(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "Cannot flush buffer.\n");
     	}
 
+	z_change = 0; z_abs = 0;
+	for (i = 0; i < ObjPtr->N_z; i++)
+	for (j = 0; j < ObjPtr->N_y; j++)
+	for (k = 0; k < ObjPtr->N_x; k++)
+	{
+		MagPotTemp[i][j][k][0] = ObjPtr->MagPotentials[i][j][k][0] - MagPotTemp[i][j][k][0];
+		MagPotTemp[i][j][k][1] = ObjPtr->MagPotentials[i][j][k][1] - MagPotTemp[i][j][k][1];
+		MagPotTemp[i][j][k][2] = ObjPtr->MagPotentials[i][j][k][2] - MagPotTemp[i][j][k][2];
+		z_change += MagPotTemp[i][j][k][0]*MagPotTemp[i][j][k][0];
+		z_change += MagPotTemp[i][j][k][1]*MagPotTemp[i][j][k][1];
+		z_change += MagPotTemp[i][j][k][2]*MagPotTemp[i][j][k][2];
+		z_abs += ObjPtr->MagPotentials[i][j][k][0]*ObjPtr->MagPotentials[i][j][k][0];
+		z_abs += ObjPtr->MagPotentials[i][j][k][1]*ObjPtr->MagPotentials[i][j][k][1];
+		z_abs += ObjPtr->MagPotentials[i][j][k][2]*ObjPtr->MagPotentials[i][j][k][2];
+	}
+	z_change = sqrt(z_change)/(ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);	
+	z_abs = sqrt(z_abs)/(ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);	
+
+	/*compute_magcrossprodtran (MagPotTemp, MagPotTemp, ObjPtr->MagFilt, fftptr, ObjPtr->N_z, ObjPtr->N_y, ObjPtr->N_x, -1.0);*/
+
 	mag_primal_res = 0; elec_primal_res = 0;
+	mag_dual_res = 0;
 	for (i = 0; i < ObjPtr->N_z; i++)
 	for (j = 0; j < ObjPtr->N_y; j++)
 	for (k = 0; k < ObjPtr->N_x; k++)
@@ -729,17 +761,25 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 		ObjPtr->ErrorPotMag[i][j][k][1] -= (ObjPtr->MagPotDual[i][j][k][1] - DualMag[1]);	
 		ObjPtr->ErrorPotMag[i][j][k][2] -= (ObjPtr->MagPotDual[i][j][k][2] - DualMag[2]);
 
-		mag_primal_res += fabs(ObjPtr->ErrorPotMag[i][j][k][0] + ObjPtr->MagPotDual[i][j][k][0]);  
-		mag_primal_res += fabs(ObjPtr->ErrorPotMag[i][j][k][1] + ObjPtr->MagPotDual[i][j][k][1]);  
-		mag_primal_res += fabs(ObjPtr->ErrorPotMag[i][j][k][2] + ObjPtr->MagPotDual[i][j][k][2]);  
-	
+		mag_primal_res += (ObjPtr->ErrorPotMag[i][j][k][0] + ObjPtr->MagPotDual[i][j][k][0])*(ObjPtr->ErrorPotMag[i][j][k][0] + ObjPtr->MagPotDual[i][j][k][0]);  
+		mag_primal_res += (ObjPtr->ErrorPotMag[i][j][k][1] + ObjPtr->MagPotDual[i][j][k][1])*(ObjPtr->ErrorPotMag[i][j][k][1] + ObjPtr->MagPotDual[i][j][k][1]);  
+		mag_primal_res += (ObjPtr->ErrorPotMag[i][j][k][2] + ObjPtr->MagPotDual[i][j][k][2])*(ObjPtr->ErrorPotMag[i][j][k][2] + ObjPtr->MagPotDual[i][j][k][2]); 
+		mag_dual_res += MagPotTemp[i][j][k][0]*MagPotTemp[i][j][k][0]; 
+		mag_dual_res += MagPotTemp[i][j][k][1]*MagPotTemp[i][j][k][1]; 
+		mag_dual_res += MagPotTemp[i][j][k][2]*MagPotTemp[i][j][k][2]; 
 	}
 
         orig_cost = compute_orig_cost(SinoPtr, ObjPtr, InpPtr, fftptr);
         check_info(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "HeadIter = %d: The original cost value is %f. The decrease in original cost is %f.\n", HeadIter, orig_cost, orig_cost_last - orig_cost);
 	
-	mag_primal_res /= (ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
-        check_info(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "Mag average primal residual is %e.\n", mag_primal_res);
+	mag_primal_res = sqrt(mag_primal_res)/(ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
+	/*mag_dual_res = InpPtr->ADMM_mu*sqrt(mag_dual_res)/(ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);*/
+	mag_dual_res = sqrt(mag_dual_res)/(ObjPtr->N_z*ObjPtr->N_y*ObjPtr->N_x);
+
+        check_info(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "HeadIter = %d: Mag average primal residual is %e and dual residual is %e.\n", HeadIter, mag_primal_res, mag_dual_res);
+        check_info(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "HeadIter = %d: Average change in z = %e. Average value of z = %e\n", HeadIter, z_change, z_abs);
+	z_change = z_change/z_abs*100;
+        check_info(InpPtr->node_rank == 0, InpPtr->debug_file_ptr, "HeadIter = %d: Percentage change in z is %e.\n", HeadIter, z_change);
 	
     	if (InpPtr->node_rank == 0)
 	   Append2Bin (origcostfile, 1, 1, 1, 1, sizeof(Real_t), &orig_cost, InpPtr->debug_file_ptr);
@@ -752,7 +792,51 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
 
 	/*if (avg_head_update < InpPtr->Head_threshold && HeadIter > 1)
 		break;*/
+	if (mag_primal_res > RES_INC_FACT*mag_dual_res)
+	{
+		InpPtr->ADMM_mu = InpPtr->ADMM_mu*InpPtr->ADMM_mu_incfact;
+      		check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "HeadIter = %d: Updated ADMM parameter is %e. ADMM parameter increased by %e.\n", HeadIter, InpPtr->ADMM_mu, (Real_t)InpPtr->ADMM_mu_incfact);
+	}
+	else if (mag_dual_res > RES_INC_FACT*mag_primal_res)
+	{
+		InpPtr->ADMM_mu = InpPtr->ADMM_mu/InpPtr->ADMM_mu_incfact;
+      		check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "HeadIter = %d: Updated ADMM parameter is %e. ADMM parameter decreased by %e.\n", HeadIter, InpPtr->ADMM_mu, (Real_t)InpPtr->ADMM_mu_incfact);
+	}
+	
+	if (mag_primal_res > RES_INC_FACT*mag_dual_res || mag_dual_res > RES_INC_FACT*mag_primal_res)
+	{
+		for (i = 0; i < ObjPtr->N_z; i++) for (j = 0; j < ObjPtr->N_y; j++) for (k = 0; k < ObjPtr->N_x; k++)
+		{
+			DualMag[0] = ObjPtr->MagPotDual[i][j][k][0]; 
+			DualMag[1] = ObjPtr->MagPotDual[i][j][k][1]; 
+			DualMag[2] = ObjPtr->MagPotDual[i][j][k][2];
+			if (mag_primal_res > RES_INC_FACT*mag_dual_res)
+			{
+				ObjPtr->MagPotDual[i][j][k][0] /= InpPtr->ADMM_mu_incfact; 
+				ObjPtr->MagPotDual[i][j][k][1] /= InpPtr->ADMM_mu_incfact; 
+				ObjPtr->MagPotDual[i][j][k][2] /= InpPtr->ADMM_mu_incfact;
+			}
+			else if (mag_dual_res > RES_INC_FACT*mag_primal_res)
+			{ 
+				ObjPtr->MagPotDual[i][j][k][0] *= InpPtr->ADMM_mu_incfact; 
+				ObjPtr->MagPotDual[i][j][k][1] *= InpPtr->ADMM_mu_incfact; 
+				ObjPtr->MagPotDual[i][j][k][2] *= InpPtr->ADMM_mu_incfact;
+			}
+			ObjPtr->ErrorPotMag[i][j][k][0] -= (ObjPtr->MagPotDual[i][j][k][0] - DualMag[0]);	
+			ObjPtr->ErrorPotMag[i][j][k][1] -= (ObjPtr->MagPotDual[i][j][k][1] - DualMag[1]);	
+			ObjPtr->ErrorPotMag[i][j][k][2] -= (ObjPtr->MagPotDual[i][j][k][2] - DualMag[2]);
+		}
+	}
+    	
+	check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "HeadIter = %d: Percentage primal and dual residuals are %e and %e.\n", HeadIter, mag_primal_res/z_abs*100, mag_dual_res/z_abs*100);
+    	if (mag_primal_res/z_abs*100 < InpPtr->ADMM_thresh && mag_dual_res/z_abs*100 < InpPtr->ADMM_thresh)
+    	{
+      		check_info(InpPtr->node_rank==0, InpPtr->debug_file_ptr, "HeadIter = %d: ADMM iterations have converged.", HeadIter);
+		break;
+	}
+	
     }
+
 
  /*   int32_t size = InpPtr->num_z_blocks*ObjPtr->N_y*ObjPtr->N_x;
     if (write_SharedBinFile_At (MagPotUpdateMapFile, &(ObjPtr->MagPotUpdateMap[0][0][0]), InpPtr->node_rank*size, size, InpPtr->debug_file_ptr)) goto error;
@@ -786,6 +870,7 @@ int32_t initErrorSinogam (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* 
     }
     free(ObjPtr->VoxelLineResp_Y);
     free(SinoPtr->ZLineResponse);
+    multifree(MagPotTemp, 4);
 
     /*multifree(ObjPtr->MagPotUpdateMap, 3);
     multifree(ObjPtr->ElecPotUpdateMap, 3);*/

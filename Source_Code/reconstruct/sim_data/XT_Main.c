@@ -130,14 +130,14 @@ void read_data (float **data_unflip_x, float **data_unflip_y, float **proj_angle
 	*data_unflip_y = (float*)calloc ((proj_y_num*proj_rows*proj_cols)/num_nodes, sizeof(float));
 
 	idx = 0;	
-	for (i = -(proj_x_num-1)/2; i <= (proj_x_num-1)/2; i=i+1)
+	for (i = -(proj_x_num-1); i <= (proj_x_num-1); i=i+2)
 	{
 		(*proj_angles_x)[idx] = M_PI*((float)(i))/180;
 		idx++;
 	}
 		
 	idx = 0;	
-	for (i = -(proj_y_num-1)/2; i <= (proj_y_num-1)/2; i=i+1)
+	for (i = -(proj_y_num-1); i <= (proj_y_num-1); i=i+2)
 	{
 		(*proj_angles_y)[idx] = M_PI*((float)(i))/180;
 		idx++;

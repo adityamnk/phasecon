@@ -146,9 +146,13 @@ int vfet_reconstruct (float **magobject, float *data_unflip_x, float *data_unfli
 
 	check_info(rank==0, TomoInputsPtr->debug_file_ptr, "Number of multi-resolution stages is %d.\n", multres_num);
 
+	TomoInputsPtr->ADMM_mu = admm_mu;	
+	check_info(TomoInputsPtr->node_rank==0, TomoInputsPtr->debug_file_ptr, "The ADMM mu is %f.\n", TomoInputsPtr->ADMM_mu);
+
 	for (i = last_multres; i < multres_num; i++)
 	{
 		check_info(rank==0, TomoInputsPtr->debug_file_ptr, "Running multi-resolution stage %d with x-y-z voxel scale = %d.\n", i, multres_xyz[i]);
+
 		if (initStructures (SinogramPtr, ScannedObjectPtr, TomoInputsPtr, fftptr, i, multres_xyz, data_unflip_x, data_unflip_y, proj_angles_x, proj_angles_y, proj_rows, proj_cols, proj_x_num, proj_y_num, x_widnum, y_widnum, z_widnum, vox_wid, qggmrf_sigma, qggmrf_c, convg_thresh, admm_mu, admm_maxiters, data_var)) {goto error;}
 #ifdef EXTRA_DEBUG_MESSAGES
 		check_debug(rank==0, TomoInputsPtr->debug_file_ptr, "SinogramPtr numerical variable values are N_r = %d, N_t = %d, Nx_p = %d, Ny_p = %d, total_t_slices = %d, delta_r = %f, delta_t = %f, R0 = %f, RMax = %f, T0 = %f, TMax = %f, Length_R = %f, Length_T = %f, OffsetR = %f, OffsetT = %f, z_overlap_num = %d\n", SinogramPtr->N_r, SinogramPtr->N_t, SinogramPtr->Nx_p, SinogramPtr->Ny_p, SinogramPtr->total_t_slices, SinogramPtr->delta_r, SinogramPtr->delta_t, SinogramPtr->R0, SinogramPtr->RMax, SinogramPtr->T0, SinogramPtr->TMax, SinogramPtr->Length_R, SinogramPtr->Length_T, SinogramPtr->OffsetR, SinogramPtr->OffsetT, SinogramPtr->z_overlap_num);	
