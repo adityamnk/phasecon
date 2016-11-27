@@ -158,7 +158,7 @@ void initCrossProdFilter (ScannedObject* ObjPtr, TomoInputs* InpPtr, FFTStruct* 
 			win /= pow(sqrt((Real_t)(i*i + j*j + k*k)), 3);
 
 			fftarr->fftforw_magarr[0][idx][0] = ObjPtr->delta_x*((Real_t)i)*win;
-			fftarr->fftforw_magarr[1][idx][0] = ObjPtr->delta_y*((Real_t)j)*win;
+			fftarr->fftforw_magarr[1][idx][0] = -ObjPtr->delta_y*((Real_t)j)*win;
 			fftarr->fftforw_magarr[2][idx][0] = ObjPtr->delta_z*((Real_t)k)*win;
 		
 		}
@@ -284,7 +284,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	ObjPtr->mult_xyz = mult_xyz[mult_idx];
 	SinoPtr->Length_R = vox_wid*proj_cols;
 	SinoPtr->Length_T = vox_wid*proj_rows;
-	InpPtr->StopThreshold = convg_thresh/(ObjPtr->mult_xyz);
+	InpPtr->StopThreshold = convg_thresh;
 	InpPtr->alpha = OVER_RELAXATION_FACTOR;
 	if (mult_idx == 0)
 		InpPtr->initICD = 0;
@@ -429,7 +429,7 @@ int32_t initStructures (Sinogram* SinoPtr, ScannedObject* ObjPtr, TomoInputs* In
 	InpPtr->DensUpdate_MaxIter = 2;*/
 	
 	InpPtr->Head_threshold = 1;
-	InpPtr->DensUpdate_thresh = convg_thresh/(ObjPtr->mult_xyz);
+	InpPtr->DensUpdate_thresh = convg_thresh/2;
 	InpPtr->ADMM_thresh = convg_thresh;
 	InpPtr->ADMM_mu_incfact = 2*ObjPtr->mult_xyz;
 

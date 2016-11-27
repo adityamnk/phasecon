@@ -83,9 +83,9 @@ typedef double Real_arr_t; /*Don't change to 'double' without first changing the
 #define MAGVECPOT_FILENAME "magvecpot"
 #define ELECPOT_FILENAME "elecpot"
 
-#define PHANTOM_MAGDENSITY_FILENAME "MagDensPhantom_pad"
+#define PHANTOM_MAGDENSITY_FILENAME "MagDensPhantom_zconst"
 #define PHANTOM_ELECDENSITY_FILENAME "ElecDensPhantom"
-#define PHANTOM_MAGVECPOT_FILENAME "MagVecPotPhantom"
+#define PHANTOM_MAGVECPOT_FILENAME "MagVecPotPhantom_zconst"
 #define PHANTOM_ELECPOT_FILENAME "ElecPotPhantom"
 
 #define INIT_MAGOBJECT_FILENAME "init_mag_object"
